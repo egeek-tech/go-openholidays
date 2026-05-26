@@ -28,6 +28,7 @@ A single, well-tested Go client that returns both **public holidays AND school h
 - [ ] Strict-decoding mode via `WithStrictDecoding(bool)`.
 - [ ] Observability hook via `WithRequestHook(func(*http.Request, *http.Response, error))`.
 - [ ] Goroutine-safe: `Client` can be shared across goroutines; `-race`-clean.
+- [ ] `Client.Close() error` stops the cache eviction sweeper goroutine and releases resources. Documented as idempotent and safe to call from any goroutine. (Added after PITFALLS research flagged the janitor goroutine leak.)
 - [ ] Test coverage ≥ 85 % with unit tests (httptest), table-driven cases, golden JSON fixtures.
 - [ ] Integration tests behind `//go:build integration` and `OPENHOLIDAYS_LIVE=1` env gate; nightly CI.
 - [ ] Fuzz tests for JSON parsers.
@@ -66,7 +67,7 @@ A single, well-tested Go client that returns both **public holidays AND school h
 
 ## Constraints
 
-- **Tech stack**: Go ≥ 1.22 minimum. CI matrix tests 1.22, 1.23, and `stable`. — Ensures Go 1.23 `iter.Seq` features remain feasible while keeping a one-version backwards window.
+- **Tech stack**: Go ≥ 1.23 minimum (raised from 1.22 after research surfaced that `iter.Seq` is a Go 1.23 feature). CI matrix tests 1.23, 1.24, and `stable`. — `iter.Seq` is core to the helper API; aligning the floor avoids build tags or a separate compat shim.
 - **Dependency policy**: zero runtime dependencies (no `require` entries beyond stdlib). Test-only deps must be vetted; `github.com/google/go-cmp` is pre-approved. — Reduces supply-chain attack surface and keeps `go get` fast for consumers.
 - **License**: MIT, single root `LICENSE`; no per-file headers required. — Standard for Go OSS libraries.
 - **Style**: `gofmt`-clean; `.golangci.yml` shipped in repo; lints required: `govet`, `errcheck`, `staticcheck`, `gosec`, `revive`, `gocritic`. — Enforces code quality without bikeshedding.
@@ -110,4 +111,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-26 after initialization*
+*Last updated: 2026-05-27 after research synthesis (Go 1.23 floor, Client.Close added)*
