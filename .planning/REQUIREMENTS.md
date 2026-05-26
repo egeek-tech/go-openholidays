@@ -175,17 +175,107 @@ Explicitly excluded; documented to prevent scope creep.
 
 ## Traceability
 
-Mapping requirements → roadmap phases. Populated after roadmap creation.
+Mapping requirements → roadmap phases. Populated by gsd-roadmapper 2026-05-27.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| _Will be populated by gsd-roadmapper_ | | |
+| CLIENT-01 | Phase 2 | Pending |
+| CLIENT-02 | Phase 2 | Pending |
+| CLIENT-03 | Phase 2 | Pending |
+| CLIENT-04 | Phase 2 | Pending |
+| CLIENT-05 | Phase 2 | Pending |
+| CLIENT-06 | Phase 2 | Pending |
+| CLIENT-07 | Phase 2 | Pending |
+| CLIENT-08 | Phase 2 | Pending |
+| CLIENT-09 | Phase 2 | Pending |
+| CLIENT-10 | Phase 1 | Pending |
+| ENDPT-01 | Phase 2 | Pending |
+| ENDPT-02 | Phase 3 | Pending |
+| ENDPT-03 | Phase 3 | Pending |
+| ENDPT-04 | Phase 3 | Pending |
+| ENDPT-05 | Phase 3 | Pending |
+| TYPES-01 | Phase 1 | Pending |
+| TYPES-02 | Phase 1 | Pending |
+| TYPES-03 | Phase 1 | Pending |
+| TYPES-04 | Phase 1 | Pending |
+| TYPES-05 | Phase 1 | Pending |
+| ERR-01 | Phase 1 | Pending |
+| ERR-02 | Phase 1 | Pending |
+| ERR-03 | Phase 1 | Pending |
+| ERR-04 | Phase 1 | Pending |
+| VALID-01 | Phase 1 | Pending |
+| VALID-02 | Phase 1 | Pending |
+| VALID-03 | Phase 1 | Pending |
+| VALID-04 | Phase 1 | Pending |
+| RESIL-01 | Phase 4 | Pending |
+| RESIL-02 | Phase 4 | Pending |
+| RESIL-03 | Phase 4 | Pending |
+| RESIL-04 | Phase 4 | Pending |
+| RESIL-05 | Phase 4 | Pending |
+| RESIL-06 | Phase 4 | Pending |
+| RESIL-07 | Phase 4 | Pending |
+| RESIL-08 | Phase 4 | Pending |
+| RESIL-09 | Phase 4 | Pending |
+| TRANS-01 | Phase 2 | Pending |
+| TRANS-02 | Phase 2 | Pending |
+| TRANS-03 | Phase 2 | Pending |
+| TRANS-04 | Phase 2 | Pending |
+| TRANS-05 | Phase 4 | Pending |
+| HELP-01 | Phase 3 | Pending |
+| HELP-02 | Phase 3 | Pending |
+| HELP-03 | Phase 3 | Pending |
+| HELP-04 | Phase 3 | Pending |
+| OBS-01 | Phase 2 | Pending |
+| OBS-02 | Phase 2 | Pending |
+| OBS-03 | Phase 4 | Pending |
+| CLI-01 | Phase 5 | Pending |
+| CLI-02 | Phase 5 | Pending |
+| CLI-03 | Phase 5 | Pending |
+| CLI-04 | Phase 5 | Pending |
+| TEST-01 | Phase 3 | Pending |
+| TEST-02 | Phase 3 | Pending |
+| TEST-03 | Phase 3 | Pending |
+| TEST-04 | Phase 2 | Pending |
+| TEST-05 | Phase 4 | Pending |
+| TEST-06 | Phase 4 | Pending |
+| TEST-07 | Phase 5 | Pending |
+| TEST-08 | Phase 5 | Pending |
+| TEST-09 | Phase 5 | Pending |
+| TEST-10 | Phase 5 | Pending |
+| TEST-11 | Phase 5 | Pending |
+| CI-01 | Phase 5 | Pending |
+| CI-02 | Phase 5 | Pending |
+| CI-03 | Phase 5 | Pending |
+| CI-04 | Phase 5 | Pending |
+| CI-05 | Phase 5 | Pending |
+| CI-06 | Phase 5 | Pending |
+| CI-07 | Phase 5 | Pending |
+| DOC-01 | Phase 5 | Pending |
+| DOC-02 | Phase 5 | Pending |
+| DOC-03 | Phase 5 | Pending |
+| DOC-04 | Phase 5 | Pending |
+| DOC-05 | Phase 5 | Pending |
+| DOC-06 | Phase 5 | Pending |
+| DOC-07 | Phase 5 | Pending |
+| REL-01 | Phase 5 | Pending |
+| REL-02 | Phase 5 | Pending |
+| REL-03 | Phase 5 | Pending |
+| REL-04 | Phase 5 | Pending |
 
 **Coverage:**
-- v1 requirements: 65 total
-- Mapped to phases: 0 (pending roadmap)
-- Unmapped: 65 ⚠️ (will be 0 after roadmap commits)
+- v1 requirements: 82 total across 14 categories
+- Mapped to phases: 82 (100%)
+- Unmapped: 0
+
+**Per-phase counts:**
+- Phase 1 (Foundation): 14 requirements (TYPES × 5, ERR × 4, VALID × 4, CLIENT-10)
+- Phase 2 (Transport): 17 requirements (CLIENT-01..09, ENDPT-01, TRANS-01..04, OBS-01, OBS-02, TEST-04)
+- Phase 3 (Endpoints & Helpers): 11 requirements (ENDPT-02..05, HELP × 4, TEST-01..03)
+- Phase 4 (Resilience): 13 requirements (RESIL × 9, TRANS-05, OBS-03, TEST-05, TEST-06)
+- Phase 5 (Distribution): 27 requirements (CLI × 4, TEST-07..11, CI × 7, DOC × 7, REL × 4)
+- Total: 14 + 17 + 11 + 13 + 27 = 82 ✓
 
 ---
+
 *Requirements defined: 2026-05-27*
-*Last updated: 2026-05-27 after initial definition*
+*Last updated: 2026-05-27 — traceability populated by gsd-roadmapper*
