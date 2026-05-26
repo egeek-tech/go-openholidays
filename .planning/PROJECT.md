@@ -68,7 +68,7 @@ A single, well-tested Go client that returns both **public holidays AND school h
 ## Constraints
 
 - **Tech stack**: Go ≥ 1.23 minimum (raised from 1.22 after research surfaced that `iter.Seq` is a Go 1.23 feature). CI matrix tests 1.23, 1.24, and `stable`. — `iter.Seq` is core to the helper API; aligning the floor avoids build tags or a separate compat shim.
-- **Dependency policy**: zero runtime dependencies (no `require` entries beyond stdlib). Test-only deps must be vetted; `github.com/google/go-cmp` is pre-approved. — Reduces supply-chain attack surface and keeps `go get` fast for consumers.
+- **Dependency policy**: zero runtime dependencies — no non-stdlib import in any `.go` file outside `*_test.go`. Test-only deps must be vetted and may only appear in `*_test.go` imports; pre-approved set: `github.com/stretchr/testify` (assert + require — primary assertion library per Gold Rule 3), `github.com/google/go-cmp` (deep-equal diffs when testify output is insufficient). Any additional test-only dep requires a `Key Decisions` entry. — Reduces supply-chain attack surface and keeps `go get` fast for consumers.
 - **License**: MIT, single root `LICENSE`; no per-file headers required. — Standard for Go OSS libraries.
 - **Style**: `gofmt`-clean; `.golangci.yml` shipped in repo; lints required: `govet`, `errcheck`, `staticcheck`, `gosec`, `revive`, `gocritic`. — Enforces code quality without bikeshedding.
 - **Public surface area**: minimize. Every exported symbol must have a doc comment. Internal helpers live under `internal/`. — Stable v1.0 API later requires a disciplined v0.x surface now.
@@ -92,6 +92,9 @@ A single, well-tested Go client that returns both **public holidays AND school h
 | Research, Plan Check, and Verifier agents all enabled | OSS quality bar warrants the extra tokens; surfaces gotchas before they ship | — Pending |
 | MIT license, public visibility | Standard Go OSS conventions; maximizes adoption | — Pending |
 | Module path owner deferred to discuss-phase | User has not confirmed GitHub org/user — will be resolved before tagging `v0.1.0` | — Pending |
+| Gold Rule 1 — English-only across all code/comments/docs/tests/commits | Library targets global OSS audience and `pkg.go.dev`; mixed-language sources block contributors and reviewers | — Pending |
+| Gold Rule 2 — Verify or ask; never guess | Confidently-stated guesses produce silent bugs and erode trust; one tool call to verify costs less than a debug cycle | — Pending |
+| Gold Rule 3 — `testify` (assert + require) is the test framework; one `TestXxx` per production function; every case wrapped in `t.Run` | Matches Go 2025/2026 community norm, makes `go test -run` deterministic, gives per-case CI rows, aligns IDE "go to test" navigation | — Pending |
 
 ## Evolution
 
@@ -111,4 +114,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-27 after research synthesis (Go 1.23 floor, Client.Close added)*
+*Last updated: 2026-05-27 after adding Gold Project Rules (English-only, verify-don't-guess, testify+t.Run) and approving testify as test-only dep.*

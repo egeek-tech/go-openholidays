@@ -10,7 +10,7 @@
 ### Constraints
 
 - **Tech stack**: Go ≥ 1.23 minimum (raised from 1.22 after research surfaced that `iter.Seq` is a Go 1.23 feature). CI matrix tests 1.23, 1.24, and `stable`. — `iter.Seq` is core to the helper API; aligning the floor avoids build tags or a separate compat shim.
-- **Dependency policy**: zero runtime dependencies (no `require` entries beyond stdlib). Test-only deps must be vetted; `github.com/google/go-cmp` is pre-approved. — Reduces supply-chain attack surface and keeps `go get` fast for consumers.
+- **Dependency policy**: zero runtime dependencies — no non-stdlib import in any `.go` file outside `*_test.go`. Test-only deps must be vetted and may only appear in `*_test.go` imports; pre-approved set: `github.com/stretchr/testify` (assert + require — primary assertion library per Gold Rule 3), `github.com/google/go-cmp` (deep-equal diffs when testify output is insufficient). Any additional test-only dep requires a `Key Decisions` entry. — Reduces supply-chain attack surface and keeps `go get` fast for consumers.
 - **License**: MIT, single root `LICENSE`; no per-file headers required. — Standard for Go OSS libraries.
 - **Style**: `gofmt`-clean; `.golangci.yml` shipped in repo; lints required: `govet`, `errcheck`, `staticcheck`, `gosec`, `revive`, `gocritic`. — Enforces code quality without bikeshedding.
 - **Public surface area**: minimize. Every exported symbol must have a doc comment. Internal helpers live under `internal/`. — Stable v1.0 API later requires a disciplined v0.x surface now.
@@ -185,7 +185,22 @@
 <!-- GSD:conventions-start source:CONVENTIONS.md -->
 ## Conventions
 
-Conventions not yet established. Will populate as patterns emerge during development.
+## Gold Project Rules
+### Rule 1 — Everything in English
+### Rule 2 — Never guess; verify or ask
+- Verify it (read the source file, run the command, hit the endpoint, check the upstream OpenAPI spec).
+- Or stop and ask the user.
+- API claims ("the endpoint returns X") — verify by reading the OpenAPI spec or hitting the live endpoint.
+- Code claims ("function Y returns Z") — read the source.
+- Test claims ("this assertion passes") — run the test.
+- Behavior claims ("the retry honors `Retry-After`") — exercise it under a fake transport.
+### Rule 3 — Test conventions (testify + one-test-per-prod-function + t.Run)
+- `testify` is the de-facto Go test framework in 2025/2026; raw `if got != want { t.Fatalf(...) }` is allowed but tedious for SDKs with rich result types.
+- One-test-per-prod-function makes `go test -run TestXxx` predictable and matches IDE "go to test" navigation.
+- `t.Run` per case lets CI report each case as a separate row, enables `-run` filtering, and gates failures per-case under `-failfast`.
+- `github.com/stretchr/testify` (assert + require) — primary assertion library.
+- `github.com/google/go-cmp` — deep-equal diffs when testify's output is insufficient (rare).
+## Conventions evolve
 <!-- GSD:conventions-end -->
 
 <!-- GSD:architecture-start source:ARCHITECTURE.md -->
@@ -221,3 +236,26 @@ Do not make direct repo edits outside a GSD workflow unless the user explicitly 
 > Profile not yet configured. Run `/gsd-profile-user` to generate your developer profile.
 > This section is managed by `generate-claude-profile` -- do not edit manually.
 <!-- GSD:profile-end -->
+
+<!-- Manual section — NOT managed by gsd-sdk. Safe to edit; survives `gsd-sdk query generate-claude-md` regenerations. -->
+
+## Project Rules (Gold)
+
+Non-negotiable rules. Take precedence over agent recommendations, research conclusions, and generated plans. Full text and rationale: `.planning/codebase/CONVENTIONS.md`.
+
+### Rule 1 — Everything in English
+
+All code, code comments, package docs, godoc strings, test names, commit messages, CHANGELOG entries, README, design docs, and ADRs are written in English. No Polish, no mixed-language identifiers, no non-ASCII identifiers. Exception: `testdata/` fixtures may contain non-English strings only when they reflect real upstream API responses (e.g. `"Wigilia Bożego Narodzenia"` from OpenHolidays).
+
+### Rule 2 — Never guess; verify or ask
+
+If you do not know something with confidence, do not write it as if you do. Either verify it (read the source file, run the command, hit the endpoint, check the upstream OpenAPI spec) or stop and ask the user. Words like *"I think"*, *"probably"*, *"should be"*, *"most likely"* in a draft response signal stop-and-verify before sending. If verification would take longer than asking, ask first.
+
+### Rule 3 — Test conventions (testify + one-per-prod-function + t.Run)
+
+- Use `github.com/stretchr/testify/assert` and `github.com/stretchr/testify/require` as the assertion libraries. Both are test-only — they may only appear in `*_test.go` imports.
+- Exactly one `TestXxx` function per exported production function. If `holidays.go` exports `func (c *Client) PublicHolidays(...)`, the test file has exactly one `func TestClient_PublicHolidays(t *testing.T)`.
+- Every test case lives inside a `t.Run(name, func(t *testing.T) { ... })`. No top-level assertions in the outer `TestXxx` body. Table-driven by default when ≥ 2 cases share setup.
+- `require` for preconditions (aborts the case), `assert` for verifications (reports without aborting).
+
+Approved test-only dependencies: `github.com/stretchr/testify` (primary), `github.com/google/go-cmp` (deep-equal diffs when testify is insufficient). Any further test-only dep requires explicit user approval and a `Key Decisions` entry in PROJECT.md.
