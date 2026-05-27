@@ -60,14 +60,20 @@ func validateLanguage(code string) (string, error) {
 //   - from <= to (else ErrInvalidDateRange, D-22 / VALID-02).
 //   - to is within 3 calendar years inclusive of from (else
 //     ErrDateRangeTooLarge, D-22 / VALID-03). "Within 3 calendar years
-//     inclusive" means to is no later than from advanced by 3 years;
-//     equivalently, to lies strictly before from advanced by 3 years and
-//     1 day. The implementation uses Date.AddDate(3, 0, 1) (promoted from
-//     the embedded time.Time), which is calendar-aware and handles
-//     leap-year boundaries correctly (for example, 2024-02-29 advanced by
-//     3 years and 1 day yields 2027-03-01). Naive duration arithmetic
-//     would slip by a day. See Pitfall TZ-2 for the DST/leap-year
-//     rationale.
+//     inclusive" anchors the window at to: from must lie no earlier than
+//     to.AddDate(-3, 0, 0). Equivalently, from is rejected when it is
+//     strictly before to advanced backward by 3 calendar years.
+//
+// Why backward-from-to rather than forward-from-from: Go's time.AddDate
+// normalizes overflow toward later dates. Advancing 2024-02-29 forward by
+// 3 years lands on 2027-03-01 (since 2027 is not a leap year), which makes
+// the forward-anchored "from + 3 years + 1 day" formulation produce an
+// off-by-one for any leap-day from. Anchoring the window at to and
+// stepping backward by 3 calendar years avoids that asymmetry: 2027-02-28
+// stepped back by 3 years lands on 2024-02-28 (no overflow), so a from of
+// 2024-02-29 is acceptable; 2027-03-01 stepped back lands on 2024-03-01,
+// which rejects from=2024-02-29 — the documented Pitfall 3 leap-year
+// boundary. See ROADMAP success criterion #4 for the locked test cases.
 //
 // Equal dates (from == to) are accepted: a single-day window is a valid query.
 //
@@ -77,12 +83,13 @@ func validateDateRange(from, to Date) error {
 	if from.After(to) {
 		return fmt.Errorf("%w: from=%s to=%s", ErrInvalidDateRange, from, to)
 	}
-	// "Within 3 calendar years inclusive" means to <= from + 3 years.
-	// Equivalent: to is strictly before (from + 3 years + 1 day). The
-	// AddDate(3, 0, 1) call uses calendar arithmetic (not duration math)
-	// so leap-year boundaries are handled correctly.
-	limit := Date{from.AddDate(3, 0, 1)}
-	if !to.Before(limit) {
+	// Anchor the 3-calendar-year window at to and step backward, then check
+	// whether from precedes that lower bound. Calendar arithmetic via
+	// AddDate (D-22, Pitfall 3, TZ-2 mitigation) handles leap-year
+	// boundaries correctly without the forward-overflow asymmetry that
+	// from.AddDate(3, 0, 1) exhibits for leap-day from values.
+	lowerBound := Date{to.AddDate(-3, 0, 0)}
+	if from.Before(lowerBound) {
 		return fmt.Errorf("%w: from=%s to=%s spans more than 3 years", ErrDateRangeTooLarge, from, to)
 	}
 	return nil
