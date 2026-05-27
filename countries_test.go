@@ -261,5 +261,41 @@ func TestClient_Countries(t *testing.T) {
 			"goroutine leak suspected: baseline=%d after=%d (drain failed?)",
 			baseGoroutines, afterGoroutines)
 	})
+
+	t.Run("CR-01 regression: trailing whitespace in separate chunk is NOT oversize", func(t *testing.T) {
+		t.Parallel()
+		// Reviewer-reproduced false positive: a small (~5 KiB) JSON body
+		// followed by trailing whitespace flushed in a separate HTTP chunk
+		// previously triggered ErrResponseTooLarge because the post-Decode
+		// sentinel-byte read on resp.Body returned n>0 for the leftover
+		// newline that the decoder didn't pre-buffer across the chunk
+		// boundary. The fix replaces the sentinel-byte read with
+		// decoder.More(), which correctly ignores RFC 8259 whitespace.
+		entry := `{"isoCode":"PL","name":[{"language":"EN","text":"Poland"}],"officialLanguages":["PL"]}`
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			flusher, _ := w.(http.Flusher)
+			_, _ = w.Write([]byte("[" + entry + "]"))
+			if flusher != nil {
+				flusher.Flush()
+			}
+			// Trailing whitespace in a SEPARATE chunk — this is what
+			// triggered the CR-01 false positive pre-fix.
+			_, _ = w.Write([]byte("\n\n\n"))
+			if flusher != nil {
+				flusher.Flush()
+			}
+		}))
+		t.Cleanup(srv.Close)
+
+		c := NewClient(WithBaseURL(srv.URL))
+		countries, err := c.Countries(context.Background())
+		require.NoError(t, err, "trailing whitespace in a separate chunk must NOT be reported as ErrResponseTooLarge (CR-01)")
+		assert.False(t, errors.Is(err, ErrResponseTooLarge),
+			"CR-01 regression: small body + trailing whitespace must not match ErrResponseTooLarge")
+		require.Len(t, countries, 1)
+		assert.Equal(t, "PL", countries[0].IsoCode)
+	})
 }
 

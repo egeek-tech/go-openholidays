@@ -104,30 +104,35 @@ func (c *Client) Countries(ctx context.Context) ([]Country, error) {
 		return nil, buildAPIError(resp, "/Countries")
 	}
 	var countries []Country
-	decoder := json.NewDecoder(io.LimitReader(resp.Body, maxResponseBytes))
+	limited := &io.LimitedReader{R: resp.Body, N: maxResponseBytes}
+	decoder := json.NewDecoder(limited)
 	if decodeErr := decoder.Decode(&countries); decodeErr != nil {
 		if errors.Is(decodeErr, io.EOF) {
 			return nil, fmt.Errorf("openholidays: empty /Countries response: %w", ErrEmptyResponse)
 		}
-		// Mid-truncation gate (RESEARCH.md Pitfall 5, option 2): the
-		// LimitReader returns EOF at maxResponseBytes; Decode then surfaces
+		// Mid-truncation gate (RESEARCH.md Pitfall 5, option 2): when the
+		// LimitReader exhausts its budget (limited.N == 0), the upstream
+		// payload exceeded maxResponseBytes and Decode surfaces
 		// io.ErrUnexpectedEOF (or *json.SyntaxError) because the array's
-		// closing `]` was never reached. If the underlying body still has
-		// bytes, the truncation was caused by the size cap, not by garbage
-		// JSON — prefer ErrResponseTooLarge so caller branching works
-		// uniformly across boundary-truncation and mid-truncation cases.
-		var one [1]byte
-		if n, _ := resp.Body.Read(one[:]); n > 0 {
+		// closing `]` was never reached. Prefer ErrResponseTooLarge so caller
+		// branching works uniformly across boundary and mid-truncation cases.
+		// Testing limited.N (not resp.Body.Read) avoids the CR-01 false
+		// positive where HTTP/2 chunked framing leaves stray post-JSON bytes
+		// in resp.Body that have nothing to do with overflow.
+		if limited.N == 0 {
 			return nil, fmt.Errorf("openholidays: response exceeded %d bytes: %w", maxResponseBytes, ErrResponseTooLarge)
 		}
 		return nil, fmt.Errorf("openholidays: decode /Countries: %w", decodeErr)
 	}
-	// Boundary-truncation gate (D-24 / RESEARCH.md Pitfall 5): if the
-	// upstream sent more than maxResponseBytes and Decode happened to finish
-	// on a valid JSON boundary, a single-byte Read on resp.Body returns
-	// n > 0. Wrap via %w so errors.Is(err, ErrResponseTooLarge) holds.
-	var one [1]byte
-	if n, _ := resp.Body.Read(one[:]); n > 0 {
+	// Boundary-truncation gate (D-24 / RESEARCH.md Pitfall 5): use the
+	// decoder's own More() to ask "is another JSON value waiting?" — this
+	// correctly ignores RFC 8259 whitespace (newlines, spaces, tabs) that
+	// servers commonly emit after the closing `]`, so trailing whitespace in
+	// a separate HTTP/2 chunk no longer triggers a false ErrResponseTooLarge
+	// (CR-01). When upstream genuinely sent more than maxResponseBytes and
+	// Decode finished on a valid boundary, More() returns true (another
+	// JSON value is starting) and the sentinel fires.
+	if decoder.More() {
 		return nil, fmt.Errorf("openholidays: response exceeded %d bytes: %w", maxResponseBytes, ErrResponseTooLarge)
 	}
 	return countries, nil
