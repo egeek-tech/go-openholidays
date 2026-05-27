@@ -26,11 +26,15 @@ import (
 // callers can see exactly what they passed. Country codes are not secrets;
 // quoting them is safe per ERR-04.
 func validateCountry(code string) (string, error) {
-	canon := strings.ToUpper(code)
-	if !isTwoASCIIUppers(canon) {
+	// ASCII-shape check on ORIGINAL bytes BEFORE any case canonicalization
+	// (W-01 fix: closes the Unicode case-fold bypass where, e.g., "ıA"
+	// — U+0131 dotless-i followed by 'A' — would survive ToUpper to
+	// produce the 2-byte ASCII-uppercase string "IA" and pass the
+	// over-permissive post-fold len-2 check.)
+	if !isTwoASCIILetters(code) {
 		return "", fmt.Errorf("%w: %q", ErrInvalidCountry, code)
 	}
-	return canon, nil
+	return strings.ToUpper(code), nil
 }
 
 // validateLanguage canonicalizes a language ISO 639-1 alpha-2 code to lowercase
@@ -47,11 +51,14 @@ func validateCountry(code string) (string, error) {
 // Returns an empty string and an error wrapping ErrInvalidLanguage on
 // malformed input.
 func validateLanguage(code string) (string, error) {
-	canon := strings.ToLower(code)
-	if !isTwoASCIILowers(canon) {
+	// ASCII-shape check on ORIGINAL bytes BEFORE any case canonicalization
+	// (W-01 fix: mirror of validateCountry; rejects U+212A Kelvin sign,
+	// U+0130 Latin capital I with dot above, and similar fold-to-ASCII
+	// characters BEFORE strings.ToLower canonicalizes them.)
+	if !isTwoASCIILetters(code) {
 		return "", fmt.Errorf("%w: %q", ErrInvalidLanguage, code)
 	}
-	return canon, nil
+	return strings.ToLower(code), nil
 }
 
 // validateDateRange enforces two invariants on a [from, to] date window
@@ -95,6 +102,25 @@ func validateDateRange(from, to Date) error {
 	return nil
 }
 
+// isTwoASCIILetters reports whether s is exactly 2 bytes and each byte is
+// an ASCII letter (A-Z or a-z). Byte arithmetic (rather than unicode.IsLetter)
+// is intentional and mandatory: the W-01 fix requires that Unicode characters
+// that fold to ASCII through strings.ToUpper / strings.ToLower (e.g. U+212A
+// Kelvin sign → 'k' under ToLower) are rejected here, BEFORE canonicalization runs.
+func isTwoASCIILetters(s string) bool {
+	if len(s) != 2 {
+		return false
+	}
+	for i := 0; i < 2; i++ {
+		b := s[i]
+		if !((b >= 'A' && b <= 'Z') || (b >= 'a' && b <= 'z')) {
+			return false
+		}
+	}
+	return true
+}
+
+// Currently unreachable from validateCountry/validateLanguage after the W-01 reorder; retained as defense-in-depth and for direct testing.
 // isTwoASCIIUppers reports whether s is exactly 2 bytes and each byte is in
 // [A-Z]. Byte arithmetic (rather than unicode.IsUpper) is intentional: we want
 // ASCII-only matching. unicode.IsLetter('Ö') is true, but 'Ö' is not a valid
@@ -106,6 +132,7 @@ func isTwoASCIIUppers(s string) bool {
 	return s[0] >= 'A' && s[0] <= 'Z' && s[1] >= 'A' && s[1] <= 'Z'
 }
 
+// Currently unreachable from validateCountry/validateLanguage after the W-01 reorder; retained as defense-in-depth and for direct testing.
 // isTwoASCIILowers reports whether s is exactly 2 bytes and each byte is in
 // [a-z]. See isTwoASCIIUppers for the byte-arithmetic rationale.
 func isTwoASCIILowers(s string) bool {
