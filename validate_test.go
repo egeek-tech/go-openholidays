@@ -59,6 +59,22 @@ func TestValidateCountry(t *testing.T) {
 		{name: "non-ASCII letters", input: "ŻŻ"},
 		{name: "lowercase + non-ASCII", input: "pŻ"},
 		{name: "symbol", input: "P-"},
+		// W-01 regression cases (Phase 2 D-32). Each input is a real pre-fix bypass:
+		// strings.ToUpper folds the input to a 2-byte string of ASCII uppercase
+		// letters that the pre-fix isTwoASCIIUppers(canon) check accepted.
+		//   "ıA"  U+0131 + 'A'   → ToUpper → "IA"  (2 bytes, both [A-Z])  → BYPASS
+		//   "ſA"  U+017F + 'A'   → ToUpper → "SA"  (2 bytes, both [A-Z])  → BYPASS
+		//   "ıı"  U+0131 + U+0131 → ToUpper → "II"  (2 bytes, both [A-Z]) → BYPASS
+		//   "ſſ"  U+017F + U+017F → ToUpper → "SS"  (2 bytes, both [A-Z]) → BYPASS
+		// Post-fix (Task 1 reorder), the ASCII-shape check runs on ORIGINAL bytes
+		// (each ı / ſ is 2 bytes in UTF-8, so len("ıA") == 3, len("ıı") == 4)
+		// and rejection occurs BEFORE strings.ToUpper is called. The wrapped
+		// sentinel is ErrInvalidCountry; the %q-quoted message echoes the
+		// ORIGINAL input (ERR-04 / D-23 invariant preserved).
+		{name: "W-01 dotless-i + A folds to IA under ToUpper", input: "ıA"},
+		{name: "W-01 long-s + A folds to SA under ToUpper", input: "ſA"},
+		{name: "W-01 dotless-i x2 folds to II under ToUpper", input: "ıı"},
+		{name: "W-01 long-s x2 folds to SS under ToUpper", input: "ſſ"},
 	}
 	for _, tc := range rejectCases {
 		t.Run("reject/"+tc.name, func(t *testing.T) {
@@ -120,6 +136,24 @@ func TestValidateLanguage(t *testing.T) {
 		{name: "non-ASCII letters", input: "żż"},
 		{name: "uppercase + non-ASCII", input: "Pż"},
 		{name: "symbol", input: "p-"},
+		// W-01 regression cases (Phase 2 D-32). Each input is a real pre-fix bypass:
+		// strings.ToLower folds the input to a 2-byte string of ASCII lowercase
+		// letters that the pre-fix isTwoASCIILowers(canon) check accepted.
+		//   "KK"  U+212A + U+212A → ToLower → "kk"  (2 bytes, both [a-z]) → BYPASS
+		//   "İa"  U+0130 + 'a'   → ToLower → "ia"  (2 bytes, both [a-z]) → BYPASS
+		//   "İİ"  U+0130 + U+0130 → ToLower → "ii"  (2 bytes, both [a-z]) → BYPASS
+		//   "Ka"  U+212A + 'a'   → ToLower → "ka"  (2 bytes, both [a-z]) → BYPASS
+		// Post-fix, the ASCII-shape check on ORIGINAL bytes rejects every case
+		// BEFORE strings.ToLower runs. The wrapped sentinel is ErrInvalidLanguage.
+		// Note: U+212A Kelvin sign is written via K (UTF-8 e2 84 aa) — not as
+		// the visually similar ASCII 'K' (0x4b). The whole point of W-01 is that
+		// strings.ToLower folds U+212A → ASCII 'k'; using ASCII 'K' here would
+		// make these cases pass the post-fix isTwoASCIILetters check and miss
+		// the regression they exist to lock.
+		{name: "W-01 Kelvin sign x2 folds to kk under ToLower", input: "KK"},
+		{name: "W-01 dotted-I + a folds to ia under ToLower", input: "İa"},
+		{name: "W-01 dotted-I x2 folds to ii under ToLower", input: "İİ"},
+		{name: "W-01 Kelvin sign + a folds to ka under ToLower", input: "Ka"},
 	}
 	for _, tc := range rejectCases {
 		t.Run("reject/"+tc.name, func(t *testing.T) {
