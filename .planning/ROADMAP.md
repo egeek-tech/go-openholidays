@@ -37,8 +37,8 @@
   - [x] 01-01-PLAN.md — Module bootstrap: go.mod (github.com/egeek-tech/go-openholidays, go 1.23, testify v1.11.1), LICENSE (MIT), doc.go, version.go
   - [x] 01-02-PLAN.md — Sentinel errors + *APIError type (5 sentinels, Error(), Is() wildcard semantics, no Unwrap)
   - [x] 01-03-PLAN.md — Custom Date wrapper struct (Marshal/UnmarshalJSON, NewDate, ParseDate, comparison helpers, DaysUntil, FuzzDateUnmarshal)
-  - [ ] 01-04-PLAN.md — Domain types (Holiday, Country, Language, Subdivision, LocalizedText, SubdivisionRef, GroupRef, HolidayType×6, NameFor accessors)
-  - [ ] 01-05-PLAN.md — Validators (validateCountry, validateLanguage, validateDateRange) with leap-year boundary coverage
+  - [x] 01-04-PLAN.md — Domain types (Holiday, Country, Language, Subdivision, LocalizedText, SubdivisionRef, GroupRef, HolidayType×6, NameFor accessors)
+  - [x] 01-05-PLAN.md — Validators (validateCountry, validateLanguage, validateDateRange) with leap-year boundary coverage
   - [ ] 01-06-PLAN.md — CLIENT-10 AST audit (TestNoInitOrGlobalState) + PROJECT.md Key Decisions update (CL-01..CL-05)
 
 ### Phase 2: Transport
@@ -95,7 +95,7 @@
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation | 3/6 | In Progress|  |
+| 1. Foundation | 5/6 | In Progress|  |
 | 2. Transport | 0/0 | Not started | - |
 | 3. Endpoints & Helpers | 0/0 | Not started | - |
 | 4. Resilience | 0/0 | Not started | - |
