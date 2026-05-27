@@ -1105,27 +1105,27 @@ Phase 2 research relied on a small number of unverified-in-session claims; each 
 
 **Bottom line:** All seven assumptions are low-risk and verifiable during plan execution. None is load-bearing on a third-party dependency or a future Go release.
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Should `Countries` validate the decoded slice (`len(countries) == 0` ⇒ `ErrEmptyResponse`)?**
    - What we know: D-43 ships `ErrEmptyResponse` for 2xx + empty body; CONTEXT.md does not lock the empty-slice case explicitly.
    - What's unclear: Is `[]` (valid JSON empty array) the same as "empty response"? Phase 1 `ErrEmptyResponse` godoc says "non-empty payload was required" — could be read either way.
-   - Recommendation: Phase 2's `Countries` accepts an empty array as a valid response (returns `[]Country{}, nil`). Document explicitly. `ErrEmptyResponse` is reserved for the "literal empty body" case (no JSON at all), which would surface as `json.Decoder.Decode` returning `io.EOF`. Wrap that as `ErrEmptyResponse`. The planner should add a `errors.Is(err, io.EOF) ⇒ ErrEmptyResponse` branch on Decode failure.
+   - RESOLVED: Recommendation: Phase 2's `Countries` accepts an empty array as a valid response (returns `[]Country{}, nil`). Document explicitly. `ErrEmptyResponse` is reserved for the "literal empty body" case (no JSON at all), which would surface as `json.Decoder.Decode` returning `io.EOF`. Wrap that as `ErrEmptyResponse`. The planner should add a `errors.Is(err, io.EOF) ⇒ ErrEmptyResponse` branch on Decode failure.
 
 2. **Should `composeHTTPClient` honor `cfg.httpClient.CheckRedirect` and `cfg.httpClient.Jar`?**
    - What we know: D-37 specifies shallow-copy of `*cfg.httpClient`. A shallow copy preserves both fields verbatim.
    - What's unclear: Whether the test plan should explicitly cover "CheckRedirect on user client is preserved."
-   - Recommendation: Yes — add a one-case `t.Run` to `TestClient_WithHTTPClient` that sets a custom `CheckRedirect` and verifies it is invoked on a redirect from the httptest server. Cheap insurance.
+   - RESOLVED: Recommendation: Yes — add a one-case `t.Run` to `TestClient_WithHTTPClient` that sets a custom `CheckRedirect` and verifies it is invoked on a redirect from the httptest server. Cheap insurance.
 
 3. **Should `parseAPIMessage` log a debug record when JSON parsing fails?**
    - What we know: D-43 says "best-effort parsed ... returns empty string when unparseable."
    - What's unclear: Whether operators benefit from a `slog.Debug("api error body unparseable", "bytes", len(body))` line.
-   - Recommendation: NO for Phase 2 — keep `parseAPIMessage` pure (no I/O, no logging). The `*APIError.Body` already carries the raw bytes; operators with `Debug` enabled see the bytes via the logging transport's response-status record anyway. Avoids extra log noise.
+   - RESOLVED: Recommendation: NO for Phase 2 — keep `parseAPIMessage` pure (no I/O, no logging). The `*APIError.Body` already carries the raw bytes; operators with `Debug` enabled see the bytes via the logging transport's response-status record anyway. Avoids extra log noise.
 
 4. **`WithBaseURL` — trailing slash handling**
    - What we know: D-36 sets `defaultBaseURL = "https://openholidaysapi.org"` (no trailing slash). Endpoint method appends `"/Countries"`.
    - What's unclear: Whether `WithBaseURL("https://mirror.example.com/")` (with trailing slash) should be auto-trimmed or rejected.
-   - Recommendation: Auto-trim. The most caller-friendly behavior. Document in `WithBaseURL` godoc. Add a test case `WithBaseURL("https://example.test/")` → internal `baseURL` is `"https://example.test"`.
+   - RESOLVED: Recommendation: Auto-trim. The most caller-friendly behavior. Document in `WithBaseURL` godoc. Add a test case `WithBaseURL("https://example.test/")` → internal `baseURL` is `"https://example.test"`.
 
 ## Environment Availability
 
