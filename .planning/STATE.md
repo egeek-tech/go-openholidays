@@ -1,7 +1,21 @@
+---
+gsd_state_version: 1.0
+milestone: v0.1.0
+milestone_name: milestone
+status: planning
+last_updated: "2026-05-27T06:52:05.465Z"
+progress:
+  total_phases: 5
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
+---
+
 # Project State: go-openholidays
 
 **Initialized:** 2026-05-27
-**Last updated:** 2026-05-27
+**Last updated:** 2026-05-27 — Phase 1 context gathered via `/gsd:discuss-phase 1`
 
 ## Project Reference
 
@@ -16,7 +30,8 @@
 
 **Phase:** 1 of 5 — Foundation
 **Plan:** None yet (`/gsd:plan-phase 1` not run)
-**Status:** Ready to plan
+**Status:** Context gathered — ready to plan
+**Resume file:** `.planning/phases/01-foundation/01-CONTEXT.md`
 **Progress:**
 
 ```
@@ -54,7 +69,8 @@ Overall: 0% (0/5 phases complete)
 
 ### Open Todos
 
-- [ ] Resolve module path owner (REL-04) before Phase 5 tagging — currently deferred per PROJECT.md Key Decisions.
+- [x] ~~Resolve module path owner (REL-04) before Phase 5 tagging~~ — **resolved 2026-05-27 in Phase 1 discuss: `github.com/egeek-tech/go-openholidays`** (decision D-01 in `01-CONTEXT.md`). PROJECT.md Key Decisions entry must be added by Phase 1 executor.
+- [ ] Add PROJECT.md Key Decisions entries for Phase 1 deviations: 5th sentinel `ErrInvalidDateRange` (CL-01), case-insensitive validators (CL-02), early fuzz target (CL-03).
 - [ ] Capture golden JSON fixtures from live API during Phase 3 (Poland 2025 public + school + subdivisions + countries + languages).
 
 ### Active Blockers
@@ -67,10 +83,11 @@ None set — all five phases use standard, well-documented patterns per SUMMARY.
 
 ## Session Continuity
 
-**Last command:** `/gsd:new-project` → roadmap creation via gsd-roadmapper.
+**Last command:** `/gsd:discuss-phase 1` → CONTEXT.md captured for Foundation.
 **Next command:** `/gsd:plan-phase 1` to decompose Foundation into executable plans.
 
 **Files of record:**
+
 - `.planning/PROJECT.md` — what we're building and why
 - `.planning/REQUIREMENTS.md` — 82 v1 requirements with phase traceability
 - `.planning/ROADMAP.md` — 5-phase delivery plan with success criteria
