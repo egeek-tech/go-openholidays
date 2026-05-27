@@ -5,7 +5,7 @@
 //
 //  1. No production *.go file in the repo root declares func init().
 //  2. The only package-level var declarations across all production files
-//     are the six entries on the allowlist (the five exported sentinels
+//     are the eight entries on the allowlist (the seven exported sentinels
 //     from errors.go plus the unexported errEmptyDate from date.go).
 //
 // Test-only — appears only in *_test.go imports and never ships to consumers.
@@ -44,6 +44,13 @@ import (
 //     for the 10 MiB response cap (D-24 / CL-07). Wrapped via fmt.Errorf
 //     %w from Countries when the post-decode sentinel-byte read detects
 //     truncation.
+//   - ErrMalformedResponse — the seventh exported sentinel added in
+//     Phase 3 Plan 04 for post-decode Holiday schema-drift detection
+//     (D-65 / D-66 / CL-12). Wrapped via fmt.Errorf %w from
+//     validateHolidays in request.go when an upstream Holiday violates
+//     the StartDate/EndDate invariants. Listed AFTER ErrResponseTooLarge
+//     in chronological-addition order, not alphabetical, so the diff
+//     against prior phases stays a one-line append (Pitfall 6 protocol).
 //   - errEmptyDate — the unexported sentinel declared in date.go for
 //     UnmarshalJSON's null/empty rejection (D-06). Kept unexported so the
 //     public sentinel surface stays small.
@@ -58,6 +65,7 @@ var allowedVars = map[string]struct{}{
 	"ErrInvalidDateRange":  {},
 	"ErrEmptyResponse":     {},
 	"ErrResponseTooLarge":  {},
+	"ErrMalformedResponse": {},
 	"errEmptyDate":         {},
 }
 

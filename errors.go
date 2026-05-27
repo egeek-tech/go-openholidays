@@ -1,9 +1,10 @@
 // Package openholidays — error surface.
 //
-// This file ships the five exported sentinel error values plus the *APIError
-// leaf type. Construction of *APIError from an *http.Response lands in
-// Phase 2 alongside the first endpoint method; Phase 1 ships only the type
-// and its methods so callers can write errors.As/errors.Is reliably.
+// This file ships the seven exported sentinel error values plus the *APIError
+// leaf type. Phase 1 shipped the original five sentinels; Phase 2 added
+// ErrResponseTooLarge (CL-07); Phase 3 appends ErrMalformedResponse (CL-12,
+// D-66) for post-decode Holiday schema-drift detection by validateHolidays
+// in request.go.
 
 package openholidays
 
@@ -41,6 +42,23 @@ var (
 	// body has more bytes) cases produce this sentinel — see RESEARCH.md
 	// Pitfall 5 and Plan 02-03 deviation 1.
 	ErrResponseTooLarge = errors.New("openholidays: response too large")
+
+	// ErrMalformedResponse is returned when the upstream returns a
+	// structurally-decodable JSON response that violates the Holiday
+	// post-decode invariants checked by validateHolidays:
+	//
+	//   - Holiday.StartDate must be non-zero.
+	//   - Holiday.EndDate must be non-zero.
+	//   - Holiday.EndDate must not be strictly before Holiday.StartDate.
+	//
+	// The sentinel is wrapped via fmt.Errorf with the %w verb from
+	// validateHolidays so errors.Is(err, ErrMalformedResponse) holds through
+	// the endpoint method's caller-facing wrap. This is the seventh exported
+	// sentinel in the package (D-65, D-66, CL-12). It closes Pitfall JSON-4
+	// (time.Time zero value masquerading as a valid Date) — callers can
+	// branch on this sentinel to differentiate upstream schema drift from
+	// transport failures, *APIError 4xx/5xx responses, or oversize bodies.
+	ErrMalformedResponse = errors.New("openholidays: malformed response")
 )
 
 // APIError represents a non-2xx response from the upstream API.

@@ -143,6 +143,64 @@ func buildAPIError(resp *http.Response, path string) *APIError {
 	}
 }
 
+// validateHolidays runs the post-decode Holiday schema-drift checks
+// mandated by D-65 / CL-12 / Pitfall JSON-4. The function returns nil when
+// every Holiday in hs satisfies the invariants, or the first violation
+// wrapped via fmt.Errorf %w against ErrMalformedResponse.
+//
+// Invariants enforced (per holiday):
+//
+//   - h.StartDate.IsZero() == false. A zero Date corresponds to the
+//     time.Time zero value (Pitfall JSON-4) and would silently masquerade
+//     as a valid 0001-01-01 calendar date downstream. Reject loudly here
+//     so callers can branch with errors.Is(err, ErrMalformedResponse).
+//   - h.EndDate.IsZero() == false. Same rationale as StartDate; the
+//     upstream OpenAPI spec marks both as required so any zero EndDate
+//     is upstream schema drift.
+//   - h.EndDate.Before(h.StartDate) == false. Single-day holidays where
+//     EndDate == StartDate are accepted (the upstream emits this shape
+//     for every public holiday). A strictly-before EndDate would make
+//     Holiday.Range yield zero items and Holiday.Days return a negative
+//     count — both observable bugs for callers iterating returned
+//     holidays.
+//
+// path is the request path (e.g. "/PublicHolidays" or "/SchoolHolidays").
+// It is included in the wrapped error message so a multi-endpoint failure
+// surfaces which endpoint produced the violation. The offending Holiday's
+// ID is also echoed so a bug report against the upstream can reference the
+// stable UUID rather than the human-readable name.
+//
+// Placement (RESEARCH.md Pattern 6): validateHolidays lives next to
+// doJSONGet in request.go because it is conceptually post-decode validation
+// owned by the response pipeline, not a Holiday-type method. Putting it on
+// the Holiday method set would tempt future contributors to expose it (D-65
+// is explicit that the function stays unexported in v0.x). The pointer
+// iteration `h := &hs[i]` avoids per-iteration struct copies of the
+// ~10-field Holiday value (rangeValCopy linter recommendation); the
+// function does NOT mutate *h.
+//
+// TZ-2 / Pitfall JSON-4 are the two pitfalls this guard closes — both Dates
+// are UTC-midnight by virtue of Date.UnmarshalJSON normalization, so the
+// IsZero / Before checks are calendar-correct without further conversion.
+func validateHolidays(hs []Holiday, path string) error {
+	for i := range hs {
+		h := &hs[i]
+		if h.StartDate.IsZero() {
+			return fmt.Errorf("openholidays: malformed holiday %q at %s: zero StartDate: %w",
+				h.ID, path, ErrMalformedResponse)
+		}
+		if h.EndDate.IsZero() {
+			return fmt.Errorf("openholidays: malformed holiday %q at %s: zero EndDate: %w",
+				h.ID, path, ErrMalformedResponse)
+		}
+		if h.EndDate.Before(h.StartDate) {
+			return fmt.Errorf("openholidays: malformed holiday %q at %s: EndDate %s before StartDate %s: %w",
+				h.ID, path, h.EndDate, h.StartDate, ErrMalformedResponse)
+		}
+	}
+	return nil
+}
+
 // parseAPIMessage best-effort extracts a human-readable message from an
 // upstream error body. The OpenHolidays API returns RFC 7807 ProblemDetails
 // envelopes (verified live 2026-05-27); the priority order detail → title →
