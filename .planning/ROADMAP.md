@@ -53,7 +53,7 @@
   5. `Client.Close()` exists as an idempotent no-op stub callable from any goroutine; logging emits structured `slog` records at `Debug` level with `method`, `path`, `status`, `duration_ms`, `attempt`, `bytes_in` fields — never response bodies above `Debug`.
 **Plans**: 4 plans
   - [x] 02-01-PLAN.md — Transport RoundTrippers (headerTransport + loggingTransport) with per-RT unit tests; covers TRANS-01, TRANS-04, OBS-01, OBS-02
-  - [ ] 02-02-PLAN.md — Client + Options + Config scaffolding (NewClient, WithX, composeHTTPClient, buildTransport, Close stub); covers CLIENT-01..06, CLIENT-08
+  - [x] 02-02-PLAN.md — Client + Options + Config scaffolding (NewClient, WithX, composeHTTPClient, buildTransport, Close stub); covers CLIENT-01..06, CLIENT-08
   - [ ] 02-03-PLAN.md — Countries endpoint + ErrResponseTooLarge sentinel + CLIENT-10 allowlist + httptest suite + fixture + concurrent/ctx-cancel umbrella tests; covers ENDPT-01, TRANS-02, TRANS-03, CLIENT-07, CLIENT-09, TEST-04
   - [x] 02-04-PLAN.md — W-01 validator hardening (ASCII shape check before case canonicalization) folded into Phase 2 per CONTEXT.md D-32; covers VALID-01, VALID-04
 
@@ -100,7 +100,7 @@
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation | 6/6 | Complete   | 2026-05-27 |
-| 2. Transport | 2/4 | In Progress|  |
+| 2. Transport | 3/4 | In Progress|  |
 | 3. Endpoints & Helpers | 0/0 | Not started | - |
 | 4. Resilience | 0/0 | Not started | - |
 | 5. Distribution | 0/0 | Not started | - |
