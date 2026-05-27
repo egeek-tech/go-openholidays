@@ -40,7 +40,7 @@ type clientConfig struct {
 //   - baseURL:    the upstream production host per D-36 / PROJECT.md.
 //   - userAgent:  the go-openholidays brand string suffixed with the Phase 1
 //     Version const (PROJECT.md / version.go).
-//   - logger:     slog.Default() (D-39; library NEVER calls slog.SetDefault).
+//   - logger:     slog.Default() (D-39; library never mutates the process default).
 //   - timeout:    fifteen seconds (CLIENT-06 / D-28 / PROJECT.md).
 //
 // Every default literal appears in the struct literal below and nowhere else
