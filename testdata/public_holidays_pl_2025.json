@@ -1,0 +1,212 @@
+[
+    {
+        "id": "fff57559-d4b3-417d-8094-d8c29c2eea1e",
+        "startDate": "2025-01-01",
+        "endDate": "2025-01-01",
+        "type": "Public",
+        "name": [
+            {
+                "language": "PL",
+                "text": "Nowy Rok"
+            }
+        ],
+        "regionalScope": "National",
+        "temporalScope": "FullDay",
+        "nationwide": true
+    },
+    {
+        "id": "c5dd54bd-057b-4975-9014-9c76f79a92a0",
+        "startDate": "2025-01-06",
+        "endDate": "2025-01-06",
+        "type": "Public",
+        "name": [
+            {
+                "language": "PL",
+                "text": "Święto Trzech Króli"
+            }
+        ],
+        "regionalScope": "National",
+        "temporalScope": "FullDay",
+        "nationwide": true
+    },
+    {
+        "id": "186f4a63-a587-4939-be15-b2e433b75c7c",
+        "startDate": "2025-04-20",
+        "endDate": "2025-04-20",
+        "type": "Public",
+        "name": [
+            {
+                "language": "PL",
+                "text": "Wielkanoc"
+            }
+        ],
+        "regionalScope": "National",
+        "temporalScope": "FullDay",
+        "nationwide": true
+    },
+    {
+        "id": "c053556e-4a6a-49f1-9c09-5de751e1fbf9",
+        "startDate": "2025-04-21",
+        "endDate": "2025-04-21",
+        "type": "Public",
+        "name": [
+            {
+                "language": "PL",
+                "text": "Drugi Dzień Wielkanocy"
+            }
+        ],
+        "regionalScope": "National",
+        "temporalScope": "FullDay",
+        "nationwide": true
+    },
+    {
+        "id": "ba5e31e4-3f4a-47cd-84fc-a428d496ae82",
+        "startDate": "2025-05-01",
+        "endDate": "2025-05-01",
+        "type": "Public",
+        "name": [
+            {
+                "language": "PL",
+                "text": "Święto Pracy"
+            }
+        ],
+        "regionalScope": "National",
+        "temporalScope": "FullDay",
+        "nationwide": true
+    },
+    {
+        "id": "22da3934-57d2-4e76-90a6-87c20b5e605e",
+        "startDate": "2025-05-03",
+        "endDate": "2025-05-03",
+        "type": "Public",
+        "name": [
+            {
+                "language": "PL",
+                "text": "Święto Narodowe Trzeciego Maja"
+            }
+        ],
+        "regionalScope": "National",
+        "temporalScope": "FullDay",
+        "nationwide": true
+    },
+    {
+        "id": "04fd6bb8-4db4-47c7-bfff-2d66955d1455",
+        "startDate": "2025-06-08",
+        "endDate": "2025-06-08",
+        "type": "Public",
+        "name": [
+            {
+                "language": "PL",
+                "text": "Zielone Świątki"
+            }
+        ],
+        "regionalScope": "National",
+        "temporalScope": "FullDay",
+        "nationwide": true
+    },
+    {
+        "id": "f7ce670d-7fe5-49ae-b589-2a34ecbe263e",
+        "startDate": "2025-06-19",
+        "endDate": "2025-06-19",
+        "type": "Public",
+        "name": [
+            {
+                "language": "PL",
+                "text": "Boże Ciało"
+            }
+        ],
+        "regionalScope": "National",
+        "temporalScope": "FullDay",
+        "nationwide": true
+    },
+    {
+        "id": "affa912a-69f0-40c7-bd54-0d40221d3608",
+        "startDate": "2025-08-15",
+        "endDate": "2025-08-15",
+        "type": "Public",
+        "name": [
+            {
+                "language": "PL",
+                "text": "Wniebowzięcie Najświętszej Maryi Panny"
+            }
+        ],
+        "regionalScope": "National",
+        "temporalScope": "FullDay",
+        "nationwide": true
+    },
+    {
+        "id": "2cf85626-28c3-435d-bd03-9151a5d27eb6",
+        "startDate": "2025-11-01",
+        "endDate": "2025-11-01",
+        "type": "Public",
+        "name": [
+            {
+                "language": "PL",
+                "text": "Wszystkich Świętych"
+            }
+        ],
+        "regionalScope": "National",
+        "temporalScope": "FullDay",
+        "nationwide": true
+    },
+    {
+        "id": "cec00b5a-d3d6-4e79-9ec2-75b9f78f2c18",
+        "startDate": "2025-11-11",
+        "endDate": "2025-11-11",
+        "type": "Public",
+        "name": [
+            {
+                "language": "PL",
+                "text": "Narodowe Święto Niepodległości"
+            }
+        ],
+        "regionalScope": "National",
+        "temporalScope": "FullDay",
+        "nationwide": true
+    },
+    {
+        "id": "80091853-4950-4367-9f5a-5a14c2019967",
+        "startDate": "2025-12-24",
+        "endDate": "2025-12-24",
+        "type": "Public",
+        "name": [
+            {
+                "language": "PL",
+                "text": "Wigilia Bożego Narodzenia"
+            }
+        ],
+        "regionalScope": "National",
+        "temporalScope": "FullDay",
+        "nationwide": true
+    },
+    {
+        "id": "e1cc1566-6056-4994-baf6-11b6f775074f",
+        "startDate": "2025-12-25",
+        "endDate": "2025-12-25",
+        "type": "Public",
+        "name": [
+            {
+                "language": "PL",
+                "text": "Boże Narodzenie"
+            }
+        ],
+        "regionalScope": "National",
+        "temporalScope": "FullDay",
+        "nationwide": true
+    },
+    {
+        "id": "7378c83a-9fde-4829-b6ec-dd7e4c80125e",
+        "startDate": "2025-12-26",
+        "endDate": "2025-12-26",
+        "type": "Public",
+        "name": [
+            {
+                "language": "PL",
+                "text": "Drugi Dzień Bożego Narodzenia"
+            }
+        ],
+        "regionalScope": "National",
+        "temporalScope": "FullDay",
+        "nationwide": true
+    }
+]
