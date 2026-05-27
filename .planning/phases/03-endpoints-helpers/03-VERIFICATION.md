@@ -1,50 +1,38 @@
 ---
 phase: 03-endpoints-helpers
-verified: 2026-05-27T19:31:11Z
-status: gaps_found
-score: 4/5 success criteria verified
+verified: 2026-05-27T20:25:00Z
+status: passed
+score: 5/5 success criteria verified
 overrides_applied: 0
 human_verification: []
-gaps:
-  - id: SC2-COMBINED
-    severity: medium
-    source: SC#2 (compositional-proof-only)
-    summary: "Add a dedicated subtest that loads testdata/school_holidays_pl_2025.json and calls Holiday.IsInRegion(\"PL-SL\") on all four ferie zimowe cohorts: assert true for cohort1 (2025-01-20..2025-02-02, PL-SL present) and false for cohorts 2/3/4 (other regions). Currently the positive+negative path spans two unrelated test functions; the gap is the single integrated assertion against the golden fixture."
-    target_file: school_holidays_test.go
-    expected_after_fix: "go test -race -count=1 -run TestClient_SchoolHolidays_IsInRegion_FerieZimowe ./... passes; subtest exercises all 4 cohorts."
-  - id: CR-01-FIXTURE-INDENT
-    severity: blocker
-    source: 03-REVIEW.md CR-01
-    summary: "update_fixtures_test.go writes 2-space indent but committed fixtures are 4-space. Drift-detection mode reports false DRIFT. Fix: change json.Indent(&pretty, body, \"\", \"  \") to use 4-space indent so the writer matches the on-disk format."
-    target_file: update_fixtures_test.go
-    expected_after_fix: "OPENHOLIDAYS_LIVE=1 go test -tags=integration -run TestUpdateFixtures (drift-detect mode) reports OK for fixtures already on disk."
-  - id: CR-02-TRAILING-NEWLINE
-    severity: blocker
-    source: 03-REVIEW.md CR-02
-    summary: "update_fixtures_test.go does not write a trailing newline, but every committed fixture ends with one. Compounds CR-01. Fix: append pretty.WriteByte('\\n') (or use json.Indent + an explicit final newline) before the atomic os.Rename."
-    target_file: update_fixtures_test.go
-    expected_after_fix: "Re-running -update on a fixture produces no diff vs current on-disk content."
-  - id: WR-01-RANGE-FIRST-YIELD
-    severity: warning
-    source: 03-REVIEW.md WR-01
-    summary: "Holiday.Range() yields h.StartDate verbatim on the first iteration. Godoc claims every yield is rebuilt via NewDate; production code is unaffected because endpoint Holidays are UTC-midnight, but a hand-built Holiday with a non-UTC StartDate produces a non-UTC-midnight first yield. Fix: normalize the first iteration through NewDate(h.StartDate.Year(), h.StartDate.Month(), h.StartDate.Day())."
-    target_file: holiday.go
-    expected_after_fix: "Add a TestHoliday_Range subtest with a non-UTC-midnight StartDate that asserts the first yielded Date is UTC-midnight."
-  - id: WR-05-CAP-SHADOW
-    severity: warning
-    source: 03-REVIEW.md WR-05
-    summary: "update_fixtures_test.go line ~192 contains `cap := cap` which (a) is the redundant `tc := tc` pattern explicitly banned by CLAUDE.md \"What NOT to Use\" since Go 1.22 loop-var scoping, and (b) shadows the `cap` builtin. Fix: remove the shadow line and rename the loop variable so it does not clash with the builtin."
-    target_file: update_fixtures_test.go
-    expected_after_fix: "grep -n '^\\s*cap := cap' update_fixtures_test.go returns no lines; go vet ./... and golangci-lint stay clean."
+re_verification:
+  previous_status: gaps_found
+  previous_score: 4/5
+  gaps_closed:
+    - "SC2-COMBINED — single integrated subtest exercising all 4 ferie zimowe cohorts against IsInRegion('PL-SL') now exists"
+    - "CR-01-FIXTURE-INDENT — update_fixtures_test.go writer now emits 4-space indent matching all six fixtures"
+    - "CR-02-TRAILING-NEWLINE — update_fixtures_test.go writer appends '\\n' so output matches the trailing-newline convention"
+    - "WR-01-RANGE-FIRST-YIELD — Holiday.Range() first iteration is now normalized through NewDate, matching the godoc contract"
+    - "WR-05-CAP-SHADOW — `cap := cap` shadow removed; loop variable renamed to `c`"
+  gaps_remaining: []
+  regressions: []
+gaps: []
 ---
 
-# Phase 03: Endpoints & Helpers Verification Report
+# Phase 03: Endpoints & Helpers Verification Report (Re-verification)
 
 **Phase Goal:** All four remaining endpoints (Languages, Subdivisions, PublicHolidays, SchoolHolidays) ship with golden-fixture tests; Holiday helpers (Name/NameFor, IsInRegion, Days, Range) return correct values for the verified Polish 2025 data.
 
-**Verified:** 2026-05-27T19:31:11Z
-**Status:** human_needed
-**Re-verification:** No — initial verification
+**Verified:** 2026-05-27T20:25:00Z
+**Status:** passed
+**Re-verification:** Yes — after gap closure (plans 03-09, 03-10, 03-11)
+
+## Verification Audit Trail
+
+| Run | Date | Status | Score | Notes |
+|-----|------|--------|-------|-------|
+| 1 (initial) | 2026-05-27T19:31:11Z | gaps_found | 4/5 | 5 gaps identified: SC2-COMBINED, CR-01, CR-02, WR-01, WR-05 |
+| 2 (re-verify) | 2026-05-27T20:25:00Z | **passed** | **5/5** | All 5 gaps closed by plans 03-09, 03-10, 03-11; no new gaps introduced |
 
 ## Goal Achievement
 
@@ -52,140 +40,149 @@ gaps:
 
 | # | Truth | Status | Evidence |
 |---|-------|--------|----------|
-| 1 | `c.PublicHolidays(ctx, PublicHolidaysRequest{CountryIsoCode:"PL", ValidFrom:2025-01-01, ValidTo:2025-12-31})` against the golden fixture returns exactly 14 typed Holiday structs including Dec 24 Christmas Eve without panics or decode errors | VERIFIED | `testdata/public_holidays_pl_2025.json` has 14 entries; `TestClient_PublicHolidays/happy_path_PL_2025_returns_14_holidays_incl._Wigilia_2025-12-24` PASSES; Christmas Eve entry confirmed at `startDate: 2025-12-24` with name `[{"language":"PL","text":"Wigilia Bożego Narodzenia"}]` |
-| 2 | `c.SchoolHolidays(ctx, SchoolHolidaysRequest{CountryIsoCode:"PL",...})` against the golden fixture returns 7 periods, and `holiday.IsInRegion("PL-SL")` correctly identifies the Śląskie ferie zimowe cohort while excluding the other three regional cohorts | PARTIAL | `testdata/school_holidays_pl_2025.json` has 7 entries (verified). The Śląskie cohort (2025-01-20..2025-02-02) carries `PL-SL` in Subdivisions. The other 3 cohorts do NOT carry `PL-SL`. `Holiday.IsInRegion` is verified to return true when code is in Subdivisions and false otherwise. However, no single test calls `IsInRegion("PL-SL")` on all 4 cohorts from the golden fixture — the positive+negative proof spans two separate test functions |
-| 3 | `holiday.NameFor("pl")` returns the Polish localized name; `holiday.NameFor("xx")` falls back to the first available LocalizedText entry (not empty string) | VERIFIED | `TestHoliday_NameFor` PASSES: `"matches Polish entry case-insensitively"` returns `"Wigilia"` for `"pl"` and `"PL"`; `"falls back to first entry on miss"` returns `"Wigilia"` for `"xx"`; `"returns empty on empty Name"` returns `""` for empty slice. CL-10 documents that `NameFor` (not `Name`) is used to avoid field-name collision |
-| 4 | `holiday.Days()` returns 14 for the 14-day Śląskie ferie zimowe period; `holiday.Range()` iterates exactly 14 dates inclusively from StartDate to EndDate | VERIFIED | `TestHoliday_Days/14-day_ferie_zimowe_Śląskie_returns_14` PASSES (Jan 18 – Jan 31 2025); `TestHoliday_Range/14-day_ferie_zimowe_yields_14_Dates_inclusive` PASSES. CL-11 documents that `Range()` yields `iter.Seq[Date]` (not `iter.Seq[time.Time]` as ROADMAP literal says) — intentional deviation recorded as CL-11 for composition ergonomics with Date math helpers |
-| 5 | Each endpoint has a table-driven unit test covering happy path + ≥4 error paths; all fixtures in `testdata/` come from captured live responses and a `-update` flag regenerates them | VERIFIED | Languages (7 subtests: happy, query contract, validation, 4xx, 5xx, malformed JSON, ctx cancel = 4+ error paths); Subdivisions (9 subtests); PublicHolidays (13 subtests); SchoolHolidays (11 subtests). All 6 fixtures in `testdata/` are live-captured. `update_fixtures_test.go` ships `//go:build integration` + `-update` flag via `flag.Bool`. `go test -race -count=1 ./...` passes |
+| 1 | `c.PublicHolidays(ctx, PublicHolidaysRequest{CountryIsoCode:"PL", ValidFrom:2025-01-01, ValidTo:2025-12-31})` against the golden fixture returns exactly 14 typed Holiday structs including Dec 24 Christmas Eve without panics or decode errors | VERIFIED | `testdata/public_holidays_pl_2025.json` has 14 entries; `TestClient_PublicHolidays/happy_path_PL_2025_returns_14_holidays_incl._Wigilia_2025-12-24` PASSES; Christmas Eve at `startDate: 2025-12-24` with `name=[{language:PL,text:Wigilia Bożego Narodzenia}]` |
+| 2 | `c.SchoolHolidays(ctx, SchoolHolidaysRequest{CountryIsoCode:"PL",...})` against the golden fixture returns 7 periods, and `holiday.IsInRegion("PL-SL")` correctly identifies the Śląskie ferie zimowe cohort while excluding the other three regional cohorts | **VERIFIED (was PARTIAL)** | New `TestClient_SchoolHolidays_IsInRegion_FerieZimowe` (school_holidays_test.go:362) loads the fixture via httptest, filters to 4 Ferie zimowe entries, and asserts `IsInRegion("PL-SL")` per cohort in a single integrated scenario. 4 cohort subtests PASS: cohort_1 (2025-01-20..2025-02-02) → true; cohorts 2/3/4 → false. Fixture verified: 7 entries, exactly 4 "Ferie zimowe", subdivisions match the cohort assertions |
+| 3 | `holiday.NameFor("pl")` returns the Polish localized name; `holiday.NameFor("xx")` falls back to the first available LocalizedText entry (not empty string) | VERIFIED | `TestHoliday_NameFor` PASSES: matches Polish case-insensitively returns `"Wigilia"`; falls back to first entry on miss returns `"Wigilia"`; returns empty on empty Name returns `""`. CL-10 documents the NameFor (not Name) rename |
+| 4 | `holiday.Days()` returns 14 for the 14-day Śląskie ferie zimowe period; `holiday.Range()` iterates exactly 14 dates inclusively from StartDate to EndDate | VERIFIED | `TestHoliday_Days/14-day_ferie_zimowe_Śląskie_returns_14` PASSES; `TestHoliday_Range/14-day_ferie_zimowe_yields_14_Dates_inclusive` PASSES. CL-11 documents the iter.Seq[Date] deviation. NEW subtest `TestHoliday_Range/non-UTC_StartDate_yields_UTC-midnight_first_Date_(WR-01_regression)` PASSES — guards the godoc contract |
+| 5 | Each endpoint has a table-driven unit test covering happy path + ≥4 error paths; all fixtures in `testdata/` come from captured live responses and a `-update` flag regenerates them | VERIFIED | Languages (7 subtests); Subdivisions (9); PublicHolidays (13); SchoolHolidays (11 + new 4-cohort SC#2 = 15). All 6 fixtures live-captured. `update_fixtures_test.go` ships `//go:build integration` + `-update` via `flag.Bool`. Writer now emits byte-identical output to on-disk format (4-space indent + trailing `\n`). All 6 fixtures uniform |
 
-**Score:** 4/5 truths fully verified (SC#2 is partial — behavior correct but test coverage is compositional, not integrated against the golden fixture)
+**Score:** 5/5 truths fully verified
 
 ### Required Artifacts
 
 | Artifact | Expected | Status | Details |
 |----------|----------|--------|---------|
-| `languages.go` | Languages endpoint + LanguagesRequest type | VERIFIED | `func (c *Client) Languages(ctx, LanguagesRequest) ([]Language, error)` dispatches through `doJSONGet[[]Language]`; 93 lines |
-| `languages_test.go` | TestClient_Languages with table-driven subtests | VERIFIED | 7 t.Run subtests; happy path + 4 error paths + query contract + validation |
-| `testdata/languages.json` | Live-captured fixture | VERIFIED | 30 entries from live API 2026-05-27 |
-| `subdivisions.go` | Subdivisions endpoint + SubdivisionsRequest type | VERIFIED | `func (c *Client) Subdivisions(ctx, SubdivisionsRequest) ([]Subdivision, error)` dispatches through `doJSONGet[[]Subdivision]`; 103 lines |
-| `subdivisions_test.go` | TestClient_Subdivisions with subtests | VERIFIED | 9 t.Run subtests covering PL flat + DE hierarchical fixtures |
-| `testdata/subdivisions_pl.json` | 16 województwa (flat) | VERIFIED | 16 entries; verified by test assertion `require.Len(..., 16)` |
-| `testdata/subdivisions_de.json` | 16 Bundesländer with Children | VERIFIED | 16 entries; DE-BY carries DE-BY-AU child per Assumption A3 |
-| `public_holidays.go` | PublicHolidays endpoint + PublicHolidaysRequest type | VERIFIED | `func (c *Client) PublicHolidays(ctx, PublicHolidaysRequest) ([]Holiday, error)`; 146 lines |
-| `public_holidays_test.go` | TestClient_PublicHolidays + TestValidateHolidays | VERIFIED | 13 + 7 = 20 subtests; all PASS |
-| `testdata/public_holidays_pl_2025.json` | 14 PL 2025 public holidays incl. Wigilia | VERIFIED | 14 entries; `2025-12-24` Wigilia entry confirmed |
-| `school_holidays.go` | SchoolHolidays endpoint + SchoolHolidaysRequest type | VERIFIED | `func (c *Client) SchoolHolidays(ctx, SchoolHolidaysRequest) ([]Holiday, error)`; 175 lines |
-| `school_holidays_test.go` | TestClient_SchoolHolidays with subtests | VERIFIED | 11 t.Run subtests; all PASS |
-| `testdata/school_holidays_pl_2025.json` | 7 PL 2025 school periods incl. ferie zimowe PL-SL | VERIFIED | 7 entries; cohort1 (2025-01-20..2025-02-02) carries PL-SL |
-| `holiday.go` | Four Holiday value methods: NameFor, IsInRegion, Days, Range | VERIFIED | All four methods present; no I/O; no Client dependency |
-| `holiday_test.go` | TestHoliday_NameFor + TestHoliday_IsInRegion + TestHoliday_Days + TestHoliday_Range | VERIFIED | 4 TestXxx functions, 17 subtests total; all PASS |
-| `client_isinregion.go` | Client.IsInRegion + splitCountryFromSubdivision + buildParentIndex | VERIFIED | Hierarchical walk with cycle-defense cap; 167 lines |
-| `client_isinregion_test.go` | TestClient_IsInRegion with 8+ subtests incl. cycle enforcement | VERIFIED | 9 subtests; cycle enforcement regression present |
-| `update_fixtures_test.go` | Build-tagged integration test with -update flag | VERIFIED | `//go:build integration` on line 1; `flag.Bool("update", ...)` declared; double-gated with `OPENHOLIDAYS_LIVE=1` |
-| `request.go` | `doJSONGet[T any]` + `validateHolidays` + moved helpers | VERIFIED | `doJSONGet` at line 58; `validateHolidays` at line 185; `buildAPIError`, `parseAPIMessage`, `maxResponseBytes`, `apiErrorBodyCap` present |
-| `errors.go` | `ErrMalformedResponse` seventh sentinel | VERIFIED | `ErrMalformedResponse = errors.New("openholidays: malformed response")` at line 61 |
+| `languages.go` | Languages endpoint + LanguagesRequest type | VERIFIED | Unchanged from initial verification |
+| `languages_test.go` | TestClient_Languages with table-driven subtests | VERIFIED | Unchanged |
+| `testdata/languages.json` | Live-captured fixture (4-space, trailing newline) | VERIFIED | Format uniform with other 5 fixtures |
+| `subdivisions.go` | Subdivisions endpoint + SubdivisionsRequest type | VERIFIED | Unchanged |
+| `subdivisions_test.go` | TestClient_Subdivisions with subtests | VERIFIED | Unchanged |
+| `testdata/subdivisions_pl.json` | 16 województwa flat (4-space, trailing newline) | VERIFIED | Format uniform |
+| `testdata/subdivisions_de.json` | 16 Bundesländer with Children (4-space, trailing newline) | VERIFIED | Format uniform |
+| `public_holidays.go` | PublicHolidays endpoint + PublicHolidaysRequest type | VERIFIED | Unchanged |
+| `public_holidays_test.go` | TestClient_PublicHolidays + TestValidateHolidays | VERIFIED | Unchanged |
+| `testdata/public_holidays_pl_2025.json` | 14 PL 2025 public holidays incl. Wigilia (4-space, trailing newline) | VERIFIED | Format uniform |
+| `school_holidays.go` | SchoolHolidays endpoint + SchoolHolidaysRequest type | VERIFIED | Unchanged |
+| `school_holidays_test.go` | TestClient_SchoolHolidays + **NEW** TestClient_SchoolHolidays_IsInRegion_FerieZimowe | **VERIFIED (UPDATED)** | 450 lines; NEW SC#2-integrated function at line 362 with 4 cohort subtests + `formatCohortName` helper at line 443; explicit CL-14 godoc reference |
+| `testdata/school_holidays_pl_2025.json` | 7 PL 2025 school periods incl. ferie zimowe PL-SL (4-space, trailing newline) | **VERIFIED (RE-INDENTED)** | Format re-indented from 2-space to 4-space; semantic content unchanged (SHA-256 of sort_keys JSON = b82894877e6442a2c57dcbfe77cb158e8de624dd4067c504dd8592d0908ee6e9 before == after per 03-09-SUMMARY) |
+| `holiday.go` | Holiday value methods: NameFor, IsInRegion, Days, Range (with WR-01 fix) | **VERIFIED (UPDATED)** | Line 119 now reads `d := NewDate(h.StartDate.Year(), h.StartDate.Month(), h.StartDate.Day())` — first-iteration normalization through NewDate matches subsequent iterations and matches the godoc contract |
+| `holiday_test.go` | TestHoliday_NameFor + TestHoliday_IsInRegion + TestHoliday_Days + TestHoliday_Range (with NEW WR-01 regression subtest) | **VERIFIED (UPDATED)** | 241 lines; TestHoliday_Range now has 6 subtests including new `non-UTC StartDate yields UTC-midnight first Date (WR-01 regression)` at line 213; uses `time.FixedZone("CET", 3600)` |
+| `client_isinregion.go` | Client.IsInRegion + splitCountryFromSubdivision + buildParentIndex | VERIFIED | Unchanged |
+| `client_isinregion_test.go` | TestClient_IsInRegion | VERIFIED | Unchanged |
+| `update_fixtures_test.go` | Build-tagged integration test with -update flag (with CR-01, CR-02, WR-05 fixes) | **VERIFIED (UPDATED)** | Line 230 `json.Indent(&pretty, body, "", "    ")` (4-space, was 2-space); line 231 `pretty.WriteByte('\n')` (new trailing newline append); line 194 `for _, c := range captures` (was `for _, cap := range captures` with `cap := cap` shadow); `type capture struct` declaration preserved |
+| `testdata/countries.json` | Live-captured fixture | **VERIFIED (RE-INDENTED)** | Re-indented from 2-space to 4-space (matches post-fix writer); semantic content unchanged (SHA-256 stable per 03-09-SUMMARY) |
+| `.planning/PROJECT.md` | Key Decisions table with **NEW** CL-14 row | **VERIFIED (UPDATED)** | Line 104 contains CL-14 row referencing `TestClient_SchoolHolidays_IsInRegion_FerieZimowe`, `SC2-COMBINED`, and "Scope: THIS test only" — narrow exception properly recorded |
+| `request.go` | `doJSONGet[T any]` + `validateHolidays` + moved helpers | VERIFIED | Unchanged |
+| `errors.go` | `ErrMalformedResponse` seventh sentinel | VERIFIED | Unchanged |
 
 ### Key Link Verification
 
 | From | To | Via | Status | Details |
 |------|----|-----|--------|---------|
-| `languages.go` | `request.go` | `doJSONGet[[]Language]` | VERIFIED | Line 91: `return doJSONGet[[]Language](ctx, c, "/Languages", q)` |
-| `languages.go` | `validate.go` | `validateLanguage` on non-empty LanguageIsoCode | VERIFIED | Lines 84-90: `if req.LanguageIsoCode != "" { lang, err := validateLanguage(...)` |
-| `subdivisions.go` | `request.go` | `doJSONGet[[]Subdivision]` | VERIFIED | Line 102: `return doJSONGet[[]Subdivision](ctx, c, "/Subdivisions", q)` |
-| `subdivisions.go` | `validate.go` | `validateCountry` + optional `validateLanguage` | VERIFIED | Lines 89-100 |
-| `public_holidays.go` | `request.go` | `doJSONGet[[]Holiday]` + `validateHolidays` | VERIFIED | Lines 138-143 |
-| `school_holidays.go` | `request.go` | `doJSONGet[[]Holiday]` + `validateHolidays` | VERIFIED | Lines 167-172 |
-| `holiday.go NameFor` | `types.go pickLocalized` | delegation | VERIFIED | Line 38: `return pickLocalized(h.Name, lang)` |
-| `holiday.go Days` | `date.go DaysUntil` | delegation | VERIFIED | Line 84: `return h.StartDate.DaysUntil(h.EndDate)` |
-| `holiday.go Range` | `date.go NewDate` | per-step rebuild | VERIFIED | Line 128: `d = NewDate(next.Year(), next.Month(), next.Day())` |
-| `client_isinregion.go` | `subdivisions.go Subdivisions` | `c.Subdivisions(ctx, SubdivisionsRequest{...})` | VERIFIED | Line 98: `tree, err := c.Subdivisions(ctx, SubdivisionsRequest{CountryIsoCode: countryCode})` |
-| `client_isinregion.go` | `types.go Subdivision.Children` | recursive walk in `buildParentIndex` | VERIFIED | Lines 160-163: `if len(n.Children) > 0 { walk(n.Code, n.Children) }` |
-| `update_fixtures_test.go` | `testdata/*.json` | atomic `os.Rename` after temp write | VERIFIED | Lines 245-257: `os.CreateTemp` + `os.Rename` pattern |
+| `school_holidays_test.go TestClient_SchoolHolidays_IsInRegion_FerieZimowe` | `testdata/school_holidays_pl_2025.json` | `os.ReadFile` + httptest.NewServer | VERIFIED | Line 365: `os.ReadFile(filepath.Join("testdata", "school_holidays_pl_2025.json"))`; httptest server at lines 369-373 |
+| `school_holidays_test.go SC2 subtest` | `holiday.go Holiday.IsInRegion` | direct method call inside the loop body | VERIFIED | Line 432: `got := h.IsInRegion("PL-SL")` — assertion lives INSIDE the function body |
+| `holiday.go Range first-iteration` | `date.go NewDate` | explicit normalization | VERIFIED | Line 119: `d := NewDate(h.StartDate.Year(), h.StartDate.Month(), h.StartDate.Day())` |
+| `holiday_test.go WR-01 subtest` | `holiday.go Range first-iteration normalization` | hand-built non-UTC Holiday yields UTC-midnight first Date | VERIFIED | Line 213-240: `time.FixedZone("CET", 3600)` constructs non-UTC StartDate; `first.Location() == time.UTC` asserted |
+| `update_fixtures_test.go json.Indent` | `testdata/*.json` on-disk format | 4-space indent string | VERIFIED | Line 230: `json.Indent(&pretty, body, "", "    ")` |
+| `update_fixtures_test.go pretty buffer` | `os.Rename` atomic write | trailing `\n` appended | VERIFIED | Line 231: `pretty.WriteByte('\n')` between `json.Indent` and the `if !*updateFixtures` branch |
+| `.planning/PROJECT.md CL-14 row` | `school_holidays_test.go TestClient_SchoolHolidays_IsInRegion_FerieZimowe` | Key Decisions row names test + cites SC2-COMBINED + scope-limit | VERIFIED | PROJECT.md line 104 contains literal function name, `SC2-COMBINED`, and "Scope: THIS test only" |
 
 ### Data-Flow Trace (Level 4)
 
 | Artifact | Data Variable | Source | Produces Real Data | Status |
 |----------|---------------|--------|-------------------|--------|
-| `public_holidays.go:PublicHolidays` | `holidays []Holiday` | `doJSONGet[[]Holiday]` decoding `testdata/public_holidays_pl_2025.json` in tests | Yes — 14 entries with StartDate/EndDate/Name/Subdivisions populated | FLOWING |
-| `school_holidays.go:SchoolHolidays` | `holidays []Holiday` | `doJSONGet[[]Holiday]` decoding `testdata/school_holidays_pl_2025.json` in tests | Yes — 7 entries with subdivision arrays populated | FLOWING |
-| `holiday.go:NameFor` | return value `string` | `pickLocalized(h.Name, lang)` operating on real `LocalizedText` slice | Yes — returns `"Wigilia"` from synthetic+fixture data | FLOWING |
-| `holiday.go:Days` | return value `int` | `h.StartDate.DaysUntil(h.EndDate)` on UTC-midnight Date values | Yes — returns 14 for Jan 18–31 2025 | FLOWING |
-| `holiday.go:Range` | `iter.Seq[Date]` | per-step `NewDate(...)` from StartDate to EndDate | Yes — 14 Date values yielded for Jan 18–31 2025 | FLOWING |
+| `school_holidays_test.go SC2 subtest` | `ferieZimowe []Holiday` | `c.SchoolHolidays` decoding fixture bytes served by httptest | Yes — 4 Holiday values with subdivisions populated; cohort 0 has PL-SL, others do not | FLOWING |
+| `holiday.go Range (post-WR-01 fix)` | first yielded `Date` | `NewDate(h.StartDate.Year(), h.StartDate.Month(), h.StartDate.Day())` | Yes — UTC-midnight Date even for non-UTC StartDate | FLOWING |
+| `update_fixtures_test.go pretty buffer` | `pretty.Bytes()` for drift-detect or atomic write | `json.Indent(..., "    ")` + `WriteByte('\n')` of live response body | Yes — byte-identical to committed fixture format | FLOWING |
 
 ### Behavioral Spot-Checks
 
 | Behavior | Command | Result | Status |
 |----------|---------|--------|--------|
-| Full test suite with race detector | `go test -race -count=1 ./...` | exit 0, `ok github.com/egeek-tech/go-openholidays 1.939s` | PASS |
+| Full test suite with race detector | `go test -race -count=1 ./...` | `ok github.com/egeek-tech/go-openholidays 1.951s` | PASS |
 | `go build ./...` | `go build ./...` | exit 0, no output | PASS |
 | `go vet ./...` | `go vet ./...` | exit 0, no output | PASS |
-| `testdata/public_holidays_pl_2025.json` count = 14 | `python3 -c "import json; print(len(json.load(open('testdata/public_holidays_pl_2025.json'))))"` | 14 | PASS |
-| Christmas Eve entry in fixture | python3 fixture check | `startDate: 2025-12-24`, name `Wigilia Bożego Narodzenia` | PASS |
-| `testdata/school_holidays_pl_2025.json` count = 7 | python3 fixture check | 7 | PASS |
-| PL-SL in school fixture ferie zimowe cohort | python3 fixture check | cohort1 (2025-01-20..2025-02-02) has PL-SL | PASS |
-| 14 days inclusive for Śląskie ferie zimowe | python3 date arithmetic | 14 days Jan 20 – Feb 2 2025 | PASS |
+| Integration build clean | `go vet -tags=integration ./... && go build -tags=integration ./...` | exit 0, no output (post-WR-05 rename compiles cleanly) | PASS |
+| SC2-COMBINED integrated test | `go test -race -count=1 -v -run TestClient_SchoolHolidays_IsInRegion_FerieZimowe ./...` | 4 cohort subtests PASS: cohort_1 matches PL-SL, cohorts 2-4 exclude PL-SL | PASS |
+| WR-01 regression subtest | `go test -race -count=1 -v -run 'TestHoliday_Range/non-UTC' ./...` | PASS (was UNRUNNABLE before plan 03-10) | PASS |
+| TestHoliday_Range subtest count = 6 | `go test -race -count=1 -v -run TestHoliday_Range ./...` | 6 subtests PASS (was 5 before plan 03-10) | PASS |
+| Fixture format uniformity | bash loop over 6 fixtures checking `^    [^ ]` second-line + final byte `0a` | All 6 fixtures: 4-space indent + trailing newline | PASS |
+| `testdata/school_holidays_pl_2025.json` semantic content | python3 fixture parse | 7 entries; 4 "Ferie zimowe" cohorts; only cohort 0 has PL-SL subdivision | PASS |
+| `update_fixtures_test.go` writer indent | `grep -nF 'json.Indent(&pretty, body, "", "    ")' update_fixtures_test.go` | exactly 1 match at line 230 | PASS |
+| `update_fixtures_test.go` trailing newline | `grep -nF "pretty.WriteByte('\\n')" update_fixtures_test.go` | exactly 1 match at line 231 | PASS |
+| `update_fixtures_test.go` cap shadow removed | `grep -nE '^\s*cap := cap' update_fixtures_test.go` | no lines | PASS |
+| `update_fixtures_test.go` loop variable renamed | `grep -nE 'for _, c := range captures' update_fixtures_test.go` | exactly 1 line at 194 | PASS |
+| `holiday.go` WR-01 fix in place | `grep -cE 'd := NewDate\(h\.StartDate\.Year\(\), h\.StartDate\.Month\(\), h\.StartDate\.Day\(\)\)' holiday.go` | 1 (at line 119) | PASS |
+| `holiday.go` WR-01 old line gone | `grep -cE '^\s*d := h\.StartDate\s*$' holiday.go` | 0 | PASS |
+| PROJECT.md CL-14 row present | `grep -cE '^\| CL-14:' .planning/PROJECT.md` | 1 (at line 104) | PASS |
+| PROJECT.md scope-limit wording | grep "THIS test only" in CL-14 row | found | PASS |
 
 ### Probe Execution
 
-Step 7c: SKIPPED — no `scripts/*/tests/probe-*.sh` files defined for this phase.
+Step 7c: SKIPPED — no `scripts/*/tests/probe-*.sh` files defined for this phase. The integration-tagged `update_fixtures_test.go` drift-detection mode requires live network access (`OPENHOLIDAYS_LIVE=1`) and is documented as a manual follow-up in 03-09-SUMMARY.md; static verification has already proven the writer output bytes will match the committed fixture format.
 
 ### Requirements Coverage
 
-| Requirement | Source Plan | Description | Status | Evidence |
-|-------------|------------|-------------|--------|---------|
-| ENDPT-02 | 03-02-PLAN.md | `Languages(ctx) ([]Language, error)` fetches supported-language list | SATISFIED | `languages.go` + `TestClient_Languages` all pass; `testdata/languages.json` (30 entries) |
-| ENDPT-03 | 03-03-PLAN.md | `Subdivisions(ctx, country, lang) ([]Subdivision, error)` fetches administrative subdivisions | SATISFIED | `subdivisions.go` + `TestClient_Subdivisions` all pass; PL (16 flat) + DE (hierarchical) fixtures |
-| ENDPT-04 | 03-04-PLAN.md | `PublicHolidays(ctx, PublicHolidaysRequest) ([]Holiday, error)` fetches public holidays | SATISFIED | `public_holidays.go` + 13 subtests pass; 14 PL 2025 holidays verified |
-| ENDPT-05 | 03-05-PLAN.md | `SchoolHolidays(ctx, SchoolHolidaysRequest) ([]Holiday, error)` fetches school holidays | SATISFIED | `school_holidays.go` + 11 subtests pass; 7 PL 2025 periods verified |
-| HELP-01 | 03-06-PLAN.md | `Holiday.Name(lang string) string` with fallback | SATISFIED | Implemented as `Holiday.NameFor(lang)` (CL-10 collision-avoidance); 3 subtests verify pl match, fallback, empty |
-| HELP-02 | 03-06-PLAN.md + 03-07-PLAN.md | `Holiday.IsInRegion(subdivisionCode) bool` — flat; `Client.IsInRegion(ctx, h, code) (bool, error)` — hierarchical | SATISFIED | Both flat (`holiday.go`) and hierarchical (`client_isinregion.go`) variants exist and pass tests |
-| HELP-03 | 03-06-PLAN.md | `Holiday.Days() int` inclusive day count | SATISFIED | Returns 14 for Śląskie ferie zimowe Jan 18–31; `TestHoliday_Days` passes |
-| HELP-04 | 03-06-PLAN.md | `Holiday.Range() iter.Seq[time.Time]` | SATISFIED (with CL-11 deviation) | Yields `iter.Seq[Date]` (not `time.Time`) per CL-11 — deliberate deviation documented; `TestHoliday_Range/14-day_ferie_zimowe_yields_14_Dates_inclusive` passes |
-| TEST-01 | 03-02..05-PLAN.md | Unit tests per endpoint: happy path + ≥4 error paths | SATISFIED | Languages: 4 error paths (4xx, 5xx, malformed JSON, ctx cancel); Subdivisions: 4; PublicHolidays: 5+; SchoolHolidays: 5+ |
-| TEST-02 | 03-08-PLAN.md | No live network in unit tests — `httptest.NewServer` only | SATISFIED | `update_fixtures_test.go` has `//go:build integration`; normal `go test ./...` makes no live calls |
-| TEST-03 | 03-08-PLAN.md | Golden fixtures in `testdata/`; `-update` flag regenerates | SATISFIED | All 6 fixtures present in `testdata/`; `update_fixtures_test.go` provides `-update` via `flag.Bool` |
+| Requirement | Description | Status | Evidence |
+|-------------|-------------|--------|---------|
+| ENDPT-02 | `Languages(ctx) ([]Language, error)` | SATISFIED | `languages.go` + TestClient_Languages (unchanged from initial verification) |
+| ENDPT-03 | `Subdivisions(ctx, country, lang) ([]Subdivision, error)` | SATISFIED | `subdivisions.go` + TestClient_Subdivisions (unchanged) |
+| ENDPT-04 | `PublicHolidays(ctx, PublicHolidaysRequest) ([]Holiday, error)` | SATISFIED | `public_holidays.go` + 13 subtests pass (unchanged) |
+| ENDPT-05 | `SchoolHolidays(ctx, SchoolHolidaysRequest) ([]Holiday, error)` | SATISFIED | `school_holidays.go` + 11 original + new 4-cohort SC#2 integrated subtest pass |
+| HELP-01 | `Holiday.Name(lang) string` with fallback | SATISFIED | Implemented as `Holiday.NameFor(lang)` per CL-10 (unchanged) |
+| HELP-02 | `Holiday.IsInRegion(subdivisionCode) bool` + Client.IsInRegion hierarchical | SATISFIED | Both flat and hierarchical variants exist. SC2-COMBINED test now exercises IsInRegion against the golden fixture in one integrated scenario |
+| HELP-03 | `Holiday.Days() int` inclusive day count | SATISFIED | Returns 14 for Śląskie ferie zimowe Jan 18–31 (unchanged) |
+| HELP-04 | `Holiday.Range()` (iter.Seq) | SATISFIED | Returns `iter.Seq[Date]` per CL-11; **WR-01 fix** ensures first iteration is UTC-midnight matching the godoc contract; regression subtest gates the fix |
+| TEST-01 | Unit tests per endpoint: happy path + ≥4 error paths | SATISFIED | Languages 4+; Subdivisions 4+; PublicHolidays 5+; SchoolHolidays 5+ (unchanged) |
+| TEST-02 | No live network in unit tests — `httptest.NewServer` only | SATISFIED | `update_fixtures_test.go` build-tagged with `//go:build integration`; default `go test ./...` makes no live calls |
+| TEST-03 | Golden fixtures + `-update` flag regeneration | SATISFIED | All 6 fixtures present, all 4-space + trailing newline; `-update` mechanism repaired (CR-01, CR-02 closed); writer-to-on-disk byte-equivalence now holds |
 
 ### Anti-Patterns Found
 
 | File | Line | Pattern | Severity | Impact |
 |------|------|---------|----------|--------|
-| `update_fixtures_test.go` | 226 | `json.Indent(..., "  ")` uses 2-space indent; 4 of 6 committed fixtures use 4-space indent (`languages.json`, `subdivisions_pl.json`, `subdivisions_de.json`, `public_holidays_pl_2025.json`) | WARNING | Drift-detection mode (without `-update`) reports false DRIFT on 4 of 6 fixtures on every run. An `-update` run would silently re-indent those 4 fixtures from 4-space to 2-space, masking real schema drift in VCS diffs. This is CR-01 from the code review. |
-| `update_fixtures_test.go` | 226/252 | `json.Indent` does not append trailing `\n`; all 6 committed fixtures end with `\n` | WARNING | Combined with CR-01: drift-detection mode fails with a spurious trailing-newline mismatch even after unifying indent. An `-update` run strips the trailing newline from every fixture. This is CR-02 from the code review. |
-| `update_fixtures_test.go` | 192 | `cap := cap` variable shadow — redundant since Go 1.23 (module declares `go 1.23`) AND shadows Go builtin `cap()` | WARNING | Direct violation of CLAUDE.md "What NOT to Use" table (`tc := tc` shadow). `revive` / `gocritic` will flag it when golangci-lint runs in Phase 5 CI. |
-| `holiday.go` | 119 | `d := h.StartDate` — first yielded Date from `Range()` is not rebuilt via `NewDate`; subsequent dates ARE rebuilt. Godoc says ALL yielded Dates are rebuilt | WARNING | A hand-built Holiday with a non-UTC StartDate location yields the first date with the wrong location. Endpoint-returned Holidays are UTC-midnight (validated by `validateHolidays`), so production callers are unaffected. This is WR-01 from the code review. |
+| (none) | – | – | – | All anti-patterns from initial verification (CR-01, CR-02, WR-01, WR-05) closed by plans 03-09 and 03-10 |
 
-**No BLOCKER-class debt markers (TBD, FIXME, XXX) found in any phase-modified file.**
+**No debt markers (TBD/FIXME/XXX/TODO/HACK/PLACEHOLDER) found in any phase-modified file** (`holiday.go`, `holiday_test.go`, `school_holidays_test.go`, `update_fixtures_test.go`).
 
-CR-01 and CR-02 affect `update_fixtures_test.go` only (the fixture-refresh tool). They do not affect Success Criteria 1–5 because:
-- SC1: `TestClient_PublicHolidays` reads the fixture directly via `os.ReadFile`, not via the refresh harness
-- SC2–5: All tests use `httptest.NewServer` with fixture bytes, not the drift-detection path
-- The refresh harness is Phase 3 infrastructure (TEST-03) but its drift-detection mode is non-functional until CR-01/CR-02 are fixed
+### Gap Closure Audit
+
+Each of the 5 gaps from the initial verification is independently confirmed closed:
+
+| Gap ID | Severity | Plan | Verification |
+|--------|----------|------|--------------|
+| SC2-COMBINED | medium | 03-11 | NEW `TestClient_SchoolHolidays_IsInRegion_FerieZimowe` at `school_holidays_test.go:362` exercises 4 cohorts in one integrated scenario; all 4 cohort subtests pass under `go test -race -count=1 -v -run TestClient_SchoolHolidays_IsInRegion_FerieZimowe ./...`; cohort identity assertions (StartDate/EndDate match) added as preconditions before the IsInRegion check so a fixture re-order fails loudly; PROJECT.md CL-14 records the Gold-Rule-3 narrow exception with scope-limit wording |
+| CR-01-FIXTURE-INDENT | blocker | 03-09 | `update_fixtures_test.go:230` now uses `"    "` (4-space) indent; matches all 6 on-disk fixtures |
+| CR-02-TRAILING-NEWLINE | blocker | 03-09 | `update_fixtures_test.go:231` appends `pretty.WriteByte('\n')` between `json.Indent` and the `if !*updateFixtures` branch; matches the trailing-newline convention of all 6 on-disk fixtures |
+| WR-01-RANGE-FIRST-YIELD | warning | 03-10 | `holiday.go:119` now reads `d := NewDate(h.StartDate.Year(), h.StartDate.Month(), h.StartDate.Day())`; matches the godoc contract; NEW regression subtest using `time.FixedZone("CET", 3600)` proves the first yield is UTC-midnight |
+| WR-05-CAP-SHADOW | warning | 03-09 | `update_fixtures_test.go:194` now reads `for _, c := range captures`; the `cap := cap` shadow line and its justifying comment are deleted; `type capture struct` declaration preserved; `go vet -tags=integration ./...` clean |
 
 ### Human Verification Required
 
-#### 1. SC#2 Combined IsInRegion fixture test
-
-**Test:** Load `testdata/school_holidays_pl_2025.json` into a test, extract all 4 ferie zimowe entries, call `holiday.IsInRegion("PL-SL")` on each, and assert: true for cohort1 (2025-01-20..2025-02-02, subdivisions include PL-SL) and false for cohorts 2, 3, 4 (subdivisions include PL-WN/PL-PK, PL-ZP/PL-DS/etc., PL-SK/PL-PD/etc. respectively).
-
-**Expected:** cohort1: `IsInRegion("PL-SL")` → true; cohorts 2, 3, 4: `IsInRegion("PL-SL")` → false
-
-**Why human:** The current tests prove these behaviors in separate functions (`school_holidays_test.go` finds the PL-SL entry; `holiday_test.go` verifies the IsInRegion logic). However, ROADMAP SC#2 specifically says "correctly identifies... while excluding the other three regional cohorts", which implies a single test scenario that exercises both the positive and the three negative paths against the golden fixture. A human must decide whether the compositional proof is acceptable or whether a dedicated subtest (e.g. in `school_holidays_test.go`) is required to close the literal SC#2 wording.
+None. The previous SC#2 human-UAT item is now satisfied automatically by `TestClient_SchoolHolidays_IsInRegion_FerieZimowe`; 03-HUMAN-UAT.md may be updated to mark the item as resolved (verification surface artifact only — not a code change).
 
 ### Gaps Summary
 
-No hard blockers. The phase goal is functionally achieved:
-- All four endpoints ship with golden-fixture tests and pass under `go test -race -count=1`
+**No gaps remain.** All 5 gaps from the initial verification (1 medium SC#2 + 2 blockers + 2 warnings) are closed at the source level. The phase goal is fully achieved:
+
+- All four endpoints (Languages, Subdivisions, PublicHolidays, SchoolHolidays) ship with golden-fixture tests and pass under `go test -race -count=1`
 - All four Holiday helpers (NameFor, IsInRegion, Days, Range) return correct values for PL 2025 data
-- `go build ./...` and `go vet ./...` pass clean
-- 54 tests, all PASS, race-detector clean
+- The SC#2 integrated assertion against the golden fixture exists and passes
+- `Holiday.Range()` first-iteration UTC-midnight normalization matches the godoc contract; regression subtest gates the fix
+- `update_fixtures_test.go` writer output bytes match the on-disk fixture format (4-space indent + trailing `\n`), all 6 fixtures uniform
+- `cap` builtin-shadow gone; integration build clean
+- Gold-Rule-3 narrow exception recorded in PROJECT.md Key Decisions as CL-14
+- `go build ./...`, `go vet ./...`, `go vet -tags=integration ./...`, `go test -race -count=1 ./...` all exit 0
+- No debt markers (TBD/FIXME/XXX/TODO/HACK/PLACEHOLDER) introduced in phase-modified files
 
-Two infrastructure issues in `update_fixtures_test.go` (CR-01: indent mismatch, CR-02: missing trailing newline) prevent the drift-detection mode of `TestUpdateFixtures` from working correctly, but they do not affect any of the five success criteria. The `-update` overwrite mode is also affected (it would re-indent fixtures) but the mechanism ships and can be repaired without touching production code.
+### Tracking State
 
-One ROADMAP SC#4 precision gap: the "14-day period crossing a DST boundary" language in the ROADMAP is aspirational — the actual Śląskie ferie zimowe dates (Jan 18–31 or Jan 20–Feb 2) fall entirely in CET (UTC+1) with no DST transition. The implementation is DST-correct regardless (UTC-midnight arithmetic), and Days() correctly returns 14. This is a documentation imprecision in the ROADMAP, not a code defect.
-
-One documented type deviation (CL-11): `Range()` yields `iter.Seq[Date]` rather than the ROADMAP's literal `iter.Seq[time.Time]`. This is a locked design decision in the project's key-decisions ledger.
+- **ROADMAP.md:** Phase 3 marked as Complete (`[x]`); plan count 11/11; Phase 4 row remains "Not started" with `0/0` plans — correct.
+- **STATE.md:** Reports `completed_phases: 2` and current focus "Phase 03 — endpoints-helpers, EXECUTING". The roadmap progress table contradicts this (Phase 3 shown as Complete). STATE.md is stale — this is a tracking-file artifact, NOT a Phase 3 code/goal issue. Recommendation: STATE.md should be reconciled in the next roadmap-helper invocation. Not a gap because the source of truth (ROADMAP.md) and the codebase are aligned.
+- **Worktree commits merged:** `8a79659` (CR-01/CR-02/WR-05 fix), `2157589` (fixture re-indent), `2584162` (WR-01 fix), `848f6c3` (WR-01 test), `473a2e4` (SC#2 test), `9eda5ec` (CL-14 docs), plus three worktree-merge commits and the wave-0 tracking-update commit `7a2d9bf`. All present in `git log`.
 
 ---
 
-_Verified: 2026-05-27T19:31:11Z_
+_Re-verified: 2026-05-27T20:25:00Z_
 _Verifier: Claude (gsd-verifier)_
+_Previous verification: 2026-05-27T19:31:11Z (status: gaps_found, 4/5 → now 5/5 passed)_
