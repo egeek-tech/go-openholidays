@@ -1,377 +1,378 @@
 [
-  {
-    "id": "503317eb-0375-41a8-bcb7-501800dc4098",
-    "startDate": "2025-01-20",
-    "endDate": "2025-02-02",
-    "type": "School",
-    "name": [
-      {
-        "language": "PL",
-        "text": "Ferie zimowe"
-      }
-    ],
-    "regionalScope": "Regional",
-    "temporalScope": "FullDay",
-    "nationwide": false,
-    "subdivisions": [
-      {
-        "code": "PL-SL",
-        "shortName": "SL"
-      },
-      {
-        "code": "PL-LU",
-        "shortName": "LU"
-      },
-      {
-        "code": "PL-WP",
-        "shortName": "WP"
-      },
-      {
-        "code": "PL-MA",
-        "shortName": "MA"
-      },
-      {
-        "code": "PL-KP",
-        "shortName": "KP"
-      }
-    ]
-  },
-  {
-    "id": "b850a051-47c3-482f-9515-ad902acb0e46",
-    "startDate": "2025-01-27",
-    "endDate": "2025-02-09",
-    "type": "School",
-    "name": [
-      {
-        "language": "PL",
-        "text": "Ferie zimowe"
-      }
-    ],
-    "regionalScope": "Regional",
-    "temporalScope": "FullDay",
-    "nationwide": false,
-    "subdivisions": [
-      {
-        "code": "PL-WN",
-        "shortName": "WN"
-      },
-      {
-        "code": "PL-PK",
-        "shortName": "PK"
-      }
-    ]
-  },
-  {
-    "id": "30f2046e-9c4b-4bbd-b82a-d1c77119cbf8",
-    "startDate": "2025-02-03",
-    "endDate": "2025-02-16",
-    "type": "School",
-    "name": [
-      {
-        "language": "PL",
-        "text": "Ferie zimowe"
-      }
-    ],
-    "regionalScope": "Regional",
-    "temporalScope": "FullDay",
-    "nationwide": false,
-    "subdivisions": [
-      {
-        "code": "PL-ZP",
-        "shortName": "ZP"
-      },
-      {
-        "code": "PL-DS",
-        "shortName": "DS"
-      },
-      {
-        "code": "PL-MZ",
-        "shortName": "MZ"
-      },
-      {
-        "code": "PL-OP",
-        "shortName": "OP"
-      }
-    ]
-  },
-  {
-    "id": "dae80d18-ba57-4fa6-921d-283cf1b39396",
-    "startDate": "2025-02-17",
-    "endDate": "2025-03-02",
-    "type": "School",
-    "name": [
-      {
-        "language": "PL",
-        "text": "Ferie zimowe"
-      }
-    ],
-    "regionalScope": "Regional",
-    "temporalScope": "FullDay",
-    "nationwide": false,
-    "subdivisions": [
-      {
-        "code": "PL-SK",
-        "shortName": "SK"
-      },
-      {
-        "code": "PL-PD",
-        "shortName": "PD"
-      },
-      {
-        "code": "PL-LB",
-        "shortName": "LB"
-      },
-      {
-        "code": "PL-PM",
-        "shortName": "PM"
-      },
-      {
-        "code": "PL-LD",
-        "shortName": "LD"
-      }
-    ]
-  },
-  {
-    "id": "cb8d0fc0-bee8-4115-8c12-c34647118a40",
-    "startDate": "2025-04-17",
-    "endDate": "2025-04-22",
-    "type": "School",
-    "name": [
-      {
-        "language": "PL",
-        "text": "Wiosenna przerwa świąteczna"
-      }
-    ],
-    "regionalScope": "National",
-    "temporalScope": "FullDay",
-    "nationwide": false,
-    "subdivisions": [
-      {
-        "code": "PL-SL",
-        "shortName": "SL"
-      },
-      {
-        "code": "PL-SK",
-        "shortName": "SK"
-      },
-      {
-        "code": "PL-LU",
-        "shortName": "LU"
-      },
-      {
-        "code": "PL-WP",
-        "shortName": "WP"
-      },
-      {
-        "code": "PL-PD",
-        "shortName": "PD"
-      },
-      {
-        "code": "PL-WN",
-        "shortName": "WN"
-      },
-      {
-        "code": "PL-ZP",
-        "shortName": "ZP"
-      },
-      {
-        "code": "PL-PK",
-        "shortName": "PK"
-      },
-      {
-        "code": "PL-DS",
-        "shortName": "DS"
-      },
-      {
-        "code": "PL-MA",
-        "shortName": "MA"
-      },
-      {
-        "code": "PL-MZ",
-        "shortName": "MZ"
-      },
-      {
-        "code": "PL-LB",
-        "shortName": "LB"
-      },
-      {
-        "code": "PL-PM",
-        "shortName": "PM"
-      },
-      {
-        "code": "PL-OP",
-        "shortName": "OP"
-      },
-      {
-        "code": "PL-LD",
-        "shortName": "LD"
-      },
-      {
-        "code": "PL-KP",
-        "shortName": "KP"
-      }
-    ]
-  },
-  {
-    "id": "1c47ec0e-8907-424c-9388-b9982decde8c",
-    "startDate": "2025-06-28",
-    "endDate": "2025-08-31",
-    "type": "School",
-    "name": [
-      {
-        "language": "PL",
-        "text": "Ferie letnie"
-      }
-    ],
-    "regionalScope": "National",
-    "temporalScope": "FullDay",
-    "nationwide": false,
-    "subdivisions": [
-      {
-        "code": "PL-SL",
-        "shortName": "SL"
-      },
-      {
-        "code": "PL-SK",
-        "shortName": "SK"
-      },
-      {
-        "code": "PL-LU",
-        "shortName": "LU"
-      },
-      {
-        "code": "PL-WP",
-        "shortName": "WP"
-      },
-      {
-        "code": "PL-PD",
-        "shortName": "PD"
-      },
-      {
-        "code": "PL-WN",
-        "shortName": "WN"
-      },
-      {
-        "code": "PL-ZP",
-        "shortName": "ZP"
-      },
-      {
-        "code": "PL-PK",
-        "shortName": "PK"
-      },
-      {
-        "code": "PL-DS",
-        "shortName": "DS"
-      },
-      {
-        "code": "PL-MA",
-        "shortName": "MA"
-      },
-      {
-        "code": "PL-MZ",
-        "shortName": "MZ"
-      },
-      {
-        "code": "PL-LB",
-        "shortName": "LB"
-      },
-      {
-        "code": "PL-PM",
-        "shortName": "PM"
-      },
-      {
-        "code": "PL-OP",
-        "shortName": "OP"
-      },
-      {
-        "code": "PL-LD",
-        "shortName": "LD"
-      },
-      {
-        "code": "PL-KP",
-        "shortName": "KP"
-      }
-    ]
-  },
-  {
-    "id": "f70dba15-b026-4cf3-bde6-cb2c9c54d12c",
-    "startDate": "2025-12-22",
-    "endDate": "2025-12-31",
-    "type": "School",
-    "name": [
-      {
-        "language": "PL",
-        "text": "Zimowa przerwa świąteczna"
-      }
-    ],
-    "regionalScope": "National",
-    "temporalScope": "FullDay",
-    "nationwide": false,
-    "subdivisions": [
-      {
-        "code": "PL-SL",
-        "shortName": "SL"
-      },
-      {
-        "code": "PL-SK",
-        "shortName": "SK"
-      },
-      {
-        "code": "PL-LU",
-        "shortName": "LU"
-      },
-      {
-        "code": "PL-WP",
-        "shortName": "WP"
-      },
-      {
-        "code": "PL-PD",
-        "shortName": "PD"
-      },
-      {
-        "code": "PL-WN",
-        "shortName": "WN"
-      },
-      {
-        "code": "PL-ZP",
-        "shortName": "ZP"
-      },
-      {
-        "code": "PL-PK",
-        "shortName": "PK"
-      },
-      {
-        "code": "PL-DS",
-        "shortName": "DS"
-      },
-      {
-        "code": "PL-MA",
-        "shortName": "MA"
-      },
-      {
-        "code": "PL-MZ",
-        "shortName": "MZ"
-      },
-      {
-        "code": "PL-LB",
-        "shortName": "LB"
-      },
-      {
-        "code": "PL-PM",
-        "shortName": "PM"
-      },
-      {
-        "code": "PL-OP",
-        "shortName": "OP"
-      },
-      {
-        "code": "PL-LD",
-        "shortName": "LD"
-      },
-      {
-        "code": "PL-KP",
-        "shortName": "KP"
-      }
-    ]
-  }
+    {
+        "id": "503317eb-0375-41a8-bcb7-501800dc4098",
+        "startDate": "2025-01-20",
+        "endDate": "2025-02-02",
+        "type": "School",
+        "name": [
+            {
+                "language": "PL",
+                "text": "Ferie zimowe"
+            }
+        ],
+        "regionalScope": "Regional",
+        "temporalScope": "FullDay",
+        "nationwide": false,
+        "subdivisions": [
+            {
+                "code": "PL-SL",
+                "shortName": "SL"
+            },
+            {
+                "code": "PL-LU",
+                "shortName": "LU"
+            },
+            {
+                "code": "PL-WP",
+                "shortName": "WP"
+            },
+            {
+                "code": "PL-MA",
+                "shortName": "MA"
+            },
+            {
+                "code": "PL-KP",
+                "shortName": "KP"
+            }
+        ]
+    },
+    {
+        "id": "b850a051-47c3-482f-9515-ad902acb0e46",
+        "startDate": "2025-01-27",
+        "endDate": "2025-02-09",
+        "type": "School",
+        "name": [
+            {
+                "language": "PL",
+                "text": "Ferie zimowe"
+            }
+        ],
+        "regionalScope": "Regional",
+        "temporalScope": "FullDay",
+        "nationwide": false,
+        "subdivisions": [
+            {
+                "code": "PL-WN",
+                "shortName": "WN"
+            },
+            {
+                "code": "PL-PK",
+                "shortName": "PK"
+            }
+        ]
+    },
+    {
+        "id": "30f2046e-9c4b-4bbd-b82a-d1c77119cbf8",
+        "startDate": "2025-02-03",
+        "endDate": "2025-02-16",
+        "type": "School",
+        "name": [
+            {
+                "language": "PL",
+                "text": "Ferie zimowe"
+            }
+        ],
+        "regionalScope": "Regional",
+        "temporalScope": "FullDay",
+        "nationwide": false,
+        "subdivisions": [
+            {
+                "code": "PL-ZP",
+                "shortName": "ZP"
+            },
+            {
+                "code": "PL-DS",
+                "shortName": "DS"
+            },
+            {
+                "code": "PL-MZ",
+                "shortName": "MZ"
+            },
+            {
+                "code": "PL-OP",
+                "shortName": "OP"
+            }
+        ]
+    },
+    {
+        "id": "dae80d18-ba57-4fa6-921d-283cf1b39396",
+        "startDate": "2025-02-17",
+        "endDate": "2025-03-02",
+        "type": "School",
+        "name": [
+            {
+                "language": "PL",
+                "text": "Ferie zimowe"
+            }
+        ],
+        "regionalScope": "Regional",
+        "temporalScope": "FullDay",
+        "nationwide": false,
+        "subdivisions": [
+            {
+                "code": "PL-SK",
+                "shortName": "SK"
+            },
+            {
+                "code": "PL-PD",
+                "shortName": "PD"
+            },
+            {
+                "code": "PL-LB",
+                "shortName": "LB"
+            },
+            {
+                "code": "PL-PM",
+                "shortName": "PM"
+            },
+            {
+                "code": "PL-LD",
+                "shortName": "LD"
+            }
+        ]
+    },
+    {
+        "id": "cb8d0fc0-bee8-4115-8c12-c34647118a40",
+        "startDate": "2025-04-17",
+        "endDate": "2025-04-22",
+        "type": "School",
+        "name": [
+            {
+                "language": "PL",
+                "text": "Wiosenna przerwa świąteczna"
+            }
+        ],
+        "regionalScope": "National",
+        "temporalScope": "FullDay",
+        "nationwide": false,
+        "subdivisions": [
+            {
+                "code": "PL-SL",
+                "shortName": "SL"
+            },
+            {
+                "code": "PL-SK",
+                "shortName": "SK"
+            },
+            {
+                "code": "PL-LU",
+                "shortName": "LU"
+            },
+            {
+                "code": "PL-WP",
+                "shortName": "WP"
+            },
+            {
+                "code": "PL-PD",
+                "shortName": "PD"
+            },
+            {
+                "code": "PL-WN",
+                "shortName": "WN"
+            },
+            {
+                "code": "PL-ZP",
+                "shortName": "ZP"
+            },
+            {
+                "code": "PL-PK",
+                "shortName": "PK"
+            },
+            {
+                "code": "PL-DS",
+                "shortName": "DS"
+            },
+            {
+                "code": "PL-MA",
+                "shortName": "MA"
+            },
+            {
+                "code": "PL-MZ",
+                "shortName": "MZ"
+            },
+            {
+                "code": "PL-LB",
+                "shortName": "LB"
+            },
+            {
+                "code": "PL-PM",
+                "shortName": "PM"
+            },
+            {
+                "code": "PL-OP",
+                "shortName": "OP"
+            },
+            {
+                "code": "PL-LD",
+                "shortName": "LD"
+            },
+            {
+                "code": "PL-KP",
+                "shortName": "KP"
+            }
+        ]
+    },
+    {
+        "id": "1c47ec0e-8907-424c-9388-b9982decde8c",
+        "startDate": "2025-06-28",
+        "endDate": "2025-08-31",
+        "type": "School",
+        "name": [
+            {
+                "language": "PL",
+                "text": "Ferie letnie"
+            }
+        ],
+        "regionalScope": "National",
+        "temporalScope": "FullDay",
+        "nationwide": false,
+        "subdivisions": [
+            {
+                "code": "PL-SL",
+                "shortName": "SL"
+            },
+            {
+                "code": "PL-SK",
+                "shortName": "SK"
+            },
+            {
+                "code": "PL-LU",
+                "shortName": "LU"
+            },
+            {
+                "code": "PL-WP",
+                "shortName": "WP"
+            },
+            {
+                "code": "PL-PD",
+                "shortName": "PD"
+            },
+            {
+                "code": "PL-WN",
+                "shortName": "WN"
+            },
+            {
+                "code": "PL-ZP",
+                "shortName": "ZP"
+            },
+            {
+                "code": "PL-PK",
+                "shortName": "PK"
+            },
+            {
+                "code": "PL-DS",
+                "shortName": "DS"
+            },
+            {
+                "code": "PL-MA",
+                "shortName": "MA"
+            },
+            {
+                "code": "PL-MZ",
+                "shortName": "MZ"
+            },
+            {
+                "code": "PL-LB",
+                "shortName": "LB"
+            },
+            {
+                "code": "PL-PM",
+                "shortName": "PM"
+            },
+            {
+                "code": "PL-OP",
+                "shortName": "OP"
+            },
+            {
+                "code": "PL-LD",
+                "shortName": "LD"
+            },
+            {
+                "code": "PL-KP",
+                "shortName": "KP"
+            }
+        ]
+    },
+    {
+        "id": "f70dba15-b026-4cf3-bde6-cb2c9c54d12c",
+        "startDate": "2025-12-22",
+        "endDate": "2025-12-31",
+        "type": "School",
+        "name": [
+            {
+                "language": "PL",
+                "text": "Zimowa przerwa świąteczna"
+            }
+        ],
+        "regionalScope": "National",
+        "temporalScope": "FullDay",
+        "nationwide": false,
+        "subdivisions": [
+            {
+                "code": "PL-SL",
+                "shortName": "SL"
+            },
+            {
+                "code": "PL-SK",
+                "shortName": "SK"
+            },
+            {
+                "code": "PL-LU",
+                "shortName": "LU"
+            },
+            {
+                "code": "PL-WP",
+                "shortName": "WP"
+            },
+            {
+                "code": "PL-PD",
+                "shortName": "PD"
+            },
+            {
+                "code": "PL-WN",
+                "shortName": "WN"
+            },
+            {
+                "code": "PL-ZP",
+                "shortName": "ZP"
+            },
+            {
+                "code": "PL-PK",
+                "shortName": "PK"
+            },
+            {
+                "code": "PL-DS",
+                "shortName": "DS"
+            },
+            {
+                "code": "PL-MA",
+                "shortName": "MA"
+            },
+            {
+                "code": "PL-MZ",
+                "shortName": "MZ"
+            },
+            {
+                "code": "PL-LB",
+                "shortName": "LB"
+            },
+            {
+                "code": "PL-PM",
+                "shortName": "PM"
+            },
+            {
+                "code": "PL-OP",
+                "shortName": "OP"
+            },
+            {
+                "code": "PL-LD",
+                "shortName": "LD"
+            },
+            {
+                "code": "PL-KP",
+                "shortName": "KP"
+            }
+        ]
+    }
 ]
+
