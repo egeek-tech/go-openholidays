@@ -72,9 +72,9 @@
   - [x] 03-02-PLAN.md — Languages endpoint + LanguagesRequest + fixture + test
   - [x] 03-03-PLAN.md — Subdivisions endpoint + SubdivisionsRequest + PL & DE fixtures + test (DE fixture seeds Plan 7 hierarchical test per Assumption A3)
   - [x] 03-04-PLAN.md — PublicHolidays endpoint + PublicHolidaysRequest + validateHolidays helper + ErrMalformedResponse sentinel + allowedVars extension + fixture + test (CL-12)
-  - [ ] 03-05-PLAN.md — SchoolHolidays endpoint + SchoolHolidaysRequest + fixture + test
+  - [x] 03-05-PLAN.md — SchoolHolidays endpoint + SchoolHolidaysRequest + fixture + test
   - [x] 03-06-PLAN.md — Holiday.NameFor + Holiday.IsInRegion (flat) + Holiday.Days + Holiday.Range (iter.Seq[Date]) + tests (CL-10, CL-11)
-  - [ ] 03-07-PLAN.md — Client.IsInRegion hierarchical + splitCountryFromSubdivision + buildParentIndex + tests against DE fixture (CL-09)
+  - [x] 03-07-PLAN.md — Client.IsInRegion hierarchical + splitCountryFromSubdivision + buildParentIndex + tests against DE fixture (CL-09)
   - [ ] 03-08-PLAN.md — update_fixtures_test.go: build-tagged integration -update mechanism + drift detection (covers TEST-02, TEST-03)
 
 ### Phase 4: Resilience
@@ -109,7 +109,7 @@
 |-------|----------------|--------|-----------|
 | 1. Foundation | 6/6 | Complete   | 2026-05-27 |
 | 2. Transport | 4/4 | Complete   | 2026-05-27 |
-| 3. Endpoints & Helpers | 5/8 | In Progress|  |
+| 3. Endpoints & Helpers | 7/8 | In Progress|  |
 | 4. Resilience | 0/0 | Not started | - |
 | 5. Distribution | 0/0 | Not started | - |
 
