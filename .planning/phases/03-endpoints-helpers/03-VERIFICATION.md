@@ -1,14 +1,41 @@
 ---
 phase: 03-endpoints-helpers
 verified: 2026-05-27T19:31:11Z
-status: human_needed
+status: gaps_found
 score: 4/5 success criteria verified
 overrides_applied: 0
-human_verification:
-  - test: "Confirm SC#2 intent: that Holiday.IsInRegion(\"PL-SL\") returns true for the Śląskie ferie zimowe cohort from the golden fixture and false for the other three cohorts"
-    expected: "IsInRegion returns true for cohort1 (2025-01-20..2025-02-02, has PL-SL) and false for cohorts 2/3/4 (dates 2025-01-27, 2025-02-03, 2025-02-17, none carry PL-SL)"
-    why_human: "No single test wires the school_holidays golden fixture into an IsInRegion call that verifies positive+negative for all four cohorts. The behavior is verified by composition (fixture test + unit test) but not in a single test scenario. A human can confirm the gap is acceptable or require a dedicated integration subtest."
-gaps: []
+human_verification: []
+gaps:
+  - id: SC2-COMBINED
+    severity: medium
+    source: SC#2 (compositional-proof-only)
+    summary: "Add a dedicated subtest that loads testdata/school_holidays_pl_2025.json and calls Holiday.IsInRegion(\"PL-SL\") on all four ferie zimowe cohorts: assert true for cohort1 (2025-01-20..2025-02-02, PL-SL present) and false for cohorts 2/3/4 (other regions). Currently the positive+negative path spans two unrelated test functions; the gap is the single integrated assertion against the golden fixture."
+    target_file: school_holidays_test.go
+    expected_after_fix: "go test -race -count=1 -run TestClient_SchoolHolidays_IsInRegion_FerieZimowe ./... passes; subtest exercises all 4 cohorts."
+  - id: CR-01-FIXTURE-INDENT
+    severity: blocker
+    source: 03-REVIEW.md CR-01
+    summary: "update_fixtures_test.go writes 2-space indent but committed fixtures are 4-space. Drift-detection mode reports false DRIFT. Fix: change json.Indent(&pretty, body, \"\", \"  \") to use 4-space indent so the writer matches the on-disk format."
+    target_file: update_fixtures_test.go
+    expected_after_fix: "OPENHOLIDAYS_LIVE=1 go test -tags=integration -run TestUpdateFixtures (drift-detect mode) reports OK for fixtures already on disk."
+  - id: CR-02-TRAILING-NEWLINE
+    severity: blocker
+    source: 03-REVIEW.md CR-02
+    summary: "update_fixtures_test.go does not write a trailing newline, but every committed fixture ends with one. Compounds CR-01. Fix: append pretty.WriteByte('\\n') (or use json.Indent + an explicit final newline) before the atomic os.Rename."
+    target_file: update_fixtures_test.go
+    expected_after_fix: "Re-running -update on a fixture produces no diff vs current on-disk content."
+  - id: WR-01-RANGE-FIRST-YIELD
+    severity: warning
+    source: 03-REVIEW.md WR-01
+    summary: "Holiday.Range() yields h.StartDate verbatim on the first iteration. Godoc claims every yield is rebuilt via NewDate; production code is unaffected because endpoint Holidays are UTC-midnight, but a hand-built Holiday with a non-UTC StartDate produces a non-UTC-midnight first yield. Fix: normalize the first iteration through NewDate(h.StartDate.Year(), h.StartDate.Month(), h.StartDate.Day())."
+    target_file: holiday.go
+    expected_after_fix: "Add a TestHoliday_Range subtest with a non-UTC-midnight StartDate that asserts the first yielded Date is UTC-midnight."
+  - id: WR-05-CAP-SHADOW
+    severity: warning
+    source: 03-REVIEW.md WR-05
+    summary: "update_fixtures_test.go line ~192 contains `cap := cap` which (a) is the redundant `tc := tc` pattern explicitly banned by CLAUDE.md \"What NOT to Use\" since Go 1.22 loop-var scoping, and (b) shadows the `cap` builtin. Fix: remove the shadow line and rename the loop variable so it does not clash with the builtin."
+    target_file: update_fixtures_test.go
+    expected_after_fix: "grep -n '^\\s*cap := cap' update_fixtures_test.go returns no lines; go vet ./... and golangci-lint stay clean."
 ---
 
 # Phase 03: Endpoints & Helpers Verification Report
