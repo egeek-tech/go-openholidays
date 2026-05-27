@@ -15,7 +15,7 @@
 
 - [x] **Phase 1: Foundation** — Domain types, custom `Date`, sentinel errors, `*APIError`, validators, `go.mod` at Go 1.23. (completed 2026-05-27)
 - [x] **Phase 2: Transport** — `Client`, functional options, RoundTripper chain (header + logging), first endpoint (Countries) end-to-end. (completed 2026-05-27)
-- [ ] **Phase 3: Endpoints & Helpers** — Languages, Subdivisions, PublicHolidays, SchoolHolidays + `Holiday.Name/IsInRegion/Days/Range` helpers + golden fixtures.
+- [x] **Phase 3: Endpoints & Helpers** — Languages, Subdivisions, PublicHolidays, SchoolHolidays + `Holiday.Name/IsInRegion/Days/Range` helpers + golden fixtures. (completed 2026-05-27)
 - [ ] **Phase 4: Resilience** — Retry, cache, observability hook, strict-decoding, `Client.Close()` wiring — all as transparent middleware that does NOT modify Phase 3 method signatures.
 - [ ] **Phase 5: Distribution** — `cmd/ohcli`, examples, fuzz, benchmarks, integration tests, CI matrix, golangci-lint, govulncheck, goreleaser, docs, `v0.1.0` tag.
 
@@ -75,7 +75,7 @@
   - [x] 03-05-PLAN.md — SchoolHolidays endpoint + SchoolHolidaysRequest + fixture + test
   - [x] 03-06-PLAN.md — Holiday.NameFor + Holiday.IsInRegion (flat) + Holiday.Days + Holiday.Range (iter.Seq[Date]) + tests (CL-10, CL-11)
   - [x] 03-07-PLAN.md — Client.IsInRegion hierarchical + splitCountryFromSubdivision + buildParentIndex + tests against DE fixture (CL-09)
-  - [ ] 03-08-PLAN.md — update_fixtures_test.go: build-tagged integration -update mechanism + drift detection (covers TEST-02, TEST-03)
+  - [x] 03-08-PLAN.md — update_fixtures_test.go: build-tagged integration -update mechanism + drift detection (covers TEST-02, TEST-03)
 
 ### Phase 4: Resilience
 **Goal**: Retry, cache, observability hook, and strict-decoding land as transparent middleware. Endpoint method signatures from Phase 3 remain UNCHANGED — the RoundTripper chain absorbs all new behavior. `Client.Close()` becomes load-bearing (stops cache sweeper).
@@ -109,7 +109,7 @@
 |-------|----------------|--------|-----------|
 | 1. Foundation | 6/6 | Complete   | 2026-05-27 |
 | 2. Transport | 4/4 | Complete   | 2026-05-27 |
-| 3. Endpoints & Helpers | 7/8 | In Progress|  |
+| 3. Endpoints & Helpers | 8/8 | Complete   | 2026-05-27 |
 | 4. Resilience | 0/0 | Not started | - |
 | 5. Distribution | 0/0 | Not started | - |
 
