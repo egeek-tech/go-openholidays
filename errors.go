@@ -33,6 +33,12 @@ var (
 	// ErrEmptyResponse is returned when the upstream returns a 2xx with an
 	// empty body where a non-empty payload was required.
 	ErrEmptyResponse = errors.New("openholidays: empty response body")
+
+	// ErrResponseTooLarge is returned when an upstream response exceeds the
+	// 10 MiB cap and the truncation is detected after JSON decode completes.
+	// A response truncated mid-JSON-value returns a decode error wrapping
+	// *json.SyntaxError instead (see RESEARCH.md Pitfall 5).
+	ErrResponseTooLarge = errors.New("openholidays: response too large")
 )
 
 // APIError represents a non-2xx response from the upstream API.

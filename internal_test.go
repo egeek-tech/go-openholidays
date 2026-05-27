@@ -38,11 +38,15 @@ import (
 // Entries:
 //
 //   - ErrInvalidCountry, ErrInvalidLanguage, ErrDateRangeTooLarge,
-//     ErrInvalidDateRange, ErrEmptyResponse — the five exported sentinels
-//     declared in errors.go (D-13).
+//     ErrInvalidDateRange, ErrEmptyResponse — the five Phase 1 exported
+//     sentinels declared in errors.go (D-13).
+//   - ErrResponseTooLarge — the sixth exported sentinel added in Phase 2
+//     for the 10 MiB response cap (D-24 / CL-07). Wrapped via fmt.Errorf
+//     %w from Countries when the post-decode sentinel-byte read detects
+//     truncation.
 //   - errEmptyDate — the unexported sentinel declared in date.go for
 //     UnmarshalJSON's null/empty rejection (D-06). Kept unexported so the
-//     public sentinel surface stays at five.
+//     public sentinel surface stays small.
 //
 // Sentinel error values are immutable identities (built via errors.New /
 // fmt.Errorf) — they are not "mutable state" in the CLIENT-10 sense, but
@@ -53,6 +57,7 @@ var allowedVars = map[string]struct{}{
 	"ErrDateRangeTooLarge": {},
 	"ErrInvalidDateRange":  {},
 	"ErrEmptyResponse":     {},
+	"ErrResponseTooLarge":  {},
 	"errEmptyDate":         {},
 }
 
