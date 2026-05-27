@@ -52,10 +52,10 @@
   4. A server returning a 12 MiB body causes `c.Countries(ctx)` to return a typed oversized-response error (10 MiB cap via `io.LimitReader`); response bodies are always drained then closed on every code path (verified by a `goleak`-style FD audit in tests).
   5. `Client.Close()` exists as an idempotent no-op stub callable from any goroutine; logging emits structured `slog` records at `Debug` level with `method`, `path`, `status`, `duration_ms`, `attempt`, `bytes_in` fields — never response bodies above `Debug`.
 **Plans**: 4 plans
-  - [ ] 02-01-PLAN.md — Transport RoundTrippers (headerTransport + loggingTransport) with per-RT unit tests; covers TRANS-01, TRANS-04, OBS-01, OBS-02
+  - [x] 02-01-PLAN.md — Transport RoundTrippers (headerTransport + loggingTransport) with per-RT unit tests; covers TRANS-01, TRANS-04, OBS-01, OBS-02
   - [ ] 02-02-PLAN.md — Client + Options + Config scaffolding (NewClient, WithX, composeHTTPClient, buildTransport, Close stub); covers CLIENT-01..06, CLIENT-08
   - [ ] 02-03-PLAN.md — Countries endpoint + ErrResponseTooLarge sentinel + CLIENT-10 allowlist + httptest suite + fixture + concurrent/ctx-cancel umbrella tests; covers ENDPT-01, TRANS-02, TRANS-03, CLIENT-07, CLIENT-09, TEST-04
-  - [ ] 02-04-PLAN.md — W-01 validator hardening (ASCII shape check before case canonicalization) folded into Phase 2 per CONTEXT.md D-32; covers VALID-01, VALID-04
+  - [x] 02-04-PLAN.md — W-01 validator hardening (ASCII shape check before case canonicalization) folded into Phase 2 per CONTEXT.md D-32; covers VALID-01, VALID-04
 
 ### Phase 3: Endpoints & Helpers
 **Goal**: All four remaining endpoints (`Languages`, `Subdivisions`, `PublicHolidays`, `SchoolHolidays`) ship with golden-fixture tests; `Holiday` helpers (`Name`, `IsInRegion`, `Days`, `Range`) return correct values for the verified Polish 2025 data.
@@ -100,7 +100,7 @@
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation | 6/6 | Complete   | 2026-05-27 |
-| 2. Transport | 0/4 | Planned     | - |
+| 2. Transport | 2/4 | In Progress|  |
 | 3. Endpoints & Helpers | 0/0 | Not started | - |
 | 4. Resilience | 0/0 | Not started | - |
 | 5. Distribution | 0/0 | Not started | - |
