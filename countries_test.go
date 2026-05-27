@@ -59,7 +59,7 @@ func TestClient_Countries(t *testing.T) {
 		t.Cleanup(srv.Close)
 
 		c := NewClient(WithBaseURL(srv.URL))
-		countries, err := c.Countries(context.Background())
+		countries, err := c.Countries(context.Background(), CountriesRequest{})
 		require.NoError(t, err)
 		require.Len(t, countries, 2)
 
@@ -90,7 +90,7 @@ func TestClient_Countries(t *testing.T) {
 		t.Cleanup(srv.Close)
 
 		c := NewClient(WithBaseURL(srv.URL))
-		countries, err := c.Countries(context.Background())
+		countries, err := c.Countries(context.Background(), CountriesRequest{})
 		require.Error(t, err)
 		assert.Nil(t, countries)
 
@@ -114,7 +114,7 @@ func TestClient_Countries(t *testing.T) {
 		t.Cleanup(srv.Close)
 
 		c := NewClient(WithBaseURL(srv.URL))
-		_, err := c.Countries(context.Background())
+		_, err := c.Countries(context.Background(), CountriesRequest{})
 		require.Error(t, err)
 
 		var apiErr *APIError
@@ -135,7 +135,7 @@ func TestClient_Countries(t *testing.T) {
 		t.Cleanup(srv.Close)
 
 		c := NewClient(WithBaseURL(srv.URL))
-		_, err := c.Countries(context.Background())
+		_, err := c.Countries(context.Background(), CountriesRequest{})
 		require.Error(t, err)
 
 		var apiErr *APIError
@@ -156,7 +156,7 @@ func TestClient_Countries(t *testing.T) {
 		t.Cleanup(srv.Close)
 
 		c := NewClient(WithBaseURL(srv.URL))
-		_, err := c.Countries(context.Background())
+		_, err := c.Countries(context.Background(), CountriesRequest{})
 		require.Error(t, err)
 
 		var apiErr *APIError
@@ -176,7 +176,7 @@ func TestClient_Countries(t *testing.T) {
 		t.Cleanup(srv.Close)
 
 		c := NewClient(WithBaseURL(srv.URL))
-		_, err := c.Countries(context.Background())
+		_, err := c.Countries(context.Background(), CountriesRequest{})
 		require.Error(t, err)
 		assert.True(t, errors.Is(err, ErrEmptyResponse),
 			"expected ErrEmptyResponse via errors.Is, got %v", err)
@@ -187,7 +187,7 @@ func TestClient_Countries(t *testing.T) {
 		// No server — the nil-ctx guard short-circuits before any HTTP.
 		c := NewClient(WithBaseURL("http://example.invalid"))
 		//nolint:staticcheck // intentionally pass nil context to exercise the defensive guard
-		_, err := c.Countries(nil)
+		_, err := c.Countries(nil, CountriesRequest{})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "openholidays: nil context",
 			"defensive guard must return the documented error string")
@@ -240,7 +240,7 @@ func TestClient_Countries(t *testing.T) {
 		c := NewClient(WithBaseURL(srv.URL))
 
 		baseGoroutines := runtime.NumGoroutine()
-		_, err := c.Countries(context.Background())
+		_, err := c.Countries(context.Background(), CountriesRequest{})
 		require.Error(t, err)
 		assert.True(t, errors.Is(err, ErrResponseTooLarge),
 			"expected ErrResponseTooLarge via errors.Is, got %v", err)
@@ -290,12 +290,64 @@ func TestClient_Countries(t *testing.T) {
 		t.Cleanup(srv.Close)
 
 		c := NewClient(WithBaseURL(srv.URL))
-		countries, err := c.Countries(context.Background())
+		countries, err := c.Countries(context.Background(), CountriesRequest{})
 		require.NoError(t, err, "trailing whitespace in a separate chunk must NOT be reported as ErrResponseTooLarge (CR-01)")
 		assert.False(t, errors.Is(err, ErrResponseTooLarge),
 			"CR-01 regression: small body + trailing whitespace must not match ErrResponseTooLarge")
 		require.Len(t, countries, 1)
 		assert.Equal(t, "PL", countries[0].IsoCode)
+	})
+
+	t.Run("optional LanguageIsoCode sent in query when non-empty", func(t *testing.T) {
+		t.Parallel()
+		// Use the existing committed fixture body so the response shape is
+		// stable. The handler asserts that the URL builder sent
+		// languageIsoCode=pl (lowercased canonical form per validateLanguage).
+		body, err := os.ReadFile(filepath.Join("testdata", "countries.json"))
+		require.NoError(t, err, "fixture missing — re-capture per Plan 03-01 Task 3")
+
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, "pl", r.URL.Query().Get("languageIsoCode"),
+				"expected canonicalized lowercase languageIsoCode in query")
+			assert.Equal(t, "/Countries", r.URL.Path)
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write(body)
+		}))
+		t.Cleanup(srv.Close)
+
+		c := NewClient(WithBaseURL(srv.URL))
+		countries, err := c.Countries(context.Background(), CountriesRequest{LanguageIsoCode: "PL"})
+		require.NoError(t, err)
+		assert.NotEmpty(t, countries)
+	})
+
+	t.Run("empty LanguageIsoCode is omitted from query", func(t *testing.T) {
+		t.Parallel()
+		body, err := os.ReadFile(filepath.Join("testdata", "countries.json"))
+		require.NoError(t, err, "fixture missing — re-capture per Plan 03-01 Task 3")
+
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Empty(t, r.URL.RawQuery,
+				"empty LanguageIsoCode must not produce any query string, got %q", r.URL.RawQuery)
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write(body)
+		}))
+		t.Cleanup(srv.Close)
+
+		c := NewClient(WithBaseURL(srv.URL))
+		_, err = c.Countries(context.Background(), CountriesRequest{})
+		require.NoError(t, err)
+	})
+
+	t.Run("invalid LanguageIsoCode returns ErrInvalidLanguage without HTTP", func(t *testing.T) {
+		t.Parallel()
+		// http://example.invalid is RFC 6761 reserved; if the validator
+		// failed to short-circuit, the HTTP dispatch would fail loudly.
+		c := NewClient(WithBaseURL("http://example.invalid"))
+		_, err := c.Countries(context.Background(), CountriesRequest{LanguageIsoCode: "X"})
+		require.Error(t, err)
+		assert.True(t, errors.Is(err, ErrInvalidLanguage),
+			"expected ErrInvalidLanguage via errors.Is, got %v", err)
 	})
 }
 

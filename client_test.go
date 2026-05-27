@@ -156,7 +156,7 @@ func TestClient_ConcurrentAccess(t *testing.T) {
 		wg.Add(1)
 		go func(idx int) {
 			defer wg.Done()
-			results[idx], errs[idx] = c.Countries(context.Background())
+			results[idx], errs[idx] = c.Countries(context.Background(), CountriesRequest{})
 		}(i)
 	}
 	wg.Wait()
@@ -201,7 +201,7 @@ func TestClient_ContextCancel(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		time.AfterFunc(50*time.Millisecond, cancel)
 		start := time.Now()
-		_, err := c.Countries(ctx)
+		_, err := c.Countries(ctx, CountriesRequest{})
 		elapsed := time.Since(start)
 
 		require.Error(t, err)

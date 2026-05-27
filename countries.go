@@ -1,56 +1,58 @@
-// Package openholidays — Countries endpoint method and supporting
-// buildAPIError / parseAPIMessage helpers.
+// Package openholidays — Countries endpoint method.
 //
-// This file ships the first end-to-end endpoint contract Phase 3 will mirror:
+// This file ships only the Countries endpoint method and its associated
+// CountriesRequest type. The HTTP-and-decode pipeline that Phase 2 inlined
+// here moved to request.go in Phase 3 (D-62 / D-63); Countries (and every
+// other Phase 3 endpoint) now dispatches through the generic helper
+// declared there.
 //
-//   - Client.Countries(ctx) is the canonical shape every endpoint method
-//     follows — nil-ctx guard → optional context.WithTimeout per c.timeout →
-//     http.NewRequestWithContext → c.http.Do → defer drain-then-close →
-//     status check → JSON decode → post-Decode sentinel-byte truncation gate
-//     (ENDPT-01 + D-41 + D-42).
-//   - buildAPIError reads up to 4 KiB of the upstream body (Phase 1 D-17) and
-//     constructs *APIError with parsed Message (D-43) — TRANS-02 + Phase 1
-//     APIError body-cap invariant.
-//   - parseAPIMessage best-effort extracts a Message from RFC 7807
-//     ProblemDetails (verified live 2026-05-27): priority detail → title →
-//     error; empty string on unparseable or empty body.
-//   - const maxResponseBytes = 10 << 20 holds the unconfigurable 10 MiB
-//     decode cap (D-25); placement in countries.go per PATTERNS.md (only
-//     Countries uses it today; Phase 3 endpoints will share the const from
-//     here).
-//
-// Sentinel-byte truncation gate: io.LimitReader caps Decode at maxResponseBytes;
-// after Decode returns nil, a single-byte Read on resp.Body detects whether
-// the upstream still has bytes (i.e. the body exceeded the cap and Decode
-// happened to finish on a valid JSON boundary). The result is wrapped via
-// fmt.Errorf %w so errors.Is(err, ErrResponseTooLarge) holds through caller
-// wraps (D-24 + RESEARCH.md Pitfall 5).
+// Phase 3 also retrofits the Phase 2 single-arg Countries signature
+// to the uniform (ctx, CountriesRequest) shape that every endpoint
+// method shares (D-51 / D-52 / CL-08). The zero-value CountriesRequest{}
+// reproduces the Phase 2 observable behavior verbatim.
 
 package openholidays
 
 import (
 	"context"
-	"encoding/json"
-	"errors"
-	"fmt"
-	"io"
-	"net/http"
+	"net/url"
 )
 
-// maxResponseBytes is the hard ceiling on any decoded response body (D-25).
-// 10 MiB. Not configurable in v0.1.0 — PROJECT.md fixes the cap.
-const maxResponseBytes = 10 << 20
-
-// apiErrorBodyCap is the maximum number of upstream body bytes copied into
-// APIError.Body (Phase 1 D-17). 4 KiB. The cap bounds the byte cost of
-// echoing a hostile multi-MB error envelope into operator logs while still
-// preserving enough context for diagnostics.
-const apiErrorBodyCap = 4 << 10
+// CountriesRequest carries the optional filter exposed by the upstream
+// /Countries endpoint. The zero value (CountriesRequest{}) reproduces the
+// Phase 2 unfiltered behavior verbatim and is the recommended call shape
+// when no filter is needed.
+//
+// Fields:
+//
+//   - LanguageIsoCode is an optional ISO 639-1 two-letter language code
+//     (case-insensitive; canonicalized to lowercase before being sent on
+//     the wire). When non-empty, the request includes the corresponding
+//     languageIsoCode query parameter and the upstream returns only the
+//     localized Country.Name entries in that language. When empty, the
+//     parameter is omitted and the upstream returns all localized names
+//     for each Country (D-54 / D-55 / CL-13).
+//
+// Validation: non-empty LanguageIsoCode is validated client-side via
+// validateLanguage (D-56) before any HTTP request is made; a malformed
+// value returns an error wrapping ErrInvalidLanguage without reaching the
+// network.
+type CountriesRequest struct {
+	// LanguageIsoCode is an optional ISO 639-1 language filter.
+	LanguageIsoCode string
+}
 
 // Countries fetches the list of supported countries from the upstream
 // OpenHolidays API. Each returned Country carries an IsoCode, a per-language
 // localized Name array (look up a specific language via Country.NameFor),
 // and the country's OfficialLanguages list.
+//
+// Request shape: Countries takes a CountriesRequest second argument so its
+// signature is symmetric with every other Phase 3 endpoint (Languages,
+// Subdivisions, PublicHolidays, SchoolHolidays). The zero value
+// CountriesRequest{} reproduces the Phase 2 single-arg Countries(ctx)
+// behavior verbatim (D-51 / D-52 / CL-08). The optional LanguageIsoCode
+// filter restricts the returned Country.Name entries to that language only.
 //
 // Per-request timeout: when the Client was constructed with WithTimeout(d)
 // and d > 0, Countries wraps ctx via context.WithTimeout(ctx, d) before
@@ -60,6 +62,9 @@ const apiErrorBodyCap = 4 << 10
 //
 // Error handling:
 //
+//   - A non-empty req.LanguageIsoCode that fails client-side shape
+//     validation returns an error wrapping ErrInvalidLanguage without
+//     reaching the network (D-56).
 //   - 4xx and 5xx upstream responses produce *APIError with the StatusCode,
 //     a parsed Message (RFC 7807 ProblemDetails priority: detail → title →
 //     error), and the raw response body capped at 4 KiB (Phase 1 D-17).
@@ -73,119 +78,15 @@ const apiErrorBodyCap = 4 << 10
 //
 // Concurrent use: the Client is immutable after NewClient, so Countries is
 // safe to call from any goroutine without external synchronization
-// (CLIENT-07; mechanically asserted by TestClient_ConcurrentAccess under
-// the race detector).
-func (c *Client) Countries(ctx context.Context) ([]Country, error) {
-	if ctx == nil {
-		return nil, errors.New("openholidays: nil context")
-	}
-	if c.timeout > 0 {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, c.timeout)
-		defer cancel()
-	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/Countries", nil)
-	if err != nil {
-		return nil, fmt.Errorf("openholidays: build /Countries request: %w", err)
-	}
-	resp, err := c.http.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("openholidays: GET /Countries: %w", err)
-	}
-	defer func() {
-		// Drain before close so the keep-alive connection can be reused
-		// (PITFALLS HTTP-3). LimitReader bounds the drain at
-		// maxResponseBytes+1 so a hostile infinite stream cannot block the
-		// drain indefinitely (T-02-12).
-		_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, maxResponseBytes+1))
-		_ = resp.Body.Close()
-	}()
-	if resp.StatusCode >= 400 {
-		return nil, buildAPIError(resp, "/Countries")
-	}
-	var countries []Country
-	limited := &io.LimitedReader{R: resp.Body, N: maxResponseBytes}
-	decoder := json.NewDecoder(limited)
-	if decodeErr := decoder.Decode(&countries); decodeErr != nil {
-		if errors.Is(decodeErr, io.EOF) {
-			return nil, fmt.Errorf("openholidays: empty /Countries response: %w", ErrEmptyResponse)
+// (CLIENT-07).
+func (c *Client) Countries(ctx context.Context, req CountriesRequest) ([]Country, error) {
+	q := url.Values{}
+	if req.LanguageIsoCode != "" {
+		lang, err := validateLanguage(req.LanguageIsoCode)
+		if err != nil {
+			return nil, err
 		}
-		// Mid-truncation gate (RESEARCH.md Pitfall 5, option 2): when the
-		// LimitReader exhausts its budget (limited.N == 0), the upstream
-		// payload exceeded maxResponseBytes and Decode surfaces
-		// io.ErrUnexpectedEOF (or *json.SyntaxError) because the array's
-		// closing `]` was never reached. Prefer ErrResponseTooLarge so caller
-		// branching works uniformly across boundary and mid-truncation cases.
-		// Testing limited.N (not resp.Body.Read) avoids the CR-01 false
-		// positive where HTTP/2 chunked framing leaves stray post-JSON bytes
-		// in resp.Body that have nothing to do with overflow.
-		if limited.N == 0 {
-			return nil, fmt.Errorf("openholidays: response exceeded %d bytes: %w", maxResponseBytes, ErrResponseTooLarge)
-		}
-		return nil, fmt.Errorf("openholidays: decode /Countries: %w", decodeErr)
+		q.Set("languageIsoCode", lang)
 	}
-	// Boundary-truncation gate (D-24 / RESEARCH.md Pitfall 5): use the
-	// decoder's own More() to ask "is another JSON value waiting?" — this
-	// correctly ignores RFC 8259 whitespace (newlines, spaces, tabs) that
-	// servers commonly emit after the closing `]`, so trailing whitespace in
-	// a separate HTTP/2 chunk no longer triggers a false ErrResponseTooLarge
-	// (CR-01). When upstream genuinely sent more than maxResponseBytes and
-	// Decode finished on a valid boundary, More() returns true (another
-	// JSON value is starting) and the sentinel fires.
-	if decoder.More() {
-		return nil, fmt.Errorf("openholidays: response exceeded %d bytes: %w", maxResponseBytes, ErrResponseTooLarge)
-	}
-	return countries, nil
-}
-
-// buildAPIError constructs an *APIError from a non-2xx *http.Response. The
-// upstream body is read via io.LimitReader so APIError.Body never exceeds
-// apiErrorBodyCap (4 KiB, Phase 1 D-17). Message is parsed best-effort via
-// parseAPIMessage; an unparseable body yields an empty Message and the
-// Error() output omits the suffix.
-//
-// The drain-then-close defer in Countries handles closing resp.Body — this
-// helper only consumes (at most) the first 4 KiB.
-func buildAPIError(resp *http.Response, path string) *APIError {
-	body, _ := io.ReadAll(io.LimitReader(resp.Body, apiErrorBodyCap))
-	msg := parseAPIMessage(body)
-	return &APIError{
-		StatusCode: resp.StatusCode,
-		Path:       path,
-		Body:       body,
-		Message:    msg,
-	}
-}
-
-// parseAPIMessage best-effort extracts a human-readable message from an
-// upstream error body. The OpenHolidays API returns RFC 7807 ProblemDetails
-// envelopes (verified live 2026-05-27); the priority order detail → title →
-// error reflects the field most likely to carry the human-facing message:
-//
-//   - detail: per-occurrence narrative (most specific; preferred).
-//   - title: generic class label (fallback when detail is absent).
-//   - error: legacy shorthand observed on some 5xx responses (third-priority
-//     fallback).
-//
-// Returns the empty string when the body is not valid JSON or when none of
-// the three fields are populated.
-func parseAPIMessage(body []byte) string {
-	var env struct {
-		Detail string `json:"detail"`
-		Title  string `json:"title"`
-		Error  string `json:"error"`
-	}
-	if err := json.Unmarshal(body, &env); err != nil {
-		return ""
-	}
-	switch {
-	case env.Detail != "":
-		return env.Detail
-	case env.Title != "":
-		return env.Title
-	case env.Error != "":
-		return env.Error
-	default:
-		return ""
-	}
+	return doJSONGet[[]Country](ctx, c, "/Countries", q)
 }
