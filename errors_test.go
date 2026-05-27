@@ -9,9 +9,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestSentinelErrors locks ERR-01: each of the 5 sentinels is non-nil,
-// carries the "openholidays: " prefix per the project's error-string
-// convention, and has a distinct identity from every other sentinel.
+// TestSentinelErrors locks ERR-01 (Phase 1 baseline) + Phase 2 D-24/CL-07:
+// each of the 6 exported sentinels is non-nil, carries the "openholidays: "
+// prefix per the project's error-string convention, and has a distinct
+// identity from every other sentinel. Phase 2 adds ErrResponseTooLarge as
+// the sixth entry; CLIENT-10 audit (internal_test.go) gates package-level
+// var growth so this list and the allowlist must move in lockstep.
 func TestSentinelErrors(t *testing.T) {
 	t.Parallel()
 
@@ -25,6 +28,7 @@ func TestSentinelErrors(t *testing.T) {
 		{"ErrDateRangeTooLarge", ErrDateRangeTooLarge},
 		{"ErrInvalidDateRange", ErrInvalidDateRange},
 		{"ErrEmptyResponse", ErrEmptyResponse},
+		{"ErrResponseTooLarge", ErrResponseTooLarge},
 	}
 
 	for _, s := range all {
@@ -70,6 +74,7 @@ func TestSentinels_ErrorsIs(t *testing.T) {
 		{"ErrDateRangeTooLarge", ErrDateRangeTooLarge},
 		{"ErrInvalidDateRange", ErrInvalidDateRange},
 		{"ErrEmptyResponse", ErrEmptyResponse},
+		{"ErrResponseTooLarge", ErrResponseTooLarge},
 	}
 
 	for _, s := range all {

@@ -1,0 +1,38 @@
+[
+  {
+    "isoCode": "DE",
+    "name": [
+      {
+        "language": "EN",
+        "text": "Germany"
+      },
+      {
+        "language": "DE",
+        "text": "Deutschland"
+      }
+    ],
+    "officialLanguages": [
+      "DE"
+    ]
+  },
+  {
+    "isoCode": "PL",
+    "name": [
+      {
+        "language": "EN",
+        "text": "Poland"
+      },
+      {
+        "language": "PL",
+        "text": "Polska"
+      },
+      {
+        "language": "DE",
+        "text": "Polen"
+      }
+    ],
+    "officialLanguages": [
+      "PL"
+    ]
+  }
+]

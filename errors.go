@@ -33,6 +33,14 @@ var (
 	// ErrEmptyResponse is returned when the upstream returns a 2xx with an
 	// empty body where a non-empty payload was required.
 	ErrEmptyResponse = errors.New("openholidays: empty response body")
+
+	// ErrResponseTooLarge is returned when an upstream response exceeds the
+	// 10 MiB cap. Both boundary-truncation (Decode finishes on a valid JSON
+	// boundary, sentinel-byte read detects extra bytes) and mid-truncation
+	// (Decode surfaces io.ErrUnexpectedEOF, sentinel-byte read confirms the
+	// body has more bytes) cases produce this sentinel — see RESEARCH.md
+	// Pitfall 5 and Plan 02-03 deviation 1.
+	ErrResponseTooLarge = errors.New("openholidays: response too large")
 )
 
 // APIError represents a non-2xx response from the upstream API.
