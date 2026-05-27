@@ -2,15 +2,14 @@
 gsd_state_version: 1.0
 milestone: v0.1.0
 milestone_name: milestone
-status: ready_to_plan
-last_updated: 2026-05-27T15:01:26.840Z
+status: planning
+last_updated: "2026-05-27T17:31:30.222Z"
 progress:
   total_phases: 5
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 10
   completed_plans: 10
-  percent: 20
-stopped_at: Phase 02 complete (4/4) — ready to discuss Phase 3
+  percent: 40
 ---
 
 # Project State: go-openholidays
@@ -34,7 +33,7 @@ Plan: 1 of 4
 **Phase:** 3 of 5 (endpoints & helpers)
 **Plan:** Not started
 **Status:** Ready to plan
-**Resume file:** .planning/phases/02-transport/02-CONTEXT.md
+**Resume file:** .planning/phases/03-endpoints-helpers/03-CONTEXT.md
 **Progress:**
 
 ```
