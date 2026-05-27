@@ -15,6 +15,7 @@ package openholidays
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -336,4 +337,114 @@ func TestClient_SchoolHolidays(t *testing.T) {
 		assert.True(t, errors.Is(err, ErrMalformedResponse),
 			"expected ErrMalformedResponse via errors.Is, got %v", err)
 	})
+}
+
+// TestClient_SchoolHolidays_IsInRegion_FerieZimowe is the SC#2-integrated
+// characterization test: it loads testdata/school_holidays_pl_2025.json
+// through the SchoolHolidays endpoint (httptest server), locates all four
+// "Ferie zimowe" entries, and calls Holiday.IsInRegion("PL-SL") on each.
+// Per the golden PL 2025 fixture, exactly cohort 1 (Jan 20 - Feb 2)
+// carries PL-SL in its subdivisions; cohorts 2-4 do not.
+//
+// This is a Gold-Rule-3 narrow exception recorded as CL-14 in
+// .planning/PROJECT.md Key Decisions: there is no new exported
+// production function being tested here. The function exists to close
+// the SC2-COMBINED gap from .planning/phases/03-endpoints-helpers/
+// 03-VERIFICATION.md by providing a single integrated test scenario
+// that satisfies the literal ROADMAP SC#2 wording — "correctly
+// identifies the Śląskie ferie zimowe cohort while excluding the other
+// three regional cohorts" — without splitting the proof across two
+// unrelated test functions (school_holidays_test.go for "fixture has
+// the entry" + holiday_test.go for "IsInRegion logic is correct").
+// The CL-14 exception is explicitly scoped to THIS test only; future
+// SchoolHolidays-related tests must continue to live inside the single
+// TestClient_SchoolHolidays t.Run tree per Gold Rule 3.
+func TestClient_SchoolHolidays_IsInRegion_FerieZimowe(t *testing.T) {
+	t.Parallel()
+
+	body, err := os.ReadFile(filepath.Join("testdata", "school_holidays_pl_2025.json"))
+	require.NoError(t, err, "fixture missing — re-capture from live API per Plan 03-05 Task 1 (captured %s)",
+		schoolHolidaysPL2025FixtureCapturedAt)
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write(body)
+	}))
+	t.Cleanup(srv.Close)
+
+	c := NewClient(WithBaseURL(srv.URL))
+	holidays, err := c.SchoolHolidays(context.Background(), SchoolHolidaysRequest{
+		CountryIsoCode: "PL",
+		ValidFrom:      NewDate(2025, time.January, 1),
+		ValidTo:        NewDate(2025, time.December, 31),
+	})
+	require.NoError(t, err)
+	require.Len(t, holidays, 7, "fixture must have 7 entries (captured %s)",
+		schoolHolidaysPL2025FixtureCapturedAt)
+
+	// Collect every "Ferie zimowe" entry from the fixture in StartDate
+	// order. Per the golden fixture, there are exactly 4 such entries
+	// (the four regional cohorts of the Polish school winter break).
+	var ferieZimowe []Holiday
+	for _, h := range holidays {
+		if h.NameFor("pl") == "Ferie zimowe" {
+			ferieZimowe = append(ferieZimowe, h)
+		}
+	}
+	require.Len(t, ferieZimowe, 4,
+		"fixture must contain exactly 4 Ferie zimowe cohorts (captured %s) — re-capture if upstream drifted",
+		schoolHolidaysPL2025FixtureCapturedAt)
+
+	// Cohort 1 (2025-01-20 .. 2025-02-02) is the only cohort carrying
+	// PL-SL. The other three cohorts do not. Subtests below give a
+	// per-cohort name so a CI failure points at the exact cohort that
+	// regressed.
+	type cohortCase struct {
+		idx      int
+		start    Date
+		end      Date
+		wantPLSL bool
+	}
+	cohorts := []cohortCase{
+		{0, NewDate(2025, time.January, 20), NewDate(2025, time.February, 2), true},
+		{1, NewDate(2025, time.January, 27), NewDate(2025, time.February, 9), false},
+		{2, NewDate(2025, time.February, 3), NewDate(2025, time.February, 16), false},
+		{3, NewDate(2025, time.February, 17), NewDate(2025, time.March, 2), false},
+	}
+
+	for _, tc := range cohorts {
+		t.Run(formatCohortName(tc.idx, tc.start, tc.end, tc.wantPLSL), func(t *testing.T) {
+			t.Parallel()
+			require.Less(t, tc.idx, len(ferieZimowe),
+				"fixture has fewer Ferie zimowe entries than expected — cohort index %d out of range", tc.idx)
+			h := ferieZimowe[tc.idx]
+			// Cohort identity check: dates must match the expected
+			// window for the named cohort. If the upstream re-ordered
+			// entries this fires loudly instead of silently testing
+			// the wrong cohort.
+			assert.True(t, h.StartDate.Equal(tc.start),
+				"cohort %d StartDate mismatch: want %s, got %s — fixture may have re-ordered (captured %s)",
+				tc.idx, tc.start, h.StartDate, schoolHolidaysPL2025FixtureCapturedAt)
+			assert.True(t, h.EndDate.Equal(tc.end),
+				"cohort %d EndDate mismatch: want %s, got %s — fixture may have re-ordered (captured %s)",
+				tc.idx, tc.end, h.EndDate, schoolHolidaysPL2025FixtureCapturedAt)
+			// The actual SC#2 assertion:
+			got := h.IsInRegion("PL-SL")
+			assert.Equal(t, tc.wantPLSL, got,
+				"cohort %d IsInRegion(\"PL-SL\") = %v, want %v (subdivisions=%v)",
+				tc.idx, got, tc.wantPLSL, h.Subdivisions)
+		})
+	}
+}
+
+// formatCohortName builds a stable, human-readable subtest name from the
+// cohort index, date window, and expected IsInRegion("PL-SL") result.
+// Kept package-private and adjacent to the only call site.
+func formatCohortName(idx int, start Date, end Date, wantPLSL bool) string {
+	expected := "excludes_PL-SL"
+	if wantPLSL {
+		expected = "matches_PL-SL"
+	}
+	return fmt.Sprintf("cohort_%d_%s_to_%s_%s",
+		idx+1, start.Format("2006-01-02"), end.Format("2006-01-02"), expected)
 }
