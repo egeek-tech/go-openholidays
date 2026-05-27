@@ -109,7 +109,7 @@
 |-------|----------------|--------|-----------|
 | 1. Foundation | 6/6 | Complete   | 2026-05-27 |
 | 2. Transport | 4/4 | Complete   | 2026-05-27 |
-| 3. Endpoints & Helpers | 8/8 | Complete   | 2026-05-27 |
+| 3. Endpoints & Helpers | 11/11 | Complete   | 2026-05-27 |
 | 4. Resilience | 0/0 | Not started | - |
 | 5. Distribution | 0/0 | Not started | - |
 
