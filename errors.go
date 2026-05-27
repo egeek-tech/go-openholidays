@@ -35,9 +35,11 @@ var (
 	ErrEmptyResponse = errors.New("openholidays: empty response body")
 
 	// ErrResponseTooLarge is returned when an upstream response exceeds the
-	// 10 MiB cap and the truncation is detected after JSON decode completes.
-	// A response truncated mid-JSON-value returns a decode error wrapping
-	// *json.SyntaxError instead (see RESEARCH.md Pitfall 5).
+	// 10 MiB cap. Both boundary-truncation (Decode finishes on a valid JSON
+	// boundary, sentinel-byte read detects extra bytes) and mid-truncation
+	// (Decode surfaces io.ErrUnexpectedEOF, sentinel-byte read confirms the
+	// body has more bytes) cases produce this sentinel — see RESEARCH.md
+	// Pitfall 5 and Plan 02-03 deviation 1.
 	ErrResponseTooLarge = errors.New("openholidays: response too large")
 )
 

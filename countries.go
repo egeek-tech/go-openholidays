@@ -105,13 +105,24 @@ func (c *Client) Countries(ctx context.Context) ([]Country, error) {
 	}
 	var countries []Country
 	decoder := json.NewDecoder(io.LimitReader(resp.Body, maxResponseBytes))
-	if err := decoder.Decode(&countries); err != nil {
-		if errors.Is(err, io.EOF) {
+	if decodeErr := decoder.Decode(&countries); decodeErr != nil {
+		if errors.Is(decodeErr, io.EOF) {
 			return nil, fmt.Errorf("openholidays: empty /Countries response: %w", ErrEmptyResponse)
 		}
-		return nil, fmt.Errorf("openholidays: decode /Countries: %w", err)
+		// Mid-truncation gate (RESEARCH.md Pitfall 5, option 2): the
+		// LimitReader returns EOF at maxResponseBytes; Decode then surfaces
+		// io.ErrUnexpectedEOF (or *json.SyntaxError) because the array's
+		// closing `]` was never reached. If the underlying body still has
+		// bytes, the truncation was caused by the size cap, not by garbage
+		// JSON — prefer ErrResponseTooLarge so caller branching works
+		// uniformly across boundary-truncation and mid-truncation cases.
+		var one [1]byte
+		if n, _ := resp.Body.Read(one[:]); n > 0 {
+			return nil, fmt.Errorf("openholidays: response exceeded %d bytes: %w", maxResponseBytes, ErrResponseTooLarge)
+		}
+		return nil, fmt.Errorf("openholidays: decode /Countries: %w", decodeErr)
 	}
-	// Sentinel-byte truncation gate (D-24 / RESEARCH.md Pitfall 5): if the
+	// Boundary-truncation gate (D-24 / RESEARCH.md Pitfall 5): if the
 	// upstream sent more than maxResponseBytes and Decode happened to finish
 	// on a valid JSON boundary, a single-byte Read on resp.Body returns
 	// n > 0. Wrap via %w so errors.Is(err, ErrResponseTooLarge) holds.
