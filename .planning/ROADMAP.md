@@ -13,7 +13,7 @@
 
 ## Phases
 
-- [ ] **Phase 1: Foundation** — Domain types, custom `Date`, sentinel errors, `*APIError`, validators, `go.mod` at Go 1.23.
+- [x] **Phase 1: Foundation** — Domain types, custom `Date`, sentinel errors, `*APIError`, validators, `go.mod` at Go 1.23. (completed 2026-05-27)
 - [ ] **Phase 2: Transport** — `Client`, functional options, RoundTripper chain (header + logging), first endpoint (Countries) end-to-end.
 - [ ] **Phase 3: Endpoints & Helpers** — Languages, Subdivisions, PublicHolidays, SchoolHolidays + `Holiday.Name/IsInRegion/Days/Range` helpers + golden fixtures.
 - [ ] **Phase 4: Resilience** — Retry, cache, observability hook, strict-decoding, `Client.Close()` wiring — all as transparent middleware that does NOT modify Phase 3 method signatures.
@@ -39,7 +39,7 @@
   - [x] 01-03-PLAN.md — Custom Date wrapper struct (Marshal/UnmarshalJSON, NewDate, ParseDate, comparison helpers, DaysUntil, FuzzDateUnmarshal)
   - [x] 01-04-PLAN.md — Domain types (Holiday, Country, Language, Subdivision, LocalizedText, SubdivisionRef, GroupRef, HolidayType×6, NameFor accessors)
   - [x] 01-05-PLAN.md — Validators (validateCountry, validateLanguage, validateDateRange) with leap-year boundary coverage
-  - [ ] 01-06-PLAN.md — CLIENT-10 AST audit (TestNoInitOrGlobalState) + PROJECT.md Key Decisions update (CL-01..CL-05)
+  - [x] 01-06-PLAN.md — CLIENT-10 AST audit (TestNoInitOrGlobalState) + PROJECT.md Key Decisions update (CL-01..CL-05)
 
 ### Phase 2: Transport
 **Goal**: `Client` constructed via functional options, RoundTripper chain composes header + logging, `Countries` proves the end-to-end pipeline (NewClient → chain → decode → typed return).
@@ -95,7 +95,7 @@
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation | 5/6 | In Progress|  |
+| 1. Foundation | 6/6 | Complete   | 2026-05-27 |
 | 2. Transport | 0/0 | Not started | - |
 | 3. Endpoints & Helpers | 0/0 | Not started | - |
 | 4. Resilience | 0/0 | Not started | - |
