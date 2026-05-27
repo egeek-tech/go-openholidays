@@ -14,7 +14,7 @@
 ## Phases
 
 - [x] **Phase 1: Foundation** — Domain types, custom `Date`, sentinel errors, `*APIError`, validators, `go.mod` at Go 1.23. (completed 2026-05-27)
-- [ ] **Phase 2: Transport** — `Client`, functional options, RoundTripper chain (header + logging), first endpoint (Countries) end-to-end.
+- [x] **Phase 2: Transport** — `Client`, functional options, RoundTripper chain (header + logging), first endpoint (Countries) end-to-end. (completed 2026-05-27)
 - [ ] **Phase 3: Endpoints & Helpers** — Languages, Subdivisions, PublicHolidays, SchoolHolidays + `Holiday.Name/IsInRegion/Days/Range` helpers + golden fixtures.
 - [ ] **Phase 4: Resilience** — Retry, cache, observability hook, strict-decoding, `Client.Close()` wiring — all as transparent middleware that does NOT modify Phase 3 method signatures.
 - [ ] **Phase 5: Distribution** — `cmd/ohcli`, examples, fuzz, benchmarks, integration tests, CI matrix, golangci-lint, govulncheck, goreleaser, docs, `v0.1.0` tag.
@@ -54,7 +54,7 @@
 **Plans**: 4 plans
   - [x] 02-01-PLAN.md — Transport RoundTrippers (headerTransport + loggingTransport) with per-RT unit tests; covers TRANS-01, TRANS-04, OBS-01, OBS-02
   - [x] 02-02-PLAN.md — Client + Options + Config scaffolding (NewClient, WithX, composeHTTPClient, buildTransport, Close stub); covers CLIENT-01..06, CLIENT-08
-  - [ ] 02-03-PLAN.md — Countries endpoint + ErrResponseTooLarge sentinel + CLIENT-10 allowlist + httptest suite + fixture + concurrent/ctx-cancel umbrella tests; covers ENDPT-01, TRANS-02, TRANS-03, CLIENT-07, CLIENT-09, TEST-04
+  - [x] 02-03-PLAN.md — Countries endpoint + ErrResponseTooLarge sentinel + CLIENT-10 allowlist + httptest suite + fixture + concurrent/ctx-cancel umbrella tests; covers ENDPT-01, TRANS-02, TRANS-03, CLIENT-07, CLIENT-09, TEST-04
   - [x] 02-04-PLAN.md — W-01 validator hardening (ASCII shape check before case canonicalization) folded into Phase 2 per CONTEXT.md D-32; covers VALID-01, VALID-04
 
 ### Phase 3: Endpoints & Helpers
@@ -100,7 +100,7 @@
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation | 6/6 | Complete   | 2026-05-27 |
-| 2. Transport | 3/4 | In Progress|  |
+| 2. Transport | 4/4 | Complete   | 2026-05-27 |
 | 3. Endpoints & Helpers | 0/0 | Not started | - |
 | 4. Resilience | 0/0 | Not started | - |
 | 5. Distribution | 0/0 | Not started | - |
