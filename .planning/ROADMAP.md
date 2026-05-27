@@ -67,7 +67,15 @@
   3. `holiday.Name("pl")` returns the Polish localized name; `holiday.Name("xx")` falls back to the first available `LocalizedText` entry (not the empty string).
   4. `holiday.Days()` returns 14 for a 14-day Śląskie ferie zimowe period crossing a DST boundary; `holiday.Range()` (Go 1.23 `iter.Seq[time.Time]`) iterates exactly 14 dates inclusively from StartDate to EndDate.
   5. Each endpoint has a table-driven unit test covering happy path + ≥ 4 error paths (network failure, 4xx, 5xx, malformed JSON, ctx cancel); all fixtures in `testdata/` come from captured live responses and a `-update` flag regenerates them.
-**Plans**: TBD
+**Plans**: 8 plans
+  - [ ] 03-01-PLAN.md — request.go extract (doJSONGet[T any]) + Countries refactor + Countries(ctx, CountriesRequest) retrofit (CL-08 foundation)
+  - [ ] 03-02-PLAN.md — Languages endpoint + LanguagesRequest + fixture + test
+  - [ ] 03-03-PLAN.md — Subdivisions endpoint + SubdivisionsRequest + PL & DE fixtures + test (DE fixture seeds Plan 7 hierarchical test per Assumption A3)
+  - [ ] 03-04-PLAN.md — PublicHolidays endpoint + PublicHolidaysRequest + validateHolidays helper + ErrMalformedResponse sentinel + allowedVars extension + fixture + test (CL-12)
+  - [ ] 03-05-PLAN.md — SchoolHolidays endpoint + SchoolHolidaysRequest + fixture + test
+  - [ ] 03-06-PLAN.md — Holiday.NameFor + Holiday.IsInRegion (flat) + Holiday.Days + Holiday.Range (iter.Seq[Date]) + tests (CL-10, CL-11)
+  - [ ] 03-07-PLAN.md — Client.IsInRegion hierarchical + splitCountryFromSubdivision + buildParentIndex + tests against DE fixture (CL-09)
+  - [ ] 03-08-PLAN.md — update_fixtures_test.go: build-tagged integration -update mechanism + drift detection (covers TEST-02, TEST-03)
 
 ### Phase 4: Resilience
 **Goal**: Retry, cache, observability hook, and strict-decoding land as transparent middleware. Endpoint method signatures from Phase 3 remain UNCHANGED — the RoundTripper chain absorbs all new behavior. `Client.Close()` becomes load-bearing (stops cache sweeper).
