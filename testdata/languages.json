@@ -1,0 +1,520 @@
+[
+    {
+        "isoCode": "BE",
+        "name": [
+            {
+                "language": "EN",
+                "text": "Belarusian"
+            },
+            {
+                "language": "BE",
+                "text": "\u0431\u0435\u043b\u0430\u0440\u0443\u0441\u043a\u0456"
+            },
+            {
+                "language": "DE",
+                "text": "Belarussisch"
+            }
+        ]
+    },
+    {
+        "isoCode": "BG",
+        "name": [
+            {
+                "language": "EN",
+                "text": "Bulgarian"
+            },
+            {
+                "language": "BG",
+                "text": "\u0411\u044a\u043b\u0433\u0430\u0440\u0441\u043a\u0438"
+            },
+            {
+                "language": "DE",
+                "text": "Bulgarisch"
+            }
+        ]
+    },
+    {
+        "isoCode": "CA",
+        "name": [
+            {
+                "language": "EN",
+                "text": "Catalan"
+            },
+            {
+                "language": "CA",
+                "text": "Catal\u00e0"
+            },
+            {
+                "language": "ES",
+                "text": "Catal\u00e1n"
+            },
+            {
+                "language": "DE",
+                "text": "Katalanisch"
+            }
+        ]
+    },
+    {
+        "isoCode": "CS",
+        "name": [
+            {
+                "language": "EN",
+                "text": "Czech"
+            },
+            {
+                "language": "CS",
+                "text": "\u010cesky"
+            },
+            {
+                "language": "DE",
+                "text": "Tschechisch"
+            }
+        ]
+    },
+    {
+        "isoCode": "DE",
+        "name": [
+            {
+                "language": "EN",
+                "text": "German"
+            },
+            {
+                "language": "DE",
+                "text": "Deutsch"
+            }
+        ]
+    },
+    {
+        "isoCode": "EN",
+        "name": [
+            {
+                "language": "EN",
+                "text": "English"
+            },
+            {
+                "language": "DE",
+                "text": "Englisch"
+            }
+        ]
+    },
+    {
+        "isoCode": "ES",
+        "name": [
+            {
+                "language": "EN",
+                "text": "Spanish"
+            },
+            {
+                "language": "ES",
+                "text": "Espa\u00f1ol"
+            },
+            {
+                "language": "DE",
+                "text": "Spanisch"
+            }
+        ]
+    },
+    {
+        "isoCode": "ET",
+        "name": [
+            {
+                "language": "EN",
+                "text": "Estonian"
+            },
+            {
+                "language": "ET",
+                "text": "Eesti"
+            },
+            {
+                "language": "DE",
+                "text": "Estnisch"
+            }
+        ]
+    },
+    {
+        "isoCode": "EU",
+        "name": [
+            {
+                "language": "EN",
+                "text": "Basque"
+            },
+            {
+                "language": "EU",
+                "text": "Euskara"
+            },
+            {
+                "language": "ES",
+                "text": "Euskera"
+            },
+            {
+                "language": "DE",
+                "text": "Baskisch"
+            }
+        ]
+    },
+    {
+        "isoCode": "FR",
+        "name": [
+            {
+                "language": "EN",
+                "text": "French"
+            },
+            {
+                "language": "FR",
+                "text": "fran\u00e7ais"
+            },
+            {
+                "language": "DE",
+                "text": "Franz\u00f6sisch"
+            }
+        ]
+    },
+    {
+        "isoCode": "GA",
+        "name": [
+            {
+                "language": "EN",
+                "text": "Irish"
+            },
+            {
+                "language": "GA",
+                "text": "Gaeilge"
+            },
+            {
+                "language": "DE",
+                "text": "Irisch"
+            }
+        ]
+    },
+    {
+        "isoCode": "GL",
+        "name": [
+            {
+                "language": "EN",
+                "text": "Galician"
+            },
+            {
+                "language": "GL",
+                "text": "Galego"
+            },
+            {
+                "language": "ES",
+                "text": "Gallego"
+            },
+            {
+                "language": "DE",
+                "text": "Galicisch"
+            }
+        ]
+    },
+    {
+        "isoCode": "HR",
+        "name": [
+            {
+                "language": "EN",
+                "text": "Croatian"
+            },
+            {
+                "language": "HR",
+                "text": "Hrvatska"
+            },
+            {
+                "language": "DE",
+                "text": "Kroatisch"
+            }
+        ]
+    },
+    {
+        "isoCode": "HU",
+        "name": [
+            {
+                "language": "EN",
+                "text": "Hungarian"
+            },
+            {
+                "language": "HU",
+                "text": "Magyarorsz\u00e1g"
+            },
+            {
+                "language": "DE",
+                "text": "Ungarisch"
+            }
+        ]
+    },
+    {
+        "isoCode": "IT",
+        "name": [
+            {
+                "language": "EN",
+                "text": "Italian"
+            },
+            {
+                "language": "IT",
+                "text": "Italiano"
+            },
+            {
+                "language": "DE",
+                "text": "Italienisch"
+            }
+        ]
+    },
+    {
+        "isoCode": "LB",
+        "name": [
+            {
+                "language": "EN",
+                "text": "Luxembourgish"
+            },
+            {
+                "language": "LB",
+                "text": "L\u00ebtzebuergesch"
+            },
+            {
+                "language": "DE",
+                "text": "Luxemburgisch"
+            }
+        ]
+    },
+    {
+        "isoCode": "LT",
+        "name": [
+            {
+                "language": "EN",
+                "text": "Lithuanian"
+            },
+            {
+                "language": "LT",
+                "text": "Lietuvi\u0173"
+            },
+            {
+                "language": "DE",
+                "text": "Litauisch"
+            },
+            {
+                "language": "FR",
+                "text": "lituanien"
+            }
+        ]
+    },
+    {
+        "isoCode": "LV",
+        "name": [
+            {
+                "language": "EN",
+                "text": "Latvian"
+            },
+            {
+                "language": "LV",
+                "text": "Latvie\u0161u"
+            },
+            {
+                "language": "DE",
+                "text": "Lettisch"
+            }
+        ]
+    },
+    {
+        "isoCode": "MT",
+        "name": [
+            {
+                "language": "EN",
+                "text": "Maltese"
+            },
+            {
+                "language": "MT",
+                "text": "Malti"
+            },
+            {
+                "language": "DE",
+                "text": "Maltesisch"
+            }
+        ]
+    },
+    {
+        "isoCode": "NL",
+        "name": [
+            {
+                "language": "EN",
+                "text": "Dutch"
+            },
+            {
+                "language": "NL",
+                "text": "Nederlands"
+            },
+            {
+                "language": "DE",
+                "text": "Niederl\u00e4ndisch"
+            }
+        ]
+    },
+    {
+        "isoCode": "PL",
+        "name": [
+            {
+                "language": "EN",
+                "text": "Polish"
+            },
+            {
+                "language": "PL",
+                "text": "polski"
+            },
+            {
+                "language": "DE",
+                "text": "Polnisch"
+            }
+        ]
+    },
+    {
+        "isoCode": "PT",
+        "name": [
+            {
+                "language": "EN",
+                "text": "Portuguese"
+            },
+            {
+                "language": "PT",
+                "text": "Portugu\u00eas"
+            },
+            {
+                "language": "DE",
+                "text": "Portugiesisch"
+            }
+        ]
+    },
+    {
+        "isoCode": "RM",
+        "name": [
+            {
+                "language": "EN",
+                "text": "Romansh"
+            },
+            {
+                "language": "RM",
+                "text": "Rumantsch"
+            },
+            {
+                "language": "DE",
+                "text": "R\u00e4toromanisch"
+            }
+        ]
+    },
+    {
+        "isoCode": "RO",
+        "name": [
+            {
+                "language": "EN",
+                "text": "Romanian"
+            },
+            {
+                "language": "RO",
+                "text": "Limba rom\u00e2n\u0103"
+            },
+            {
+                "language": "DE",
+                "text": "Rum\u00e4nisch"
+            }
+        ]
+    },
+    {
+        "isoCode": "RU",
+        "name": [
+            {
+                "language": "EN",
+                "text": "Russian"
+            },
+            {
+                "language": "RU",
+                "text": "\u0420\u0443\u0441\u0441\u043a\u0438\u0439"
+            },
+            {
+                "language": "DE",
+                "text": "Russisch"
+            }
+        ]
+    },
+    {
+        "isoCode": "SK",
+        "name": [
+            {
+                "language": "EN",
+                "text": "Slovak"
+            },
+            {
+                "language": "SK",
+                "text": "Slovensk\u00fd"
+            },
+            {
+                "language": "DE",
+                "text": "Slowakisch"
+            }
+        ]
+    },
+    {
+        "isoCode": "SL",
+        "name": [
+            {
+                "language": "EN",
+                "text": "Slovenian"
+            },
+            {
+                "language": "SL",
+                "text": "Slovenski"
+            },
+            {
+                "language": "DE",
+                "text": "Slowenisch"
+            }
+        ]
+    },
+    {
+        "isoCode": "SQ",
+        "name": [
+            {
+                "language": "EN",
+                "text": "Albanian"
+            },
+            {
+                "language": "SQ",
+                "text": "shqip"
+            },
+            {
+                "language": "DE",
+                "text": "Albanisch"
+            }
+        ]
+    },
+    {
+        "isoCode": "SR",
+        "name": [
+            {
+                "language": "EN",
+                "text": "Serbian"
+            },
+            {
+                "language": "SR",
+                "text": "\u0441\u0440\u043f\u0441\u043a\u0438"
+            },
+            {
+                "language": "DE",
+                "text": "Serbisch"
+            }
+        ]
+    },
+    {
+        "isoCode": "SV",
+        "name": [
+            {
+                "language": "EN",
+                "text": "Swedish"
+            },
+            {
+                "language": "SV",
+                "text": "Svenska"
+            },
+            {
+                "language": "DE",
+                "text": "Schwedisch"
+            }
+        ]
+    }
+]
