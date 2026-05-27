@@ -209,4 +209,33 @@ func TestHoliday_Range(t *testing.T) {
 			assert.Equal(t, 0, d.Nanosecond())
 		}
 	})
+
+	t.Run("non-UTC StartDate yields UTC-midnight first Date (WR-01 regression)", func(t *testing.T) {
+		t.Parallel()
+		// Hand-build a Holiday with a non-UTC StartDate. Endpoint-returned
+		// Holidays would never look like this (validateHolidays canonicalizes
+		// to UTC-midnight), but the godoc contract on Range() explicitly
+		// promises every yield is normalized through NewDate. WR-01 was the
+		// first-iteration drift between the contract and the code.
+		cet := time.FixedZone("CET", 3600)
+		h := Holiday{
+			StartDate: Date{Time: time.Date(2025, time.January, 18, 0, 0, 0, 0, cet)},
+			EndDate:   NewDate(2025, time.January, 18),
+		}
+		var dates []Date
+		for d := range h.Range() {
+			dates = append(dates, d)
+		}
+		require.Len(t, dates, 1, "single-day span must yield exactly one Date")
+		first := dates[0]
+		assert.Equal(t, time.UTC, first.Location(),
+			"first yielded Date must be UTC-midnight regardless of StartDate location, got %s", first.Location())
+		assert.Equal(t, 0, first.Hour())
+		assert.Equal(t, 0, first.Minute())
+		assert.Equal(t, 0, first.Second())
+		assert.Equal(t, 0, first.Nanosecond())
+		assert.Equal(t, 2025, first.Year())
+		assert.Equal(t, time.January, first.Month())
+		assert.Equal(t, 18, first.Day())
+	})
 }

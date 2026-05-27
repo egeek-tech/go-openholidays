@@ -116,7 +116,7 @@ func (h Holiday) Range() iter.Seq[Date] {
 		if h.EndDate.Before(h.StartDate) {
 			return
 		}
-		d := h.StartDate
+		d := NewDate(h.StartDate.Year(), h.StartDate.Month(), h.StartDate.Day())
 		for {
 			if !yield(d) {
 				return
