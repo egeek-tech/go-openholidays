@@ -1088,27 +1088,31 @@ func (h Holiday) Days() int {
 
 **Note:** No `[ASSUMED]` package-name tags exist in this research because Phase 3 installs ZERO new packages. All assumptions are about test-design choices, not third-party software.
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Hierarchical-test target — PL synthetic tree vs DE live fixture (recommendation locked in Pattern 4 / Assumption A3)**
    - What we know: PL upstream returns flat subdivisions; DE upstream returns 15 flat + 1 nested (DE-BY → Augsburg).
    - What's unclear: Does the planner prefer adding `subdivisions_de.json` as a Phase 3 fixture (one extra file, ~5 KiB) or synthesizing a tree literal in `client_helpers_test.go` (zero extra fixtures but the test stops authentically documenting upstream shape).
    - Recommendation: capture `subdivisions_de.json`. The fixture file is tiny, and it makes the recursive test live-grounded.
+   - RESOLVED: Plan 3 captures `testdata/subdivisions_de.json` from the live API alongside `subdivisions_pl.json`; Plan 7 consumes the DE fixture for the hierarchical `Client.IsInRegion` test. See `03-03-PLAN.md` and `03-07-PLAN.md`.
 
 2. **`validateHolidays` placement — `request.go` vs `holiday.go`?**
    - What we know: Either compiles. Either passes tests.
    - What's unclear: Project file-organization preference.
    - Recommendation: `request.go` (next to `doJSONGet`). Reinforces "response pipeline concern, not Holiday type concern".
+   - RESOLVED: Plan 4 Task 1 places `validateHolidays` in `request.go` next to `doJSONGet`. See `03-04-PLAN.md` Task 1 `<action>` block.
 
 3. **Pretty-printing fixture writes (Pattern 5 helper)**
    - What we know: `json.Indent` produces stable, reviewable diffs.
    - What's unclear: Whether reviewer prefers compact (1-line) fixtures (smaller diff size) vs pretty (one-field-per-line, easier to grep).
    - Recommendation: pretty-print with `json.Indent(..., "", "  ")`. The existing `testdata/countries.json` is already pretty-printed (verified — lines 1-38).
+   - RESOLVED: Plan 8 Task 1 uses `json.Indent(&pretty, body, "", "  ")` before the atomic `os.Rename` write. See `03-08-PLAN.md` Task 1 overwrite-mode body.
 
 4. **Hierarchical `Client.IsInRegion` — what if `h.Subdivisions` spans multiple countries?**
    - What we know: A Holiday today only carries subdivisions for one country (it's a per-country endpoint).
    - What's unclear: Future upstream behavior is uncertain.
    - Recommendation: derive country from `h.Subdivisions[0].Code` as in Pattern 4. If `h.Subdivisions` is empty AND `h.Nationwide` is false, return `(false, nil)` without HTTP. Document the assumption in the godoc so a future contributor knows this method's contract.
+   - RESOLVED: Plan 7 Task 1 implements `Client.IsInRegion` with `splitCountryFromSubdivision(h.Subdivisions[0].Code)`; the godoc documents the single-country assumption and the (false, nil) no-HTTP path when `h.Subdivisions` is empty and `h.Nationwide` is false. See `03-07-PLAN.md` Task 1 `<action>` block.
 
 ## Environment Availability
 
