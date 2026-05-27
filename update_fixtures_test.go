@@ -21,11 +21,14 @@
 //
 // Operating modes:
 //
-//   - With -update set: live capture is pretty-printed via json.Indent and
-//     written atomically to testdata/<fixture>.json (temp file in the same
-//     directory + os.Rename — single-filesystem rename is POSIX-atomic, so
-//     either the old fixture remains intact or the new one is fully written;
-//     never a half-written file).
+//   - With -update set: live capture is pretty-printed via json.Indent (four-
+//     space indent) and a trailing '\n' byte is appended to the pretty buffer
+//     so the written bytes round-trip through `git diff` against the committed
+//     fixtures without spurious whitespace deltas. The result is written
+//     atomically to testdata/<fixture>.json (temp file in the same directory
+//     + os.Rename — single-filesystem rename is POSIX-atomic, so either the
+//     old fixture remains intact or the new one is fully written; never a
+//     half-written file).
 //
 //   - With -update unset (drift-detection mode): the live response body is
 //     compared byte-for-byte against the committed fixture via
@@ -188,14 +191,11 @@ func TestUpdateFixtures(t *testing.T) {
 
 	const baseURL = "https://openholidaysapi.org"
 
-	for _, cap := range captures {
-		cap := cap // pin loop variable for the closure even though Go 1.22+
-		// per-iteration scoping makes this strictly redundant — kept for
-		// clarity at the cost of one linter rule that we tolerate here.
-		t.Run(cap.fixture, func(t *testing.T) {
-			url := baseURL + cap.path
-			if cap.query != "" {
-				url += "?" + cap.query
+	for _, c := range captures {
+		t.Run(c.fixture, func(t *testing.T) {
+			url := baseURL + c.path
+			if c.query != "" {
+				url += "?" + c.query
 			}
 
 			req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
@@ -212,29 +212,34 @@ func TestUpdateFixtures(t *testing.T) {
 				resp.StatusCode, url)
 
 			body := readAll(t, resp.Body, 11<<20)
-			require.NoErrorf(t, cap.validate(body),
+			require.NoErrorf(t, c.validate(body),
 				"live response failed sanity check — aborting overwrite for %s",
-				cap.fixture)
+				c.fixture)
 
 			// Both modes normalize the live body via json.Indent before
 			// comparing or writing. The upstream serves minified JSON; the
-			// committed fixtures are pretty-printed (two-space indent — see
-			// testdata/countries.json). A byte-for-byte comparison of
+			// committed fixtures are pretty-printed (four-space indent — see
+			// testdata/languages.json). A byte-for-byte comparison of
 			// minified-vs-pretty would always report DRIFT, so drift
 			// detection must compare pretty-vs-pretty after normalization.
+			// A trailing '\n' is appended to the pretty buffer so its bytes
+			// match the committed on-disk format (all fixtures end with one
+			// newline byte). (*bytes.Buffer).WriteByte never returns an
+			// error per stdlib docs, so no error wrap is needed.
 			var pretty bytes.Buffer
-			require.NoError(t, json.Indent(&pretty, body, "", "  "))
+			require.NoError(t, json.Indent(&pretty, body, "", "    "))
+			pretty.WriteByte('\n')
 
 			if !*updateFixtures {
 				// Drift-detection mode: compare the committed fixture
 				// against the normalized live response. A diff is reported
 				// as DRIFT and the developer must decide whether to
 				// re-capture via the overwrite mode.
-				committed, err := os.ReadFile(filepath.Join("testdata", cap.fixture))
+				committed, err := os.ReadFile(filepath.Join("testdata", c.fixture))
 				require.NoError(t, err, "committed fixture missing — run with -update to seed it")
 				require.Equalf(t, string(committed), pretty.String(),
 					"DRIFT: live response for %s differs from committed fixture",
-					cap.fixture)
+					c.fixture)
 				return
 			}
 
@@ -242,7 +247,7 @@ func TestUpdateFixtures(t *testing.T) {
 			// temp file + os.Rename — never a half-written fixture.
 
 			tmpDir := filepath.Join("testdata")
-			tmp, err := os.CreateTemp(tmpDir, cap.fixture+".tmp-*")
+			tmp, err := os.CreateTemp(tmpDir, c.fixture+".tmp-*")
 			require.NoError(t, err)
 			// Best-effort cleanup of the temp file even after a successful
 			// rename — Remove on the original temp name is a no-op when
@@ -253,9 +258,9 @@ func TestUpdateFixtures(t *testing.T) {
 			require.NoError(t, err)
 			require.NoError(t, tmp.Close())
 
-			target := filepath.Join(tmpDir, cap.fixture)
+			target := filepath.Join(tmpDir, c.fixture)
 			require.NoError(t, os.Rename(tmp.Name(), target))
-			t.Logf("captured %s (%d bytes pretty-printed)", cap.fixture, pretty.Len())
+			t.Logf("captured %s (%d bytes pretty-printed)", c.fixture, pretty.Len())
 		})
 	}
 }
