@@ -1,0 +1,354 @@
+[
+    {
+        "code": "DE-BB",
+        "isoCode": "DE-BB",
+        "shortName": "BB",
+        "category": [
+            {
+                "language": "EN",
+                "text": "federal state"
+            }
+        ],
+        "name": [
+            {
+                "language": "EN",
+                "text": "Brandenburg"
+            }
+        ],
+        "officialLanguages": [
+            "DE"
+        ]
+    },
+    {
+        "code": "DE-BE",
+        "isoCode": "DE-BE",
+        "shortName": "BE",
+        "category": [
+            {
+                "language": "EN",
+                "text": "federal state"
+            }
+        ],
+        "name": [
+            {
+                "language": "EN",
+                "text": "Berlin"
+            }
+        ],
+        "officialLanguages": [
+            "DE"
+        ]
+    },
+    {
+        "code": "DE-BW",
+        "isoCode": "DE-BW",
+        "shortName": "BW",
+        "category": [
+            {
+                "language": "EN",
+                "text": "federal state"
+            }
+        ],
+        "name": [
+            {
+                "language": "EN",
+                "text": "Baden-W\u00fcrttemberg"
+            }
+        ],
+        "officialLanguages": [
+            "DE"
+        ]
+    },
+    {
+        "code": "DE-BY",
+        "isoCode": "DE-BY",
+        "shortName": "BY",
+        "category": [
+            {
+                "language": "EN",
+                "text": "federal state"
+            }
+        ],
+        "name": [
+            {
+                "language": "EN",
+                "text": "Bavaria"
+            }
+        ],
+        "officialLanguages": [
+            "DE"
+        ],
+        "children": [
+            {
+                "code": "DE-BY-AU",
+                "isoCode": "",
+                "shortName": "BY-AU",
+                "category": [
+                    {
+                        "language": "EN",
+                        "text": "municipality"
+                    }
+                ],
+                "name": [
+                    {
+                        "language": "EN",
+                        "text": "Augsburg"
+                    }
+                ],
+                "officialLanguages": [
+                    "DE"
+                ]
+            }
+        ]
+    },
+    {
+        "code": "DE-HB",
+        "isoCode": "DE-HB",
+        "shortName": "HB",
+        "category": [
+            {
+                "language": "EN",
+                "text": "federal state"
+            }
+        ],
+        "name": [
+            {
+                "language": "EN",
+                "text": "Bremen"
+            }
+        ],
+        "officialLanguages": [
+            "DE"
+        ]
+    },
+    {
+        "code": "DE-HE",
+        "isoCode": "DE-HE",
+        "shortName": "HE",
+        "category": [
+            {
+                "language": "EN",
+                "text": "federal state"
+            }
+        ],
+        "name": [
+            {
+                "language": "EN",
+                "text": "Hesse"
+            }
+        ],
+        "officialLanguages": [
+            "DE"
+        ]
+    },
+    {
+        "code": "DE-HH",
+        "isoCode": "DE-HH",
+        "shortName": "HH",
+        "category": [
+            {
+                "language": "EN",
+                "text": "federal state"
+            }
+        ],
+        "name": [
+            {
+                "language": "EN",
+                "text": "Hamburg"
+            }
+        ],
+        "officialLanguages": [
+            "DE"
+        ]
+    },
+    {
+        "code": "DE-MV",
+        "isoCode": "DE-MV",
+        "shortName": "MV",
+        "category": [
+            {
+                "language": "EN",
+                "text": "federal state"
+            }
+        ],
+        "name": [
+            {
+                "language": "EN",
+                "text": "Mecklenburg-Western Pomerania"
+            }
+        ],
+        "officialLanguages": [
+            "DE"
+        ],
+        "groups": [
+            {
+                "code": "DE-MV-ABS",
+                "shortName": "MV-ABS"
+            },
+            {
+                "code": "DE-MV-BBS",
+                "shortName": "MV-BBS"
+            }
+        ]
+    },
+    {
+        "code": "DE-NI",
+        "isoCode": "DE-NI",
+        "shortName": "NI",
+        "category": [
+            {
+                "language": "EN",
+                "text": "federal state"
+            }
+        ],
+        "name": [
+            {
+                "language": "EN",
+                "text": "Lower Saxony"
+            }
+        ],
+        "officialLanguages": [
+            "DE"
+        ]
+    },
+    {
+        "code": "DE-NW",
+        "isoCode": "DE-NW",
+        "shortName": "NW",
+        "category": [
+            {
+                "language": "EN",
+                "text": "federal state"
+            }
+        ],
+        "name": [
+            {
+                "language": "EN",
+                "text": "North Rhine-Westphalia"
+            }
+        ],
+        "officialLanguages": [
+            "DE"
+        ]
+    },
+    {
+        "code": "DE-RP",
+        "isoCode": "DE-RP",
+        "shortName": "RP",
+        "category": [
+            {
+                "language": "EN",
+                "text": "federal state"
+            }
+        ],
+        "name": [
+            {
+                "language": "EN",
+                "text": "Rhineland-Palatinate"
+            }
+        ],
+        "officialLanguages": [
+            "DE"
+        ]
+    },
+    {
+        "code": "DE-SH",
+        "isoCode": "DE-SH",
+        "shortName": "SH",
+        "category": [
+            {
+                "language": "EN",
+                "text": "federal state"
+            }
+        ],
+        "name": [
+            {
+                "language": "EN",
+                "text": "Schleswig-Holstein"
+            }
+        ],
+        "officialLanguages": [
+            "DE"
+        ]
+    },
+    {
+        "code": "DE-SL",
+        "isoCode": "DE-SL",
+        "shortName": "SL",
+        "category": [
+            {
+                "language": "EN",
+                "text": "federal state"
+            }
+        ],
+        "name": [
+            {
+                "language": "EN",
+                "text": "Saarland"
+            }
+        ],
+        "officialLanguages": [
+            "DE"
+        ]
+    },
+    {
+        "code": "DE-SN",
+        "isoCode": "DE-SN",
+        "shortName": "SN",
+        "category": [
+            {
+                "language": "EN",
+                "text": "federal state"
+            }
+        ],
+        "name": [
+            {
+                "language": "EN",
+                "text": "Saxony"
+            }
+        ],
+        "officialLanguages": [
+            "DE"
+        ]
+    },
+    {
+        "code": "DE-ST",
+        "isoCode": "DE-ST",
+        "shortName": "ST",
+        "category": [
+            {
+                "language": "EN",
+                "text": "federal state"
+            }
+        ],
+        "name": [
+            {
+                "language": "EN",
+                "text": "Saxony-Anhalt"
+            }
+        ],
+        "officialLanguages": [
+            "DE"
+        ]
+    },
+    {
+        "code": "DE-TH",
+        "isoCode": "DE-TH",
+        "shortName": "TH",
+        "category": [
+            {
+                "language": "EN",
+                "text": "federal state"
+            }
+        ],
+        "name": [
+            {
+                "language": "EN",
+                "text": "Thuringia"
+            }
+        ],
+        "officialLanguages": [
+            "DE"
+        ]
+    }
+]
