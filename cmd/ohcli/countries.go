@@ -40,7 +40,11 @@ func cmdCountries(ctx context.Context, args []string, stdout, stderr io.Writer) 
 	asJSON := fs.Bool("json", false, "shortcut for --format=json")
 	asCSV := fs.Bool("csv", false, "shortcut for --format=csv")
 
-	if err := fs.Parse(args); err != nil {
+	// Reorder argv to flags-first form for consistency with cmdPublic /
+	// cmdSchool — though countries takes no positionals, callers may
+	// still pass extra tokens that the handler must reject with exit 2.
+	// See reorderArgs in main.go.
+	if err := fs.Parse(reorderArgs(args, map[string]struct{}{"json": {}, "csv": {}})); err != nil {
 		return 2
 	}
 	if fs.NArg() != 0 {
