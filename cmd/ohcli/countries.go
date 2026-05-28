@@ -9,7 +9,6 @@
 // returns []openholidays.Country (NOT []Holiday). Rendering therefore
 // flows through renderCountries (declared in format.go) rather than the
 // Holiday-specific render dispatcher.
-
 package main
 
 import (

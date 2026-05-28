@@ -191,7 +191,7 @@ func TestClient_IsInRegion(t *testing.T) {
 
 	t.Run("transport error from Subdivisions surfaces verbatim", func(t *testing.T) {
 		t.Parallel()
-		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("Content-Type", "application/problem+json")
 			w.WriteHeader(http.StatusInternalServerError)
 			_, _ = w.Write([]byte(`{"title": "Internal Server Error"}`))

@@ -58,6 +58,41 @@ linters:
     # require either the wrong setting (snake) or a setting that matches
     # upstream (camel) — and the latter adds no value over "match upstream
     # verbatim." See Phase 5 RESEARCH.md Pitfall 4.
+  settings:
+    errcheck:
+      # Re-added 2026-05-28 after exclusion reset surfaced real signal.
+      # Each excluded function has a project-specific justification:
+      #
+      #   fmt.Fprint / Fprintf / Fprintln — used by cmd/ohcli handlers to
+      #     write usage messages, error lines, and rendered output to
+      #     stderr/stdout. The io.Writer is os.Stderr / os.Stdout, both
+      #     of which essentially never fail; if they did fail there is
+      #     nowhere meaningful to surface the error. Mass-noisy without
+      #     this exclusion.
+      #
+      #   (*github.com/egeek-tech/go-openholidays.Client).Close — the
+      #     library's own Close. Documented as idempotent + returns nil
+      #     on subsequent calls (CLIENT-08). example_test.go uses the
+      #     canonical `defer c.Close()` doctest idiom that pkg.go.dev
+      #     surfaces; wrapping every example with `defer func() { _ = ... }()`
+      #     would clutter the rendered docs for zero functional gain.
+      exclude-functions:
+        - fmt.Fprint
+        - fmt.Fprintf
+        - fmt.Fprintln
+        - (*github.com/egeek-tech/go-openholidays.Client).Close
+  exclusions:
+    rules:
+      # G304: gosec flags os.Open / os.ReadFile when the path is variable.
+      # Re-added 2026-05-28: fuzz_test.go and retry_test.go read fixtures
+      # from a hard-coded testdata subtree on a fresh CI checkout. No
+      # untrusted input reaches the path, and the testdata content is
+      # under version control. Scoped to _test.go so production paths
+      # still get the warning.
+      - linters:
+          - gosec
+        text: "G304"
+        path: _test\.go
 formatters:
   # golangci-lint v2 split formatters out of `linters:`. gofmt with the `-s`
   # simplifications keeps CI parity with goreportcard.com (which runs
