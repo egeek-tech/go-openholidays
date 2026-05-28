@@ -21,329 +21,136 @@ files_reviewed_list:
   - transport_hook.go
   - transport_hook_test.go
 findings:
-  critical: 1
-  warning: 3
-  info: 4
-  total: 8
+  critical: 0
+  warning: 1
+  info: 2
+  total: 3
 status: issues_found
 ---
 
-# Phase 04 (Resilience): Code Review Report — Round 3 Re-review
+# Phase 04 (Resilience): Round-4 Code Review
 
-**Reviewed:** 2026-05-28
+**Reviewed:** 2026-05-28T00:00:00Z
 **Depth:** standard
 **Files Reviewed:** 16
 **Status:** issues_found
 
 ## Summary
 
-Third pass on phase 04 (resilience). All 11 fixes from round 1 still hold; the 7 open findings from round 2 (3 WR + 4 IN) are unchanged because no remediation commits have landed since that review. The phase 02 round-3 fixes that touched files in this scope — `5b1c66c` (remove `Client.userAgent` + `Client.logger`), `b154c0e` (silence `fnv.Hash.Write` errcheck), `fe1d1f3` (remove `Client.closed`), `805fdf3` (test cleanup) — integrate cleanly. The `ctxSleep` function in `client.go` was NOT touched by phase 02 fixes, so WR-03 still applies as written.
+Fourth-round adversarial re-review of phase-04 resilience layer (retry, cache,
+hook, strict JSON, deterministic clock). All 8 round-3 fixes are mechanically
+verified intact (see Round-3 Fix Verification section). One new WARNING
+surfaced: a path-carrying contract gap in two context-cancellation surfaces
+of `doJSONGet`. Two INFO items document minor doc/test alignment polish.
 
-The cross-phase fix verification surfaced one **new Critical** finding that the prior two passes missed: a data race on `Client.rand` (a `*math/rand/v2.Rand`) when concurrent endpoint calls invoke `computeBackoff` from the retry loop. `math/rand/v2.Rand` is NOT documented as safe for concurrent use, and the codebase has no synchronization around `c.rand` accesses. Current tests do not exercise this race because the only concurrent endpoint test (`TestClient_ConcurrentAccess`) deliberately omits `WithRetry`. A user calling endpoint methods concurrently with `WithRetry` enabled would trigger `-race` failures and could see corrupted jitter values in production.
+No new BLOCKER/CRITICAL issues. No regressions caused by round-3 fixes —
+`Client.randMu` adds correct serialization with negligible contention (held
+for a single `Int64N` call); cache defensive-copy contract is uniformly
+applied on Get and Put; cache-hit synthetic responses correctly populate
+the new HTTP/1.1 protocol fields and Content-Type header.
 
-The four prior IN findings remain valid; one Info-level note correcting a stale claim in the round-2 review's "Notes" section is also recorded below (the `Client.closed` field was removed in phase-02 round 3, so the previous review's race-cleanliness observation no longer matches the code).
+## Round-3 Fix Verification
 
-### Prior-review status
+| Fix    | Verification                                                                                                               | Status |
+|--------|----------------------------------------------------------------------------------------------------------------------------|--------|
+| CR-01  | `client.go:68` declares `randMu sync.Mutex`. `request.go:149-151` brackets the single `c.rand.Int64N` call inside `computeBackoff` under `c.randMu.Lock/Unlock`. `retry.go:236-241` documents the caller-serialization contract. The previously misleading "stdlib goroutine-safety" comment is replaced with a correct note about caller-supplied synchronization. | OK |
+| WR-02  | `request.go:168-171` drains and closes `resp.Body` on the post-loop `httpErr != nil` branch using `io.Copy(io.Discard, io.LimitReader(resp.Body, maxResponseBytes+1))` then `resp.Body.Close()`. Test `TestClient_FinalAttemptRespBodyDrained` (client_test.go:405) exercises the CheckRedirect-rejection shape. | OK |
+| WR-03  | `request.go:99` declares `attemptsRan`; line 118 sets it inside every loop iteration; line 188 gates the retry-exhausted prefix on `attemptsRan > 1`; line 220 mirrors the same gate for the retryable-status branch. Test `TestClient_RetryExhaustedPrefix` (client_test.go:522) locks both branches. | OK |
+| WR-04  | `client.go:152-154` checks `ctx.Err()` BEFORE the `d <= 0` short-circuit. Test `TestCtxSleep` (client_test.go:455) covers cancelled-ctx with d > 0, d == 0, d < 0, live-ctx with d <= 0, live-ctx with d > 0, and mid-sleep cancellation. | OK |
+| IN-03  | `transport_cache.go:148-150` sets `Proto: "HTTP/1.1"`, `ProtoMajor: 1`, `ProtoMinor: 1` on the synthetic cache-hit response. Test at transport_cache_test.go:184-210 asserts all three fields. | OK |
+| IN-04  | `transport_cache.go:143-144` allocates a Header map and sets `Content-Type: application/json`; line 151 attaches it to the synthetic response. Same test asserts the header value via `resp.Header.Get("Content-Type")`. | OK |
+| IN-02  | `cache_test.go:144-156` documents the `runtime.NumGoroutine` design choice for `TestMemoryCache_SweeperLazyStart` (no "sweeper started" channel available; only "sweeper exited" via `sweepDone`). `cache_test.go:230-237` documents the same for `TestMemoryCache_CloseIdempotent` 100-goroutine concurrent-close test. | OK |
+| IN-05  | `cache.go:160-163` `MemoryCache.Get` returns `make([]byte, len(e.value))` + `copy(out, e.value)`. `cache.go:179-181` `MemoryCache.Put` copies `value` into `stored` before storing. `config.go:62-83` Cache interface godoc documents the copy contract on both sides. Tests at cache_test.go:93-133 exercise both Get-side and Put-side caller-mutation scenarios. | OK |
 
-**Round 1 (11 closed):**
+All 8 fixes are correctly applied and structurally sound.
 
-| ID | Title | Status | Verification |
-|----|-------|--------|--------------|
-| CR-01 | Unbounded drain in `cacheTransport.RoundTrip` | FIXED | `transport_cache.go:152` wraps with `io.LimitReader(resp.Body, maxResponseBytes+1)` |
-| CR-02 | Cache transport discards `*http.Response` on read error without context | FIXED | `transport_cache.go:160` wraps with `fmt.Errorf("openholidays: cache: read response body: %w", readErr)` |
-| WR-01 | `computeBackoff` shift overflow at high attempt counts | FIXED | `retry.go:255-258` guards with `attempt < 63 && cfg.baseDelay > 0` + `exp > 0` predicate; covered by `retry_test.go` attempt-40 and attempt-63 subtests |
-| WR-02 | `NewMemoryCache` accepts non-positive TTL silently | FIXED (doc) | `cache.go:102-111` documents the contract verbatim |
-| WR-03 | Stale godoc reference to `sync.Cancel` | FIXED | `cache.go:66-67` |
-| WR-04 | Goroutine-count test flake potential | PARTIALLY ADDRESSED | `TestClient_CloseStopsSweeper` uses deterministic `sweepDone`. Two cache tests still use `runtime.NumGoroutine` deltas — tracked as IN-01 |
-| WR-05 | `newClientRand` fallback seeds only 8 of 32 ChaCha8 bytes | FIXED | `client.go:165-187` two-round FNV-128a fills all 32 bytes |
-| WR-06 | Retry exhaustion on retryable-status responses skips "retry exhausted" prefix | FIXED | `request.go:168-170` |
-| WR-07 | Retry loop reuses the same `*http.Request` across attempts | FIXED | `request.go:108` calls `req.Clone(ctx)` per attempt |
-| WR-08 | Cache transport returns oversized buf to decoder | FIXED | `transport_cache.go:171-174` |
-| WR-09 | `TestClient_ContextCancel` 200 ms ceiling fragile | FIXED | `client_test.go:335` ceiling bumped to 500 ms |
+## Narrative Findings (AI reviewer)
 
-**Round 2 (7 open — no fix commits since review):** WR-01, WR-02, WR-03, IN-01, IN-02, IN-03, IN-04 — all re-confirmed against current source, see findings below (now renumbered as WR-02..WR-04, IN-02..IN-05 to make room for the new CR-01).
+### Warnings
 
-## Critical
+### WR-01: `doJSONGet` ctx-cancellation paths bypass the WR-05 path-carrying contract
 
-### CR-01: Concurrent endpoint calls with `WithRetry` race on `Client.rand`
+**File:** `request.go:104-107` and `request.go:152-154`
+**Issue:** Two of three context-cancellation surfaces in `doJSONGet` return `ctxErr` / `sleepErr` raw, without the `"openholidays: GET %s: %w"` wrap that the WR-03 / WR-05 comment at `request.go:184-187` explicitly identifies as load-bearing: "The path is carried in BOTH branches (WR-05) so operator log routing via `strings.Contains(err.Error(), path)` is consistent regardless of whether retry was enabled or the failure happened on attempt 1."
 
-**File:** `client.go:67`, `client.go:169-197`, `retry.go:246-268`, `request.go:133`
-**Issue:** `Client.rand` is a `*math/rand/v2.Rand` value shared across all goroutines that call endpoint methods on the same `*Client`. The `math/rand/v2` package documentation does not promise concurrent-safe access on `*Rand` — its safety depends on the wrapped `Source`. `rand.NewChaCha8(seed)` returns a `*ChaCha8` whose `Uint64()` method is not documented as concurrent-safe either, and the official `math/rand/v2` docs explicitly say users needing concurrency must wrap the source.
+The three ctx-cancel surfaces produce inconsistent error shapes:
 
-The retry loop in `doJSONGet` passes `c.rand` directly to `computeBackoff`:
+1. **Loop-top ctx.Err() check** (line 105): `return zero, ctxErr` — raw `context.Canceled` / `context.DeadlineExceeded`. No `openholidays:` prefix, no path.
+2. **HTTP-layer ctx cancellation** (line 156-191, via `httpErr != nil`): wrapped via `fmt.Errorf("openholidays: GET %s: %w", path, httpErr)` — path IS carried.
+3. **Mid-sleep ctx cancellation** (line 152-154): `return zero, sleepErr` — raw `context.Canceled`. No prefix, no path.
 
+Operators routing log entries by `strings.Contains(err.Error(), "/Countries")` will silently miss the loop-top and during-sleep cancellation cases. The `errors.Is(err, context.Canceled)` contract is preserved on all three paths (and the existing tests assert only that), but the WR-05 path-carrying contract is broken on two of three.
+
+Existing tests don't catch this: `TestRetry_CtxCancel` (retry_test.go:440) and `TestClient_ContextCancel` (client_test.go:580) only assert `errors.Is(err, context.Canceled)`. The WR-03 test (client_test.go:522) does assert path-carrying, but only on the non-ctx-cancel branches.
+
+**Fix:** Wrap both raw returns with the same prefix as the non-ctx-cancel branches, e.g.:
 ```go
-// request.go:133
-delay := computeBackoff(attempt, retryAfter, c.retry, c.rand)
-```
+// request.go:104-107
+if ctxErr := ctx.Err(); ctxErr != nil {
+    return zero, fmt.Errorf("openholidays: GET %s: %w", path, ctxErr)
+}
 
-And `computeBackoff` calls `rnd.Int64N(int64(capped))` (retry.go:263). With two goroutines simultaneously executing endpoint methods on the same `*Client` while retry is enabled, both invocations of `Int64N` read and mutate the underlying ChaCha8 state without synchronization.
-
-Why prior reviews missed this: the only existing concurrent-endpoint test is `TestClient_ConcurrentAccess` (`client_test.go:254-295`), and it deliberately does NOT enable `WithRetry`. The retry path's `computeBackoff` is therefore never exercised concurrently in CI, so `go test -race ./...` does not flag this race. The retry-related concurrent tests (`TestRetry_E2E_429Then500Then200`, etc.) use one client and one goroutine.
-
-Practical impact:
-- Under `-race`, a user running concurrent endpoint calls with retry will see test failures.
-- Without `-race`, the worst observable symptom is corrupted jitter values (e.g., negative `Int64N` results would panic the stdlib at `n <= 0`, though ChaCha8 state corruption is more likely to produce skewed-but-valid jitter values silently).
-- This violates the CLIENT-07 "safe for concurrent use from any goroutine" invariant that `Client`'s godoc (`client.go:30`) and PROJECT.md both assert.
-
-The exact same concern is raised in the godoc itself: `retry.go:230-234` claims "Goroutine-safety of `*math/rand/v2.Rand` is established by the stdlib (math/rand/v2 docs)." This claim is incorrect — the stdlib docs for `Rand` say "The methods of Rand are not safe for concurrent use by multiple goroutines, but the global functions [...] are." (Verify: `go doc math/rand/v2.Rand` returns no concurrency guarantee; the package overview states the per-Rand methods are not safe.)
-
-**Fix:** Two options, in increasing complexity:
-
-1. **Guard `c.rand` with a mutex on the read path.** Add a `randMu sync.Mutex` to `Client`, and lock around the `computeBackoff` call:
-   ```go
-   c.randMu.Lock()
-   delay := computeBackoff(attempt, retryAfter, c.retry, c.rand)
-   c.randMu.Unlock()
-   ```
-   Lowest overhead; preserves per-Client jitter sequence.
-
-2. **Use a per-call seeded `Rand`.** Construct a fresh `rand.Rand` per retry-loop entry, seeded from `c.rand` under a short critical section (or directly from `crypto/rand`). Avoids the mutex on the hot path at the cost of an allocation per attempt.
-
-Option (1) is the minimal correctness fix. Also correct the stale claim in `retry.go:230-234` once chosen.
-
-Tests to add:
-- A `TestClient_ConcurrentRetry_RaceClean` (or extend `TestClient_ConcurrentAccess`) that runs 50 parallel `Countries()` calls under `WithRetry(3, _)` against an `httptest.Server` returning 503 → 200 sequences, then run with `-race`. This locks the regression.
-
-## Warnings
-
-### WR-02: `doJSONGet` leaks `resp.Body` on final-attempt transport error when both `resp` and `httpErr` are non-nil
-
-**File:** `request.go:108-117, 138-150`
-**Issue:** The deferred drain-and-close at `request.go:151-158` is registered AFTER the retry loop exits. Inside the loop, the in-attempt drain (lines 122-132) runs ONLY for non-final iterations (`attempt != maxAttempts-1`). On the final attempt the code intentionally breaks before drain so the post-loop defer can take over — but the defer only runs when the function reaches that point.
-
-Walk the failure path:
-
-1. Final attempt (or first attempt with `!shouldRetry(resp, httpErr)`) returns `(resp, httpErr)` where both are non-nil. Per Go's `net/http` docs this is the documented behavior when a caller-supplied `CheckRedirect` returns an error (`http.Client.Do` doc: "A non-nil Response with a non-nil error only occurs when CheckRedirect fails").
-2. Loop breaks (either on `!shouldRetry` or on the `attempt == maxAttempts-1` guard).
-3. `httpErr != nil` at line 138 → return at line 147 or 149.
-4. The defer at line 151 was never reached, so `resp.Body` is leaked.
-
-For the standard `CheckRedirect` case, net/http's docs say the Response.Body is already closed — so this is technically defensible. But the same `(resp != nil, err != nil)` shape can be produced by user-supplied custom RoundTrippers (e.g., third-party tracing middleware that returns a non-nil resp with a wrapped error), and the in-loop drain at lines 122-132 explicitly demonstrates that the codebase considers this shape real. The omission of the same defense on the final attempt is inconsistent.
-
-**Fix:** Add a defensive drain-and-close on the post-loop error path, mirroring the in-loop pattern:
-
-```go
-if httpErr != nil {
-    if resp != nil && resp.Body != nil {
-        _, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, maxResponseBytes+1))
-        _ = resp.Body.Close()
-    }
-    if maxAttempts > 1 {
-        return zero, fmt.Errorf("openholidays: GET %s: retry exhausted (%d attempts): %w", path, maxAttempts, httpErr)
-    }
-    return zero, fmt.Errorf("openholidays: GET %s: %w", path, httpErr)
+// request.go:152-154
+if sleepErr := c.sleepFunc(ctx, delay); sleepErr != nil {
+    return zero, fmt.Errorf("openholidays: GET %s: %w", path, sleepErr)
 }
 ```
+Then add subtests to `TestRetry_CtxCancel` asserting `assert.Contains(t, err.Error(), "/Countries", ...)` so the contract is mechanically locked.
 
-### WR-03: `doJSONGet` reports "retry exhausted (N attempts)" even when only 1 attempt ran
+Note: `errors.Is(err, context.Canceled)` continues to hold under the wrap because `fmt.Errorf("...%w", ...)` preserves the unwrap chain.
 
-**File:** `request.go:146-148`
-**Issue:** When `c.retry.maxAttempts > 1` AND the first `c.http.Do` returns a non-retryable error (e.g., DNS resolution failure, TLS handshake error — neither `net.Error.Timeout()` nor `syscall.ECONNRESET`), the loop breaks on `!shouldRetry(resp, httpErr)` at attempt 0. Only ONE round trip occurred. But the post-loop wrap at line 146-148 unconditionally fires the "retry exhausted (%d attempts)" prefix because `maxAttempts > 1`:
+### Info
 
+### IN-01: `WithMaxRetryWait` godoc overstates "no cumulative budget" claim
+
+**File:** `options.go:243-249`
+**Issue:** The godoc says "The ceiling applies to each individual sleep, NOT the cumulative retry budget. Five attempts with a 60s cap can still take ~5 minutes total. Consumers wanting a cumulative cap supply `ctx.WithTimeout(ctx, totalBudget)` themselves — the SDK does not enforce a cumulative budget".
+
+This is misleading in the presence of the default `WithTimeout(15*time.Second)` (config.go:118). With default settings, the per-request `context.WithTimeout` applied in `doJSONGet:64-68` IS a 15s cumulative budget covering both the HTTP attempts and the inter-attempt sleeps. So "the SDK does not enforce a cumulative budget" is false by default — only callers who supply `WithTimeout(0)` opt out.
+
+**Fix:** Clarify the doc:
+```
+// The ceiling applies to each individual sleep, NOT a cumulative retry
+// budget independent of the request timeout. Note that the SDK's default
+// per-request timeout (15s via WithTimeout) IS itself a cumulative budget
+// covering all retry attempts and inter-attempt sleeps — callers wanting
+// truly unbounded retries must pass WithTimeout(0). Five attempts with
+// a 60s cap and WithTimeout(0) can still take ~5 minutes total; consumers
+// wanting a cumulative cap supply ctx.WithTimeout(ctx, totalBudget)
+// themselves.
+```
+
+### IN-02: `TestNewMemoryCache` godoc claims coverage that lives elsewhere
+
+**File:** `cache_test.go:53-65`
+**Issue:** The TestNewMemoryCache godoc claims to cover "the constructor: returns a non-nil *MemoryCache configured with the supplied TTL, no goroutines spawned yet." But the "no goroutines spawned yet" assertion is in `TestMemoryCache_SweeperLazyStart` (cache_test.go:157), not here. The single subtest at line 58 only asserts non-nil + ttl-field-matches-argument.
+
+This is a small doc inconsistency that future contributors might trip on when looking for the "constructed-but-unused MemoryCache spawns no goroutines" lock.
+
+**Fix:** Trim the godoc claim to match what the test actually exercises:
 ```go
-if maxAttempts > 1 {
-    return zero, fmt.Errorf("openholidays: GET %s: retry exhausted (%d attempts): %w", path, maxAttempts, httpErr)
-}
+// TestNewMemoryCache covers the constructor: returns a non-nil *MemoryCache
+// configured with the supplied TTL. The "no goroutines spawned yet"
+// lazy-start invariant is locked separately in TestMemoryCache_SweeperLazyStart.
 ```
 
-A user calling `c := NewClient(WithRetry(5, 100*time.Millisecond))` and getting a DNS error sees `"openholidays: GET /Countries: retry exhausted (5 attempts): ..."` even though only 1 attempt ran. This is misleading and could confuse operators triaging logs.
+## Out-of-Scope Observations (NOT findings — surfacing for awareness)
 
-The same issue does NOT apply to the `*APIError` wrap on lines 168-170 because that branch correctly checks `shouldRetry(resp, nil)` first — non-retryable statuses (400, 404) do not get the prefix. The bug is specific to the `httpErr` branch.
+These are NOT findings; they are flagged so future phases can decide whether
+to address them explicitly.
 
-**Fix:** Track the actual attempt count and only apply the "retry exhausted" prefix when more than one attempt actually ran:
+1. **Cache-hit body is a defensive copy passed to `bytes.NewReader`, then drained by `doJSONGet`'s deferred `io.Copy(io.Discard, ...)`** — this is correct under the IN-05 copy contract but means every cache hit allocates `2 × len(cached)` bytes (one for the `Get` defensive copy, one because `bytes.NewReader` doesn't alias the slice into the io.Reader interface — wait, `bytes.NewReader` does alias; only `Get` copies). Net: one extra copy per Get vs. an interface that returned a `[]byte` and trusted the caller. Documented in cache.go:149-152. Out of scope per v0.x performance-not-in-scope rule.
 
-```go
-var attemptsMade int
-for attempt := 0; attempt < maxAttempts; attempt++ {
-    if ctxErr := ctx.Err(); ctxErr != nil {
-        return zero, ctxErr
-    }
-    attemptReq := req.Clone(ctx)
-    resp, httpErr = c.http.Do(attemptReq)
-    attemptsMade = attempt + 1
-    if !shouldRetry(resp, httpErr) {
-        break
-    }
-    // ... existing logic
-}
-if httpErr != nil {
-    if attemptsMade > 1 {
-        return zero, fmt.Errorf("openholidays: GET %s: retry exhausted (%d attempts): %w", path, attemptsMade, httpErr)
-    }
-    return zero, fmt.Errorf("openholidays: GET %s: %w", path, httpErr)
-}
-```
+2. **Sweeper uses real `time.NewTicker` even when `nowFn` is a fake clock** — deterministic eviction tests must rely on `Get`'s lazy-on-read path (which uses `nowFn`); the sweeper's eviction is observable only by wall-clock-waiting for a real ticker tick. Documented in cache.go:23-26 and acknowledged in TestMemoryCache_TTLEviction's design.
 
-Alternatively: only apply the prefix when `shouldRetry` returned true at least once.
+3. **Post-Close `Put` on a `MemoryCache` still stores entries and (uselessly) spawns a sweeper goroutine that exits immediately on the cancelled ctx** — undefined behavior per the Cache interface contract (config.go:62-83 does not specify Put/Close ordering). Not a defect; surfacing as an awareness item if v1 wants to tighten the contract.
 
-### WR-04: `ctxSleep(d <= 0)` does not check ctx, asymmetric with `fakeClock.Sleep`
+4. **`buildAPIError` reads `resp.Body` up to `apiErrorBodyCap` (4 KiB)** — the deferred `io.Copy(io.Discard, io.LimitReader(resp.Body, maxResponseBytes+1))` at `request.go:198` then drains anything past 4 KiB, bounded by 10 MiB. Correct, just worth noting that error responses consume up to (4 KiB + 10 MiB) of read budget total. Out of scope.
 
-**File:** `client.go:143-155` vs `clock_test.go:63-69`
-**Issue:** Production `ctxSleep` short-circuits on `d <= 0` and returns nil immediately:
-
-```go
-func ctxSleep(ctx context.Context, d time.Duration) error {
-    if d <= 0 {
-        return nil
-    }
-    // ... timer-based sleep
-}
-```
-
-Test `fakeClock.Sleep` checks `ctx.Err()` first, regardless of `d`:
-
-```go
-func (f *fakeClock) Sleep(ctx context.Context, d time.Duration) error {
-    if err := ctx.Err(); err != nil {
-        return err
-    }
-    f.Advance(d)
-    return nil
-}
-```
-
-Both functions implement the same `Client.sleepFunc` contract. If `computeBackoff` ever returns `d == 0`, production code does not surface ctx cancellation while the test code does. Current `computeBackoff` floor at `retry.go:260-262` forces `capped >= time.Millisecond`, so jitter is in `[0, 1ms)` — but `rnd.Int64N(int64(time.Millisecond))` can return 0, making this reachable.
-
-The retry loop already checks `ctx.Err()` at the top of every iteration, so a cancelled-ctx caller would see ctx.Err on the NEXT iteration after a no-op sleep — but if the no-op sleep is the LAST one (between final attempts), the post-loop block runs without seeing the cancellation. Practical impact: minimal, but the asymmetry is a latent inconsistency that may surface under future jitter-formula changes.
-
-Verified that this finding still applies — phase 02 round 3 did NOT modify `ctxSleep`.
-
-**Fix:** Make `ctxSleep` check `ctx.Err()` before the `d <= 0` short-circuit, matching `fakeClock.Sleep`:
-
-```go
-func ctxSleep(ctx context.Context, d time.Duration) error {
-    if err := ctx.Err(); err != nil {
-        return err
-    }
-    if d <= 0 {
-        return nil
-    }
-    t := time.NewTimer(d)
-    defer t.Stop()
-    select {
-    case <-ctx.Done():
-        return ctx.Err()
-    case <-t.C:
-        return nil
-    }
-}
-```
-
-## Info
-
-### IN-02: `runtime.NumGoroutine()` flake risk remains in two cache tests
-
-**File:** `cache_test.go:100-137` (`TestMemoryCache_SweeperLazyStart`), `cache_test.go:169-207` (`TestMemoryCache_CloseIdempotent` concurrent subtest)
-**Issue:** Per the round-1 WR-04 close-out, `TestClient_CloseStopsSweeper` was rewritten to use a deterministic `sweepDone` channel (excellent improvement at `client_test.go:228-243`). The two `cache_test.go` tests above still rely on `runtime.NumGoroutine()` delta comparisons with `time.Sleep(5*time.Millisecond)` grace windows. The tests are intentionally NOT parallel and tolerate `+1` goroutine slack, which is the right approach — but on heavily-loaded CI runners or under `-race` with active GC, counts can drift.
-
-The deterministic alternative is to use `MemoryCache.sweepDone` (already exposed via same-package visibility, as `client_test.go:228` does).
-
-**Fix:** Optional. Either:
-
-1. Replace `runtime.NumGoroutine()` checks with `select { case <-mc.sweepDone: ... case <-time.After(...): ... }` patterns.
-2. Accept the residual flake and monitor CI rates.
-
-The current state is documented and stable enough for v0.x; flagged at Info severity for visibility.
-
-### IN-03: Cache hit synthetic response omits standard HTTP protocol fields
-
-**File:** `transport_cache.go:126-133`
-**Issue:** The synthetic cache-hit response sets `StatusCode`, `Status`, `Header`, `Body`, `ContentLength`, and `Request`. It does NOT set `Proto`, `ProtoMajor`, `ProtoMinor`, or `TransferEncoding`. A user-supplied `WithRequestHook` reading any of these fields on a cache-hit response gets the zero value (`""` for Proto, 0 for ProtoMajor/Minor, nil slice for TransferEncoding).
-
-`hookTransport.RoundTrip` IS outermost and DOES see this synthetic response (it's the whole point of D-88). Users wiring metrics like "count HTTP/2 requests" on `resp.ProtoMajor == 2` would silently misreport cache hits as HTTP/0.0.
-
-**Fix:** Either populate the synthetic response's protocol fields from `req.Proto` / `req.ProtoMajor` / `req.ProtoMinor` (most accurate), or document the gap on the `WithRequestHook` godoc. Suggested doc addition to `config.go::RequestHookFunc`:
-
-```
-// Hooks reading cache-hit responses (CacheHitContextKey == true) must
-// treat protocol-level fields (resp.Proto, resp.ProtoMajor, resp.ProtoMinor,
-// resp.TransferEncoding) as unset — the synthetic response only populates
-// status, headers, body, and ContentLength.
-```
-
-### IN-04: Cache hit synthetic response has empty `Header`, omits `Content-Type`
-
-**File:** `transport_cache.go:129`
-**Issue:** `Header: make(http.Header)` produces an empty header on cache-hit responses. The original 200 response would carry `Content-Type: application/json` (and possibly `Cache-Control`, `ETag`, etc.). Hooks that introspect headers see them on cache misses but not on cache hits — same family of issue as IN-03.
-
-The downstream JSON decoder in `doJSONGet` does not check Content-Type, so functionally this is fine for the SDK's own consumers. But user hooks that key on `resp.Header.Get("Content-Type")` will misbehave on cache hits.
-
-**Fix:** Optional. Either:
-
-1. Store the response headers alongside the body in `cacheTransport`'s Put path (changes Cache contract from `[]byte` to a richer envelope — non-trivial).
-2. Synthesize a minimal header (`synth.Header.Set("Content-Type", "application/json")`) so the common case works.
-3. Document the gap explicitly.
-
-For v0.x, option (3) is the minimum bar.
-
-### IN-05: `Cache.Get` exposes the underlying byte slice — caller mutation corrupts the cache
-
-**File:** `cache.go:144-152`
-**Issue:** `MemoryCache.Get` returns `e.value`, which is the same `[]byte` reference stored in `m.entries[key]`:
-
-```go
-func (m *MemoryCache) Get(key string) ([]byte, bool) {
-    m.mu.RLock()
-    e, ok := m.entries[key]
-    m.mu.RUnlock()
-    if !ok || m.nowFn().After(e.expiresAt) {
-        return nil, false
-    }
-    return e.value, true
-}
-```
-
-If any caller mutates the returned slice (e.g., `buf[0] = 'x'`), the cached entry is corrupted for all subsequent reads. The only in-tree consumer is `cacheTransport.RoundTrip` (line 130-131), which wraps the slice in `bytes.NewReader` (read-only) and passes it to the JSON decoder. The decoder does not write to its input. So the in-tree path is safe today.
-
-However, the `Cache` interface (`config.go:76-80`) is exported and intended for third-party implementations and consumers. A user implementing `WithCacheBackend(myCache)` may legitimately call `myCache.Get(key)` for diagnostics — the contract on returned-slice mutability is undocumented and dangerous.
-
-**Fix:** Either:
-
-1. Document on the `Cache` godoc that returned slices are read-only references to internal storage and MUST NOT be mutated.
-2. Have `MemoryCache.Get` return a copy: `out := make([]byte, len(e.value)); copy(out, e.value); return out, true` — costs an allocation per hit but eliminates the footgun.
-
-For an SDK targeting OSS consumers, (1) is the minimum.
-
-## Files Reviewed (compact summary)
-
-| File | Lines | Issues This Pass |
-|------|-------|------------------|
-| `cache.go` | 240 | IN-05 |
-| `cache_test.go` | 208 | IN-02 |
-| `client.go` | 198 | CR-01, WR-04 |
-| `client_test.go` | 637 | — |
-| `clock_test.go` | 149 | — |
-| `config.go` | 191 | — |
-| `internal_test.go` | 261 | — |
-| `options.go` | 413 | — |
-| `options_test.go` | 565 | — |
-| `request.go` | 322 | WR-02, WR-03 |
-| `retry.go` | 269 | CR-01 (stale godoc claim) |
-| `retry_test.go` | 646 | — |
-| `transport_cache.go` | 180 | IN-03, IN-04 |
-| `transport_cache_test.go` | 307 | — |
-| `transport_hook.go` | 108 | — |
-| `transport_hook_test.go` | 288 | — |
-
-## Notes (observations, not findings)
-
-- **Phase 02 round-3 fixes integration:** Verified clean. Commits `5b1c66c` (remove `Client.userAgent` / `Client.logger`), `b154c0e` (errcheck on `fnv.Hash.Write`), `fe1d1f3` (remove `Client.closed`), `805fdf3` (test cleanup) all compose with the phase 04 code. The transport chain accessors (`headerTransportFromChain` / `loggingTransportFromChain` in `options_test.go:137-156`) correctly walk the new chain after the dead fields were removed. No regressions found.
-- **`Client.closed` removal correctness:** The round-2 review's Notes section asserted "`Client.closed` uses `atomic.Bool`" — that field was removed in commit `fe1d1f3`. The current `Client` struct (lines 58-69 of `client.go`) carries only the documented post-construction state (`closeOnce sync.Once`). Endpoint dispatch does not consult any post-Close flag, which matches the documented contract on `Close` (idempotent shutdown hook, NOT a gate on subsequent endpoint calls). PASS.
-- **English-only rule (Gold Rule 1):** All identifiers, comments, godoc strings, and test names verified English. PASS.
-- **Test conventions (Gold Rule 3):** `testify` + `require`/`assert` consistent; `t.Run` wraps every leaf case; `t.Parallel()` applied with documented exceptions for goroutine-count tests. One TestXxx per exported prod function. PASS.
-- **Zero runtime dependencies:** No non-stdlib imports in production files. `hash/fnv`, `encoding/binary`, `os` in `client.go::newClientRand` are stdlib. PASS.
-- **No `init()` and no unexpected package-level vars:** `internal_test.go::TestNoInitOrGlobalState` mechanically locks this. `CacheHitContextKey` and `Version` correctly listed in `allowedVars`. PASS.
-- **Exported symbol godoc:** Every exported symbol has a doc comment. PASS.
-- **`io.LimitReader` 10 MiB cap:** Applied in `doJSONGet` (lines 125, 156, 174), `cacheTransport` miss-path (line 143), and `cacheTransport` drain (line 152). PASS.
-- **`slog.Default()` default + no body logging above Debug:** `loggingTransport` emits only at `slog.LevelDebug` and never reads the body; `hookTransport` does not log at all. PASS.
-- **`-race` cleanliness:** `MemoryCache` uses `sync.RWMutex`; `fakeClock` uses `sync.Mutex`; `Client.closeOnce` uses `sync.Once`. **However:** `Client.rand` is shared across goroutines without synchronization — see CR-01. The current test suite does not exercise the race because no concurrent-endpoint test enables `WithRetry`.
-- **Context cancellation ≤ 100 ms (CLIENT-09):** Verified via `TestClient_ContextCancel` (500 ms CI ceiling) and `TestRetry_CtxCancel` (200 ms ceiling). The fakeClock-based retry tests are tighter and more representative of the actual contract.
-- **Strict-decoding composition (D-93):** `TestCache_StrictDecodingComposes` locks the contract that strict mode applies to cached bytes on every read (server hit once, strict gate fires twice). PASS.
-- **Retry-NotARoundTripper structural audit:** `TestRetry_NotARoundTripper` scans for `type retryTransport` declarations and `transport_retry.go`. The audit matches `TrimLeft(line, " \t")` prefix `"type retryTransport"` per-line — would also catch a `type (\n retryTransport ...\n)` multi-line block. Sound.
+5. **`shouldRetry(nil, nil)` returns `false`** — defensive, documented at `retry.go:117-119`. The `doJSONGet` loop calls `c.http.Do` whose stdlib contract is `(resp != nil, err == nil)` OR `(resp == nil OR resp != nil, err != nil)` — never `(nil, nil)`. Defense-in-depth is fine.
 
 ---
 
-_Reviewed: 2026-05-28_
+_Reviewed: 2026-05-28T00:00:00Z_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: standard_
