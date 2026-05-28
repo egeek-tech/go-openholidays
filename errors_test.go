@@ -9,12 +9,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestSentinelErrors locks ERR-01 (Phase 1 baseline) + Phase 2 D-24/CL-07:
-// each of the 6 exported sentinels is non-nil, carries the "openholidays: "
-// prefix per the project's error-string convention, and has a distinct
-// identity from every other sentinel. Phase 2 adds ErrResponseTooLarge as
-// the sixth entry; CLIENT-10 audit (internal_test.go) gates package-level
-// var growth so this list and the allowlist must move in lockstep.
+// TestSentinelErrors locks ERR-01 (Phase 1 baseline) + Phase 2 D-24/CL-07
+// + Phase 3 D-65/D-66/CL-12: each of the 7 exported sentinels is non-nil,
+// carries the "openholidays: " prefix per the project's error-string
+// convention, and has a distinct identity from every other sentinel.
+// Phase 2 added ErrResponseTooLarge (sixth entry); Phase 3 added
+// ErrMalformedResponse (seventh entry). CLIENT-10 audit (internal_test.go)
+// gates package-level var growth so this list and the allowlist must move
+// in lockstep.
 func TestSentinelErrors(t *testing.T) {
 	t.Parallel()
 
@@ -29,6 +31,7 @@ func TestSentinelErrors(t *testing.T) {
 		{"ErrInvalidDateRange", ErrInvalidDateRange},
 		{"ErrEmptyResponse", ErrEmptyResponse},
 		{"ErrResponseTooLarge", ErrResponseTooLarge},
+		{"ErrMalformedResponse", ErrMalformedResponse},
 	}
 
 	for _, s := range all {
@@ -75,6 +78,7 @@ func TestSentinels_ErrorsIs(t *testing.T) {
 		{"ErrInvalidDateRange", ErrInvalidDateRange},
 		{"ErrEmptyResponse", ErrEmptyResponse},
 		{"ErrResponseTooLarge", ErrResponseTooLarge},
+		{"ErrMalformedResponse", ErrMalformedResponse},
 	}
 
 	for _, s := range all {
