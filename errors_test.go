@@ -86,7 +86,6 @@ func TestSentinels_ErrorsIs(t *testing.T) {
 			t.Parallel()
 
 			wrapped := fmt.Errorf("context %q: %w", "ZZZ", s.err)
-			require.NotNil(t, wrapped, "fmt.Errorf must produce a non-nil error")
 
 			assert.Truef(t,
 				errors.Is(wrapped, s.err),
@@ -148,7 +147,6 @@ func TestAPIError_Error(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			t.Parallel()
 
-			require.NotNil(t, c.err, "*APIError must be non-nil for this case")
 			assert.Equal(t, c.want, c.err.Error())
 		})
 	}
@@ -219,8 +217,6 @@ func TestAPIError_Is(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			t.Parallel()
 
-			require.NotNil(t, c.target, "target must be non-nil for this case")
-
 			got := errors.Is(base, c.target)
 			assert.Equal(t, c.want, got,
 				"errors.Is(base{status=%d}, target=%T{...}) mismatch",
@@ -250,7 +246,6 @@ func TestAPIError_ErrorsAs(t *testing.T) {
 		var got *APIError
 		require.True(t, errors.As(wrapped, &got),
 			"errors.As must recover *APIError from %%w-wrapped chain")
-		require.NotNil(t, got, "recovered *APIError must be non-nil")
 
 		assert.Equal(t, 404, got.StatusCode, "StatusCode preserved")
 		assert.Equal(t, "/Subdivisions", got.Path, "Path preserved")
