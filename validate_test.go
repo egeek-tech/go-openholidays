@@ -283,6 +283,16 @@ func TestValidateDateRange(t *testing.T) {
 // is twofold: (1) the offending value DOES appear in the error message
 // per D-23, and (2) tokens that indicate HTTP/transport context
 // ("http", "://", "Body:", "Authorization") do NOT appear.
+//
+// Key Decision CL-17 (PROJECT.md): this test is the documented Gold-Rule-3
+// exception for a cross-cutting validator invariant. The per-validator
+// tests (TestValidateCountry / TestValidateLanguage / TestValidateDateRange)
+// continue to assert each validator's individual contract; this test
+// asserts the ERR-04 no-leak property that spans ALL validators at once.
+// Folding the assertion into each per-validator test would duplicate the
+// check three times and dilute the "one property of the whole validator
+// surface" framing. Future cross-cutting tests must be argued for
+// individually and added to PROJECT.md Key Decisions before landing.
 func TestValidators_NoSensitiveData(t *testing.T) {
 	t.Parallel()
 
