@@ -149,7 +149,7 @@ func TestAPIError_Error(t *testing.T) {
 			t.Parallel()
 
 			require.NotNil(t, c.err, "*APIError must be non-nil for this case")
-			require.Equal(t, c.want, c.err.Error())
+			assert.Equal(t, c.want, c.err.Error())
 		})
 	}
 }
