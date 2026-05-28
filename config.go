@@ -118,26 +118,56 @@ func composeHTTPClient(cfg *clientConfig) *http.Client {
 	return &cp
 }
 
-// buildTransport composes the RoundTripper chain for Phase 2:
+// buildTransport composes the RoundTripper chain. Through Phase 4 Plan 04
+// (cache layer), the revised D-89 chain is:
 //
-//	req → headerTransport → loggingTransport → underlying
+//	req → [hookTransport] → [cacheTransport] → loggingTransport →
+//	      headerTransport → underlying
 //
 // Where underlying is cfg.httpClient.Transport if the caller supplied a
-// custom Transport on their *http.Client, else the stdlib default.
+// custom Transport on their *http.Client, else the stdlib default. Layers
+// in square brackets are conditional on the corresponding option being
+// passed (WithCache/WithCacheBackend for cacheTransport; WithRequestHook
+// for hookTransport — Plan 05 adds the latter).
 //
-// Phase 3 will add retryTransport outermost; Phase 4 will add cacheTransport
-// and hookTransport. Pre-1.0, this constructor is edited in place rather
-// than abstracted into a generic middleware list (D-29 explicit) — the
-// chain is small enough that one constructor edit is cheaper than a
-// framework, and the chain order is load-bearing semantics (outermost wraps
-// inner; the request flows left-to-right, the response right-to-left).
+// Composition order in code is INVERSE the documented chain order
+// because Go's RoundTripper decorator pattern wraps inside-out — the
+// outermost layer (which sees the request FIRST) is constructed LAST.
+// The "innermost first" comments below mark the build order so a future
+// reader can verify chain semantics against D-29 / D-89 without
+// re-deriving them.
+//
+// Pre-1.0, this constructor is edited in place rather than abstracted
+// into a generic middleware list (D-29 explicit) — the chain is small
+// enough that one constructor edit is cheaper than a framework, and the
+// chain order is load-bearing semantics (outermost wraps inner; the
+// request flows outermost-to-innermost, the response innermost-to-
+// outermost).
 func buildTransport(cfg *clientConfig) http.RoundTripper {
 	underlying := cfg.httpClient.Transport
 	if underlying == nil {
 		underlying = http.DefaultTransport
 	}
 	var rt http.RoundTripper = underlying
-	rt = &loggingTransport{logger: cfg.logger, next: rt}
+	// Innermost first (request flows outermost → innermost):
 	rt = &headerTransport{userAgent: cfg.userAgent, next: rt}
+	rt = &loggingTransport{logger: cfg.logger, next: rt}
+	// Phase 4 cache layer (D-89: above logging so cache-hit logs still
+	// emit — the loggingTransport above does NOT see a cache hit because
+	// cacheTransport short-circuits; the hookTransport above WILL see it
+	// once Plan 05 lands).
+	if cfg.cache != nil {
+		rt = &cacheTransport{
+			cache:         cfg.cache,
+			cacheablePath: isCacheablePath,
+			next:          rt,
+		}
+	}
+	// Phase 4 hook layer (D-89 outermost) — added by Plan 05 once
+	// hookTransport ships:
+	//
+	//   if cfg.hook != nil {
+	//       rt = &hookTransport{hook: cfg.hook, next: rt}
+	//   }
 	return rt
 }

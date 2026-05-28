@@ -345,14 +345,24 @@ func countriesServer(t *testing.T, body []byte) (*httptest.Server, *atomic.Int32
 // TestClient_CloseStopsSweeper locks D-96 + RESIL-08: Close stops the cache
 // sweeper goroutine. The test runs a real cache through one end-to-end
 // Countries call (forcing a Put → lazy sweeper start), calls Close, then
-// asserts runtime.NumGoroutine() delta ≤ 0 after a small grace period.
+// asserts runtime.NumGoroutine() delta ≤ 0 after closing the server and a
+// small grace period.
+//
+// Implementation note: D-96's documented pattern omits server bookkeeping;
+// in practice an httptest.Server + http.Transport keep-alive pool spawns
+// short-lived goroutines that persist past Client.Close until the server
+// itself closes. To isolate the sweeper-leak signal, we explicitly close
+// both the server's idle client connections AND the server itself BEFORE
+// the assertion. The sweeper-stop check is the load-bearing invariant —
+// the connection-pool noise is a documented test-harness artifact, not a
+// regression in Client.Close (Rule 1 auto-fix per the executor protocol —
+// the plan's verbatim D-96 pattern would be flaky without this).
 //
 // Not t.Parallel() because runtime.NumGoroutine() delta checks are
 // sensitive to other tests' goroutine churn (Phase 2 D-48 / D-96).
 func TestClient_CloseStopsSweeper(t *testing.T) {
 	body := []byte(`[{"isoCode":"PL","name":[{"language":"en","text":"Poland"}]}]`)
 	srv, _ := countriesServer(t, body)
-	t.Cleanup(srv.Close)
 
 	before := runtime.NumGoroutine()
 
@@ -361,10 +371,16 @@ func TestClient_CloseStopsSweeper(t *testing.T) {
 	require.NoError(t, err, "Countries call must succeed against the fake server")
 
 	require.NoError(t, c.Close())
-	time.Sleep(10 * time.Millisecond) // sweeper exit grace
+	// Tear down the test-harness HTTP plumbing BEFORE the assertion so
+	// http.Transport keep-alive goroutines stop and httptest.Server
+	// worker goroutines exit; only then is the runtime.NumGoroutine
+	// delta a clean signal for the sweeper-leak invariant.
+	c.http.CloseIdleConnections()
+	srv.Close()
+	time.Sleep(20 * time.Millisecond) // sweeper + conn-pool exit grace
 
 	assert.LessOrEqual(t, runtime.NumGoroutine(), before,
-		"Close must stop the sweeper goroutine (D-96 / RESIL-08 — runtime.NumGoroutine delta ≤ 0)")
+		"Close must stop the sweeper goroutine (D-96 / RESIL-08 — runtime.NumGoroutine delta ≤ 0 after test-harness teardown)")
 }
 
 // TestCache_StrictDecodingComposes locks D-93: strict-decoding applies to
