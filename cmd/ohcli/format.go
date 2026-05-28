@@ -121,3 +121,72 @@ func renderCSV(w io.Writer, hs []openholidays.Holiday, lang string) error {
 	cw.Flush()
 	return cw.Error()
 }
+
+// renderCountries dispatches the per-format renderer for a []Country
+// payload — the parallel of render for Country values. The countries
+// subcommand calls this instead of render because Client.Countries
+// returns []openholidays.Country, not []Holiday.
+//
+// The renderer set mirrors the Holiday renderer set: text via tabwriter
+// (ISO_CODE / NAME / OFFICIAL_LANGUAGES columns), JSON via encoding/json
+// with two-space indent, CSV via encoding/csv with a snake_case header
+// row (iso_code,name,official_languages). The official_languages CSV
+// column joins entries with ';' for the same single-field-per-row reason
+// renderCSV joins subdivision codes with ';'.
+func renderCountries(w io.Writer, cs []openholidays.Country, lang, format string) error {
+	switch format {
+	case "text":
+		return renderCountriesText(w, cs, lang)
+	case "json":
+		return renderCountriesJSON(w, cs)
+	case "csv":
+		return renderCountriesCSV(w, cs, lang)
+	default:
+		return fmt.Errorf("ohcli: invalid format %q", format)
+	}
+}
+
+// renderCountriesText writes the column-aligned text view of a []Country
+// using text/tabwriter. Columns: ISO_CODE, NAME (localized via
+// Country.NameFor), OFFICIAL_LANGUAGES (comma-joined for the human
+// reader; CSV uses ';' for parser-friendly separation).
+func renderCountriesText(w io.Writer, cs []openholidays.Country, lang string) error {
+	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(tw, "ISO_CODE\tNAME\tOFFICIAL_LANGUAGES")
+	for _, c := range cs {
+		fmt.Fprintf(tw, "%s\t%s\t%s\n",
+			c.IsoCode, c.NameFor(lang), strings.Join(c.OfficialLanguages, ","))
+	}
+	return tw.Flush()
+}
+
+// renderCountriesJSON writes the JSON view of a []Country with two-space
+// indent so output pipes cleanly into jq.
+func renderCountriesJSON(w io.Writer, cs []openholidays.Country) error {
+	enc := json.NewEncoder(w)
+	enc.SetIndent("", "  ")
+	return enc.Encode(cs)
+}
+
+// renderCountriesCSV writes the CSV view of a []Country using
+// encoding/csv. Header row: iso_code, name, official_languages.
+// official_languages joins the language list with ';' so the value stays
+// a single field and round-trips through every spreadsheet importer
+// without quoting.
+func renderCountriesCSV(w io.Writer, cs []openholidays.Country, lang string) error {
+	cw := csv.NewWriter(w)
+	if err := cw.Write([]string{"iso_code", "name", "official_languages"}); err != nil {
+		return err
+	}
+	for _, c := range cs {
+		if err := cw.Write([]string{
+			c.IsoCode,
+			c.NameFor(lang),
+			strings.Join(c.OfficialLanguages, ";"),
+		}); err != nil {
+			return err
+		}
+	}
+	cw.Flush()
+	return cw.Error()
+}

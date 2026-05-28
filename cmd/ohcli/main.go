@@ -105,34 +105,7 @@ func newClient() *openholidays.Client {
 	return openholidays.NewClient(opts...)
 }
 
-// The cmdPublic / cmdSchool / cmdCountries stubs below exist only so the
-// Task 1 acceptance gate — `go build ./cmd/ohcli` exits 0 — passes before
-// Task 3 lands the real implementations in dedicated public.go / school.go /
-// countries.go files. Task 3 deletes these three stubs (and the
-// `var _ = newClient` no-op reference below) when it splits the handlers
-// out into their own files.
-
-// cmdPublic is the Task 1 placeholder for the `public` subcommand. It is
-// replaced by the real handler in cmd/ohcli/public.go in Task 3.
-func cmdPublic(_ context.Context, _ []string, _, stderr io.Writer) int {
-	fmt.Fprintln(stderr, "ohcli: public subcommand not yet implemented")
-	return 1
-}
-
-// cmdSchool is the Task 1 placeholder for the `school` subcommand. It is
-// replaced by the real handler in cmd/ohcli/school.go in Task 3.
-func cmdSchool(_ context.Context, _ []string, _, stderr io.Writer) int {
-	fmt.Fprintln(stderr, "ohcli: school subcommand not yet implemented")
-	return 1
-}
-
-// cmdCountries is the Task 1 placeholder for the `countries` subcommand. It
-// is replaced by the real handler in cmd/ohcli/countries.go in Task 3.
-func cmdCountries(_ context.Context, _ []string, _, stderr io.Writer) int {
-	fmt.Fprintln(stderr, "ohcli: countries subcommand not yet implemented")
-	return 1
-}
-
-// Task 1 no-op reference keeping newClient reachable for go vet. Task 3
-// removes this line when the real handlers (which call newClient) land.
-var _ = newClient
+// The cmdPublic / cmdSchool / cmdCountries handlers live in their own
+// files (public.go / school.go / countries.go) so each subcommand keeps a
+// small, focused implementation with its own flag.FlagSet, validation
+// chain, request construction, and renderer dispatch.
