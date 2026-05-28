@@ -193,8 +193,8 @@ func newClientRand() *rand.Rand {
 		// errcheck (mandated by the .golangci.yml lint set) flags every
 		// unchecked error return regardless of documentation. The
 		// explicit `_, _ = ...` discard is the project-wide idiom for
-		// "drop intentionally" — see client_test.go:339,
-		// countries_test.go:94/170/254/280/316/322/350/369 (IN-01).
+		// "drop intentionally" — see the `_, _ = ...` discard pattern
+		// used throughout `*_test.go` (IN-01).
 		h1 := fnv.New128a()
 		_, _ = h1.Write(tb[:])
 		_, _ = h1.Write(pb[:])

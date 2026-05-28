@@ -170,7 +170,8 @@ func (t *cacheTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	// cap — drain defensively. The drain itself is bounded by
 	// io.LimitReader(maxResponseBytes+1) so a hostile upstream streaming
 	// unbounded bytes past the first 10 MiB cannot pin this goroutine
-	// (mirrors the analogous drain in request.go:116 — CR-01).
+	// (mirrors the analogous drains in request.go's retry-loop body and
+	// post-loop deferred drain — CR-01).
 	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, maxResponseBytes+1))
 	_ = resp.Body.Close()
 	if readErr != nil {
