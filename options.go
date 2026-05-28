@@ -141,3 +141,112 @@ func WithStrictDecoding(strict bool) Option {
 		cfg.strictDecoding = strict
 	}
 }
+
+// WithRetry enables retry with exponential backoff + full jitter for
+// every endpoint method on the constructed Client (D-73 / D-74 / D-75 /
+// D-76 / D-77 / RESIL-01..05). Retry is OFF by default — calling
+// WithRetry is the only way to enable it.
+//
+// Arguments:
+//
+//   - maxAttempts: maximum number of c.http.Do invocations inside the
+//     retry loop. <=0 is interpreted as DISABLED (the loop runs exactly
+//     once and surfaces the first response/error verbatim — defensive
+//     symmetry with WithTimeout(0) per D-74).
+//   - baseDelay: base unit for exponential backoff. <=0 falls back to
+//     defaultBaseDelay (250ms) per D-74.
+//
+// When WithMaxRetryWait is NOT also called, WithRetry sets the per-
+// attempt sleep ceiling to defaultMaxRetryWait (60s) per D-74 so a
+// caller that opts in to retry with a single line never accidentally
+// disables the cap. If both WithRetry and WithMaxRetryWait are called,
+// last-wins applies per the functional-options convention.
+//
+// Retryable conditions (D-75):
+//
+//   - HTTP statuses 408, 429, 500, 502, 503, 504 (Pitfall RETRY-1).
+//   - net.Error with Timeout() == true (transport timeout).
+//   - errors wrapping syscall.ECONNRESET (connection reset).
+//   - context.Canceled and context.DeadlineExceeded are NEVER retried
+//     — they propagate as ctx.Err() immediately.
+//
+// Retry-After handling (D-76): when an upstream response carries a
+// Retry-After header (integer seconds or RFC 7231 HTTP-date), the
+// per-attempt sleep is max(retryAfter, jitterDelay) capped at the
+// per-attempt ceiling. Past-dated HTTP-dates are rejected (Pitfall 9 /
+// threat T-04-06) so backoff never collapses to zero. When the header
+// is absent or unparseable, the sleep is full-jitter exponential:
+// uniform random in [0, baseDelay << attempt) capped at the per-
+// attempt ceiling.
+//
+// Placement (D-77 + RESIL-05): the retry loop lives inside
+// doJSONGet (the endpoint layer), NOT a RoundTripper. Consumers who
+// supply their own retrying *http.Client via WithHTTPClient therefore
+// do NOT see double-firing of attempts. Retry is an opt-in SDK feature;
+// callers wanting it disable in their custom transport (or just don't
+// call WithRetry) will see exactly one round trip per endpoint method.
+//
+// The per-attempt ceiling bounds each individual sleep (default 60s),
+// NOT the cumulative retry budget — five attempts with 60s cap can
+// still take ~5 min total. Consumers wanting a cumulative cap supply
+// ctx.WithTimeout(ctx, totalBudget); the SDK's retry loop is ctx-aware
+// (Pitfall RETRY-3) and returns ctx.Err() within ≤ 100 ms of caller
+// cancellation (CLIENT-09 / RESIL-04).
+func WithRetry(maxAttempts int, baseDelay time.Duration) Option {
+	return func(cfg *clientConfig) {
+		cfg.retry.maxAttempts = maxAttempts
+		if baseDelay > 0 {
+			cfg.retry.baseDelay = baseDelay
+		} else {
+			cfg.retry.baseDelay = defaultBaseDelay
+		}
+		// Ensure maxWait has a sane default if the caller did not also
+		// call WithMaxRetryWait (D-74). Without this, a single-line
+		// WithRetry(3, 100*time.Millisecond) leaves cfg.retry.maxWait
+		// at its zero value, which would make computeBackoff produce a
+		// 1ms-bounded jitter regardless of attempt (capped path takes
+		// over). 60s cap is the documented default; last-wins is
+		// preserved because WithMaxRetryWait can still overwrite it if
+		// the caller composes Options in either order.
+		if cfg.retry.maxWait <= 0 {
+			cfg.retry.maxWait = defaultMaxRetryWait
+		}
+	}
+}
+
+// WithMaxRetryWait sets the per-attempt sleep ceiling applied by the
+// retry loop (D-74 default 60s). A non-positive duration falls back to
+// defaultMaxRetryWait (60s) per D-74 — calling
+// WithMaxRetryWait(0) does NOT disable the cap.
+//
+// The ceiling applies to each individual sleep, NOT the cumulative
+// retry budget (CONTEXT.md `<specifics>` 5). Five attempts with a 60s
+// cap can still take ~5 minutes total. Consumers wanting a cumulative
+// cap supply ctx.WithTimeout(ctx, totalBudget) themselves — the SDK
+// does not enforce a cumulative budget because it would conflict with
+// the per-attempt semantics (deferred per CONTEXT.md `<deferred>`).
+//
+// The cap also bounds Retry-After promotion: a hostile upstream
+// returning Retry-After: 999999999 cannot hold the request for the
+// lifetime of the process (threat T-04-05) because computeBackoff
+// applies min(retryAfter, maxWait) per D-76.
+//
+// Note that calling WithMaxRetryWait alone (without WithRetry) has no
+// observable effect — retry is opt-in, and the cap is only consulted
+// when the retry loop runs (maxAttempts > 0). The intended idiom is to
+// pass both options together when finer control over the cap is
+// needed:
+//
+//	c := NewClient(
+//	    WithRetry(5, 100*time.Millisecond),
+//	    WithMaxRetryWait(10*time.Second),
+//	)
+func WithMaxRetryWait(d time.Duration) Option {
+	return func(cfg *clientConfig) {
+		if d > 0 {
+			cfg.retry.maxWait = d
+		} else {
+			cfg.retry.maxWait = defaultMaxRetryWait
+		}
+	}
+}
