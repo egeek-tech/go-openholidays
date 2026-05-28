@@ -196,7 +196,7 @@ func TestHookTransport_FiresPerAttempt(t *testing.T) {
 		// Manually invoke RoundTrip three times — simulates the retry loop
 		// in doJSONGet which dispatches a fresh c.http.Do per attempt. The
 		// hook must fire on each.
-		for i := 0; i < 3; i++ {
+		for range 3 {
 			_, _ = tr.RoundTrip(req)
 		}
 

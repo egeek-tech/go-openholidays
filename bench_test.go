@@ -64,7 +64,7 @@ func BenchmarkClient_PublicHolidays(b *testing.B) {
 
 		ctx := context.Background()
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			if _, err := c.PublicHolidays(ctx, req); err != nil {
 				b.Fatal(err)
 			}
@@ -96,7 +96,7 @@ func BenchmarkClient_Countries(b *testing.B) {
 		_, _ = c.Countries(ctx, CountriesRequest{})
 
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			if _, err := c.Countries(ctx, CountriesRequest{}); err != nil {
 				b.Fatal(err)
 			}

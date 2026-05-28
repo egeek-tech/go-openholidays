@@ -186,9 +186,11 @@ func newClientRand() *rand.Rand {
 		// and rotate the input across two rounds to populate seed[0:16]
 		// and seed[16:32] from independent hash states.
 		var tb [8]byte
-		binary.LittleEndian.PutUint64(tb[:], uint64(time.Now().UnixNano()))
+		// G115 false positive: time.Now().UnixNano() is int64; ChaCha8 needs
+		// 32 bytes of bit-pattern entropy, the sign bit is fine to retain.
+		binary.LittleEndian.PutUint64(tb[:], uint64(time.Now().UnixNano())) //nolint:gosec // G115: nanosecond timestamp used as bit pattern, not magnitude
 		var pb [8]byte
-		binary.LittleEndian.PutUint64(pb[:], uint64(os.Getpid()))
+		binary.LittleEndian.PutUint64(pb[:], uint64(os.Getpid())) //nolint:gosec // G115: pid used as bit pattern for entropy mixing, not magnitude
 		// hash.Hash documents Write as "never returns an error", but
 		// errcheck (mandated by the .golangci.yml lint set) flags every
 		// unchecked error return regardless of documentation. The
@@ -204,5 +206,8 @@ func newClientRand() *rand.Rand {
 		_, _ = h2.Write(tb[:])
 		copy(seed[16:], h2.Sum(nil))
 	}
-	return rand.New(rand.NewChaCha8(seed))
+	// G404: math/rand/v2 is the project-sanctioned non-crypto RNG per
+	// CLAUDE.md (used here for retry jitter, not security tokens). The
+	// seed is sourced from crypto/rand whenever available.
+	return rand.New(rand.NewChaCha8(seed)) //nolint:gosec // G404: math/rand/v2 used for jitter; cryptographic-grade RNG not required (CLAUDE.md Stack Patterns)
 }

@@ -97,7 +97,7 @@ func doJSONGet[T any](ctx context.Context, c *Client, path string, q url.Values)
 	// "retry exhausted (N attempts)" purely because c.retry.maxAttempts
 	// was > 1 — even though no retries actually ran.
 	var attemptsRan int
-	for attempt := 0; attempt < maxAttempts; attempt++ {
+	for attempt := range maxAttempts {
 		// Pitfall RETRY-3 + D-75: ctx.Err() at loop top so a caller
 		// cancellation between attempts surfaces immediately as ctx.Err()
 		// without another c.http.Do dispatch. Ctx errors are NEVER

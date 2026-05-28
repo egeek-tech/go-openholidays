@@ -211,7 +211,7 @@ func TestHoliday_JSON(t *testing.T) {
 		assert.Nil(t, got.Subdivisions)
 		assert.Nil(t, got.Groups)
 		assert.Nil(t, got.Tags)
-		assert.Equal(t, "", got.Quality)
+		assert.Empty(t, got.Quality)
 	})
 
 	t.Run("multi-day school holiday — all nullable fields populated", func(t *testing.T) {

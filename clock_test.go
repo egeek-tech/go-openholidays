@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // fakeClock is a deterministic, race-safe clock used by tests that exercise
@@ -95,18 +96,18 @@ func TestFakeClock_RaceFree(t *testing.T) {
 
 		var wg sync.WaitGroup
 		wg.Add(writers + readers)
-		for i := 0; i < writers; i++ {
+		for range writers {
 			go func() {
 				defer wg.Done()
-				for j := 0; j < writerIters; j++ {
+				for range writerIters {
 					fc.Advance(time.Millisecond)
 				}
 			}()
 		}
-		for i := 0; i < readers; i++ {
+		for range readers {
 			go func() {
 				defer wg.Done()
-				for j := 0; j < readerIters; j++ {
+				for range readerIters {
 					_ = fc.Now()
 				}
 			}()
@@ -128,7 +129,7 @@ func TestFakeClock_RaceFree(t *testing.T) {
 		fc := newFakeClock(start)
 
 		err := fc.Sleep(ctx, time.Hour)
-		assert.ErrorIs(t, err, context.Canceled,
+		require.ErrorIs(t, err, context.Canceled,
 			"Sleep must return ctx.Err() when ctx is already cancelled")
 		assert.Equal(t, start, fc.Now(),
 			"Sleep on a cancelled ctx must NOT advance the fake clock")
@@ -140,7 +141,7 @@ func TestFakeClock_RaceFree(t *testing.T) {
 		fc := newFakeClock(start)
 
 		err := fc.Sleep(context.Background(), 5*time.Second)
-		assert.NoError(t, err,
+		require.NoError(t, err,
 			"Sleep on a live ctx must return nil")
 		assert.Equal(t, start.Add(5*time.Second), fc.Now(),
 			"Sleep on a live ctx must advance the fake clock by d")

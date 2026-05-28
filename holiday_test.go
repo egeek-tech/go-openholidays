@@ -48,7 +48,7 @@ func TestHoliday_NameFor(t *testing.T) {
 	t.Run("returns empty on empty Name", func(t *testing.T) {
 		t.Parallel()
 		h := Holiday{}
-		assert.Equal(t, "", h.NameFor("pl"))
+		assert.Empty(t, h.NameFor("pl"))
 	})
 }
 

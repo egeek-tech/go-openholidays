@@ -111,9 +111,9 @@ func isTwoASCIILetters(s string) bool {
 	if len(s) != 2 {
 		return false
 	}
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		b := s[i]
-		if !((b >= 'A' && b <= 'Z') || (b >= 'a' && b <= 'z')) {
+		if (b < 'A' || b > 'Z') && (b < 'a' || b > 'z') {
 			return false
 		}
 	}

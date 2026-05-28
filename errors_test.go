@@ -38,7 +38,7 @@ func TestSentinelErrors(t *testing.T) {
 		t.Run(s.name, func(t *testing.T) {
 			t.Parallel()
 
-			require.NotNil(t, s.err, "sentinel must be non-nil")
+			require.Error(t, s.err, "sentinel must be non-nil")
 
 			msg := s.err.Error()
 			assert.True(t,
@@ -51,8 +51,8 @@ func TestSentinelErrors(t *testing.T) {
 				if other.name == s.name {
 					continue
 				}
-				assert.Falsef(t,
-					errors.Is(s.err, other.err),
+				assert.NotErrorIsf(t,
+					s.err, other.err,
 					"errors.Is(%s, %s) must be false (distinct identities)",
 					s.name, other.name,
 				)
@@ -87,8 +87,8 @@ func TestSentinels_ErrorsIs(t *testing.T) {
 
 			wrapped := fmt.Errorf("context %q: %w", "ZZZ", s.err)
 
-			assert.Truef(t,
-				errors.Is(wrapped, s.err),
+			require.ErrorIsf(t,
+				wrapped, s.err,
 				"errors.Is(wrapped, %s) must be true through %%w",
 				s.name,
 			)
@@ -99,8 +99,8 @@ func TestSentinels_ErrorsIs(t *testing.T) {
 				if other.name == s.name {
 					continue
 				}
-				assert.Falsef(t,
-					errors.Is(wrapped, other.err),
+				assert.NotErrorIsf(t,
+					wrapped, other.err,
 					"errors.Is(wrapped %s, %s) must be false (no identity bleed)",
 					s.name, other.name,
 				)
@@ -244,7 +244,7 @@ func TestAPIError_ErrorsAs(t *testing.T) {
 		wrapped := fmt.Errorf("transport failure: %w", original)
 
 		var got *APIError
-		require.True(t, errors.As(wrapped, &got),
+		require.ErrorAs(t, wrapped, &got,
 			"errors.As must recover *APIError from %%w-wrapped chain")
 
 		assert.Equal(t, 404, got.StatusCode, "StatusCode preserved")

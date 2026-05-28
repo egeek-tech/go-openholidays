@@ -130,7 +130,7 @@ func TestCacheTransport_HolidayPathsBypass(t *testing.T) {
 			t.Parallel()
 			tr, hits := newTestCacheTransport(t, []byte("[]"), http.StatusOK)
 
-			for i := 0; i < 2; i++ {
+			for range 2 {
 				req := newTestRequest(t, path, nil)
 				resp, err := tr.RoundTrip(req)
 				require.NoError(t, err)
@@ -213,7 +213,7 @@ func TestCacheTransport_HitMissBehavior(t *testing.T) {
 
 		req := newTestRequest(t, "/Countries", nil)
 
-		for i := 0; i < 2; i++ {
+		for range 2 {
 			resp, err := tr.RoundTrip(req)
 			require.NoError(t, err)
 			_, _ = io.Copy(io.Discard, resp.Body)

@@ -19,7 +19,6 @@ package openholidays
 import (
 	"bytes"
 	"context"
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -110,7 +109,7 @@ func TestDoJSONGet(t *testing.T) {
 		assert.Nil(t, got, "doJSONGet must return the zero value of T on error")
 
 		var apiErr *APIError
-		require.True(t, errors.As(err, &apiErr),
+		require.ErrorAs(t, err, &apiErr,
 			"expected *APIError, got %T: %v", err, err)
 		assert.Equal(t, http.StatusNotFound, apiErr.StatusCode)
 		assert.Equal(t, "/Whatever", apiErr.Path)
@@ -129,7 +128,7 @@ func TestDoJSONGet(t *testing.T) {
 		c := NewClient(WithBaseURL(srv.URL))
 		_, err := doJSONGet[[]Country](context.Background(), c, "/EmptyEndpoint", nil)
 		require.Error(t, err)
-		assert.True(t, errors.Is(err, ErrEmptyResponse),
+		assert.ErrorIs(t, err, ErrEmptyResponse,
 			"expected ErrEmptyResponse via errors.Is, got %v", err)
 	})
 
@@ -222,7 +221,7 @@ func TestDoJSONGet(t *testing.T) {
 		c := NewClient(WithBaseURL(srv.URL))
 		_, err := doJSONGet[[]Country](context.Background(), c, "/Countries", nil)
 		require.Error(t, err)
-		assert.True(t, errors.Is(err, ErrResponseTooLarge),
+		assert.ErrorIs(t, err, ErrResponseTooLarge,
 			"expected ErrResponseTooLarge via errors.Is, got %v", err)
 	})
 
@@ -239,9 +238,9 @@ func TestDoJSONGet(t *testing.T) {
 		_, err := doJSONGet[[]Country](context.Background(), c, "/Countries", nil)
 		require.Error(t, err)
 		var apiErr *APIError
-		require.True(t, errors.As(err, &apiErr),
+		require.ErrorAs(t, err, &apiErr,
 			"expected *APIError, got %T: %v", err, err)
-		assert.Equal(t, 4096, len(apiErr.Body),
+		assert.Len(t, apiErr.Body, 4096,
 			"APIError.Body length must equal the 4 KiB cap, got %d", len(apiErr.Body))
 	})
 }

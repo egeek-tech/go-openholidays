@@ -14,7 +14,6 @@ package openholidays
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -127,7 +126,7 @@ func TestClient_SchoolHolidays(t *testing.T) {
 		})
 		require.Error(t, err)
 		assert.Nil(t, holidays)
-		assert.True(t, errors.Is(err, ErrInvalidCountry),
+		assert.ErrorIs(t, err, ErrInvalidCountry,
 			"expected ErrInvalidCountry via errors.Is, got %v", err)
 	})
 
@@ -141,7 +140,7 @@ func TestClient_SchoolHolidays(t *testing.T) {
 		})
 		require.Error(t, err)
 		assert.Nil(t, holidays)
-		assert.True(t, errors.Is(err, ErrInvalidDateRange),
+		assert.ErrorIs(t, err, ErrInvalidDateRange,
 			"expected ErrInvalidDateRange via errors.Is, got %v", err)
 	})
 
@@ -156,7 +155,7 @@ func TestClient_SchoolHolidays(t *testing.T) {
 		})
 		require.Error(t, err)
 		assert.Nil(t, holidays)
-		assert.True(t, errors.Is(err, ErrInvalidLanguage),
+		assert.ErrorIs(t, err, ErrInvalidLanguage,
 			"expected ErrInvalidLanguage via errors.Is, got %v", err)
 	})
 
@@ -179,7 +178,7 @@ func TestClient_SchoolHolidays(t *testing.T) {
 		assert.Nil(t, holidays)
 
 		var apiErr *APIError
-		require.True(t, errors.As(err, &apiErr),
+		require.ErrorAs(t, err, &apiErr,
 			"expected *APIError, got %T: %v", err, err)
 		assert.Equal(t, 404, apiErr.StatusCode)
 		assert.Equal(t, "/SchoolHolidays", apiErr.Path)
@@ -204,7 +203,7 @@ func TestClient_SchoolHolidays(t *testing.T) {
 		require.Error(t, err)
 
 		var apiErr *APIError
-		require.True(t, errors.As(err, &apiErr),
+		require.ErrorAs(t, err, &apiErr,
 			"expected *APIError, got %T: %v", err, err)
 		assert.Equal(t, 500, apiErr.StatusCode)
 		assert.Equal(t, "/SchoolHolidays", apiErr.Path)
@@ -228,10 +227,10 @@ func TestClient_SchoolHolidays(t *testing.T) {
 		})
 		require.Error(t, err)
 		// Malformed JSON must NOT match any of the typed sentinels.
-		assert.False(t, errors.Is(err, ErrEmptyResponse))
-		assert.False(t, errors.Is(err, ErrResponseTooLarge))
-		assert.False(t, errors.Is(err, ErrMalformedResponse))
-		assert.False(t, errors.Is(err, ErrInvalidCountry))
+		require.NotErrorIs(t, err, ErrEmptyResponse)
+		require.NotErrorIs(t, err, ErrResponseTooLarge)
+		require.NotErrorIs(t, err, ErrMalformedResponse)
+		assert.NotErrorIs(t, err, ErrInvalidCountry)
 	})
 
 	t.Run("ctx cancel returns context.Canceled", func(t *testing.T) {
@@ -257,7 +256,7 @@ func TestClient_SchoolHolidays(t *testing.T) {
 			ValidTo:        NewDate(2025, time.December, 31),
 		})
 		require.Error(t, err)
-		assert.True(t, errors.Is(err, context.Canceled),
+		assert.ErrorIs(t, err, context.Canceled,
 			"expected context.Canceled via errors.Is, got %v", err)
 	})
 
@@ -334,7 +333,7 @@ func TestClient_SchoolHolidays(t *testing.T) {
 		})
 		require.Error(t, err)
 		assert.Nil(t, holidays, "endpoint must return nil holidays on validateHolidays failure")
-		assert.True(t, errors.Is(err, ErrMalformedResponse),
+		assert.ErrorIs(t, err, ErrMalformedResponse,
 			"expected ErrMalformedResponse via errors.Is, got %v", err)
 	})
 }

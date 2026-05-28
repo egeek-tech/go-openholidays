@@ -26,7 +26,6 @@ package openholidays
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -206,7 +205,7 @@ func TestClient_IsInRegion(t *testing.T) {
 		assert.False(t, ok)
 
 		var apiErr *APIError
-		require.True(t, errors.As(err, &apiErr),
+		require.ErrorAs(t, err, &apiErr,
 			"expected *APIError via errors.As, got %T: %v", err, err)
 		assert.Equal(t, http.StatusInternalServerError, apiErr.StatusCode)
 		// WR-04: lock the title-fallback parseAPIMessage path symmetric
@@ -364,14 +363,14 @@ func TestSplitCountryFromSubdivision(t *testing.T) {
 		t.Parallel()
 		got, ok := splitCountryFromSubdivision("PL")
 		assert.False(t, ok)
-		assert.Equal(t, "", got)
+		assert.Empty(t, got)
 	})
 
 	t.Run("leading hyphen returns false", func(t *testing.T) {
 		t.Parallel()
 		got, ok := splitCountryFromSubdivision("-SL")
 		assert.False(t, ok, "hyphen at position 0 is not a country prefix")
-		assert.Equal(t, "", got)
+		assert.Empty(t, got)
 	})
 }
 
