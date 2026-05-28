@@ -5,7 +5,7 @@
 # scope to enforce in YAML but documented in PROJECT.md.
 #
 # Two-step release:
-#   1. goreleaser/goreleaser-action@v6 with version "~> v2" reads
+#   1. goreleaser/goreleaser-action@v7 with version "~> v2" reads
 #      .goreleaser.yaml at repo root, builds the 6-binary matrix, archives
 #      them, generates checksums.txt, and publishes a GitHub Release.
 #   2. actions/attest-build-provenance@v4 (NOT @v1 per Phase 5 RESEARCH
@@ -58,7 +58,7 @@ jobs:
           go-version: stable
 
       - name: Run goreleaser
-        uses: goreleaser/goreleaser-action@v6
+        uses: goreleaser/goreleaser-action@v7
         with:
           distribution: goreleaser
           version: "~> v2"
