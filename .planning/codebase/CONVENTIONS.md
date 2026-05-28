@@ -89,9 +89,33 @@ func TestClient_PublicHolidays(t *testing.T) {
 }
 ```
 
+## Style
+
+### Em-dashes ("—", U+2014) in godoc and Markdown are deliberate
+
+Source files use em-dashes (`—`, U+2014) for parenthetical breaks in
+godoc comments and Markdown prose. This is a deliberate choice, ratified
+2026-05-28 after Phase 01 review IN-02:
+
+- Em-dashes are valid Unicode and round-trip cleanly through `gofmt`,
+  `go doc`, `pkg.go.dev`, and every modern terminal.
+- Replacing them with ASCII `--` or ` - ` would touch many files for
+  pure-stylistic churn with no mechanical benefit.
+- The Gold Rule 1 ("everything in English") concerns *identifiers and
+  prose language*, not the punctuation glyphs used inside English prose.
+
+This applies ONLY to godoc / Markdown prose. **Code itself stays ASCII**:
+no non-ASCII identifiers, no non-ASCII string literals in production
+code (test fixtures in `testdata/` may carry non-ASCII strings only when
+they reflect real upstream API responses, per Rule 1's existing carve-out).
+
+If a future contributor wants strict-ASCII source files, the bar is to
+update this section and either land a one-shot mechanical replacement
+across every file or to ship a lint rule that prevents re-introduction.
+
 ## Conventions evolve
 
 These conventions are the floor, not the ceiling. New conventions discovered during implementation (idioms, lint rules, fixture patterns, naming schemes) belong in this file. Update freely and commit.
 
 ---
-*Last updated: 2026-05-27 after gold project rules were added.*
+*Last updated: 2026-05-28 — style section added documenting em-dash decision.*
