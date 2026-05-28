@@ -409,3 +409,37 @@ func TestWithCacheBackend(t *testing.T) {
 			"WithCacheBackend after WithCache must overwrite cfg.cache (D-80 last-wins)")
 	})
 }
+
+// TestWithRequestHook covers D-87: non-nil fn lands on Client.requestHook;
+// nil fn is a no-op (nil-no-op convention per WithHTTPClient analog); the
+// default Client (no WithRequestHook call) has nil requestHook. Function
+// pointer equality is not directly assertable in Go (no comparable type
+// guarantees), so the test asserts NotNil + Nil on the stored field.
+func TestWithRequestHook(t *testing.T) {
+	t.Parallel()
+
+	t.Run("non-nil fn stored on Client.requestHook", func(t *testing.T) {
+		t.Parallel()
+		fn := func(_ *http.Request, _ *http.Response, _ error) {}
+		c := NewClient(WithRequestHook(fn))
+		require.NotNil(t, c)
+		require.NotNil(t, c.requestHook,
+			"WithRequestHook(non-nil) must populate Client.requestHook (D-87)")
+	})
+
+	t.Run("nil fn is no-op (cfg.hook stays nil)", func(t *testing.T) {
+		t.Parallel()
+		c := NewClient(WithRequestHook(nil))
+		require.NotNil(t, c)
+		assert.Nil(t, c.requestHook,
+			"WithRequestHook(nil) must NOT overwrite cfg.hook (nil-no-op convention per WithHTTPClient analog)")
+	})
+
+	t.Run("default Client has nil requestHook", func(t *testing.T) {
+		t.Parallel()
+		c := NewClient()
+		require.NotNil(t, c)
+		assert.Nil(t, c.requestHook,
+			"default Client must have nil requestHook — opt-in per D-87")
+	})
+}

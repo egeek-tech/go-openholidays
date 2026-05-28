@@ -480,3 +480,187 @@ func TestCache_PerClientIsolation(t *testing.T) {
 			"Client B must have hit its own server exactly once (per-Client cache isolation)")
 	})
 }
+
+// TestHook_FiresOnRetryAttempts locks TRANS-05 + D-88 composition with the
+// retry loop (Plan 04-03): each c.http.Do invocation re-enters the
+// RoundTripper chain, so a retry loop dispatching three attempts produces
+// three hook invocations. The 429→500→200 sequence is the canonical
+// retry-status mix from Pitfall RETRY-1 / D-75.
+//
+// Uses the deterministic fakeClock seam (clock_test.go from Plan 04-01) so
+// the retry-backoff sleeps don't add real wall-clock time to the test —
+// fc.Sleep just advances the clock synchronously.
+func TestHook_FiresOnRetryAttempts(t *testing.T) {
+	t.Parallel()
+
+	t.Run("429→500→200 sequence produces three hook invocations (TRANS-05)", func(t *testing.T) {
+		t.Parallel()
+
+		var hits atomic.Int32
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			i := hits.Add(1)
+			switch i {
+			case 1:
+				w.WriteHeader(http.StatusTooManyRequests)
+			case 2:
+				w.WriteHeader(http.StatusInternalServerError)
+			default:
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = w.Write([]byte(`[{"isoCode":"PL","name":[{"language":"en","text":"Poland"}]}]`))
+			}
+		}))
+		t.Cleanup(srv.Close)
+
+		var hookCount atomic.Int32
+		hook := func(_ *http.Request, _ *http.Response, _ error) {
+			hookCount.Add(1)
+		}
+
+		fc := newFakeClock(time.Unix(0, 0))
+		c := newClientForTest(fc.Now, fc.Sleep,
+			WithBaseURL(srv.URL),
+			WithRetry(5, 10*time.Millisecond),
+			WithMaxRetryWait(time.Second),
+			WithRequestHook(hook),
+		)
+		t.Cleanup(func() { _ = c.Close() })
+
+		_, err := c.Countries(context.Background(), CountriesRequest{})
+		require.NoError(t, err, "third attempt returns 200; the retry loop must succeed")
+
+		assert.Equal(t, int32(3), hits.Load(),
+			"server must see 3 round trips (429, 500, 200)")
+		assert.Equal(t, int32(3), hookCount.Load(),
+			"hook must fire once per retry attempt (TRANS-05 — three round trips → three hook calls)")
+	})
+}
+
+// TestHook_SeesCacheHits locks D-88 + Plan 04 cache composition: the hook
+// fires on cache-hit synthetic responses too. Consumers can detect the
+// cache-hit branch by reading CacheHitContextKey from the request context
+// (Plan 04). First call: cache miss (hook fires, server hit, key absent).
+// Second call: cache hit (hook fires, server NOT hit, key == true).
+func TestHook_SeesCacheHits(t *testing.T) {
+	t.Parallel()
+
+	t.Run("hook observes cache-hit synthetic responses via CacheHitContextKey (D-88)", func(t *testing.T) {
+		t.Parallel()
+
+		body := []byte(`[{"isoCode":"PL","name":[{"language":"en","text":"Poland"}]}]`)
+		srv, hits := countriesServer(t, body)
+		t.Cleanup(srv.Close)
+
+		var (
+			hookCount      atomic.Int32
+			lastIsCacheHit atomic.Bool
+		)
+		hook := func(req *http.Request, _ *http.Response, _ error) {
+			hookCount.Add(1)
+			if v, _ := req.Context().Value(CacheHitContextKey).(bool); v {
+				lastIsCacheHit.Store(true)
+			} else {
+				lastIsCacheHit.Store(false)
+			}
+		}
+
+		c := NewClient(
+			WithBaseURL(srv.URL),
+			WithCache(time.Hour),
+			WithRequestHook(hook),
+		)
+		t.Cleanup(func() { _ = c.Close() })
+
+		// First call — cache miss. Hook fires; CacheHitContextKey absent.
+		_, err := c.Countries(context.Background(), CountriesRequest{})
+		require.NoError(t, err, "first call must succeed (server hit, response cached)")
+		assert.Equal(t, int32(1), hookCount.Load(),
+			"first call must fire hook exactly once")
+		assert.False(t, lastIsCacheHit.Load(),
+			"first call is a cache MISS — CacheHitContextKey must be absent (false)")
+
+		// Second call — cache hit. Hook fires on the synthetic response;
+		// CacheHitContextKey is set to true by cacheTransport (Plan 04).
+		_, err = c.Countries(context.Background(), CountriesRequest{})
+		require.NoError(t, err, "second call must succeed from cache")
+		assert.Equal(t, int32(2), hookCount.Load(),
+			"second call must fire hook again (D-88 fires on cache hits too)")
+		assert.True(t, lastIsCacheHit.Load(),
+			"second call is a cache HIT — hook must see CacheHitContextKey == true")
+
+		assert.Equal(t, int32(1), hits.Load(),
+			"server must see exactly 1 round trip — second call served from cache")
+	})
+}
+
+// TestHook_DoesNotFireOnDecodeError locks the negative side of D-88:
+//
+//  1. The hook fires ONCE per HTTP round trip even when the subsequent
+//     in-process decoder fails (decode runs in doJSONGet AFTER the
+//     RoundTripper chain returns — out of hook scope). So a 200 response
+//     with malformed JSON produces ONE hook invocation (for the successful
+//     HTTP round trip), not two.
+//  2. The hook does NOT fire when the request fails pre-HTTP — e.g., when
+//     PublicHolidays' client-side validator rejects the request before
+//     doJSONGet runs. No HTTP attempt → no hook.
+//
+// Both subtests verify D-88 contract: hook is HTTP-layer observability ONLY.
+func TestHook_DoesNotFireOnDecodeError(t *testing.T) {
+	t.Parallel()
+
+	t.Run("hook fires once on HTTP round trip even when subsequent decode fails", func(t *testing.T) {
+		t.Parallel()
+
+		var hits atomic.Int32
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			hits.Add(1)
+			w.Header().Set("Content-Type", "application/json")
+			// Intentionally malformed JSON (truncated mid-object) — decoder
+			// surfaces an io.ErrUnexpectedEOF / SyntaxError wrapped by
+			// doJSONGet's "openholidays: decode" prefix. The HTTP round
+			// trip itself is a successful 200 → the hook fires for it.
+			_, _ = w.Write([]byte(`[{"isoCode":"PL","name":`))
+		}))
+		t.Cleanup(srv.Close)
+
+		var hookCount atomic.Int32
+		hook := func(_ *http.Request, _ *http.Response, _ error) {
+			hookCount.Add(1)
+		}
+
+		c := NewClient(WithBaseURL(srv.URL), WithRequestHook(hook))
+		t.Cleanup(func() { _ = c.Close() })
+
+		_, err := c.Countries(context.Background(), CountriesRequest{})
+		require.Error(t, err, "malformed JSON must produce a decode error")
+
+		assert.Equal(t, int32(1), hits.Load(),
+			"server must see exactly 1 round trip (no retry — no WithRetry option)")
+		assert.Equal(t, int32(1), hookCount.Load(),
+			"hook fires on the HTTP round trip (200 received) but NOT on the subsequent decode error — decode is post-RoundTripper-chain (D-88)")
+	})
+
+	t.Run("hook does NOT fire when request fails pre-HTTP (validation)", func(t *testing.T) {
+		t.Parallel()
+
+		var hookCount atomic.Int32
+		hook := func(_ *http.Request, _ *http.Response, _ error) {
+			hookCount.Add(1)
+		}
+
+		c := NewClient(
+			WithBaseURL("http://invalid.example"), // never reached
+			WithRequestHook(hook),
+		)
+		t.Cleanup(func() { _ = c.Close() })
+
+		// Empty CountryIsoCode is rejected by validateCountry BEFORE
+		// doJSONGet runs at all — no HTTP attempt, no hook firing.
+		_, err := c.PublicHolidays(context.Background(), PublicHolidaysRequest{
+			CountryIsoCode: "", // missing required field
+		})
+		require.Error(t, err, "validateCountry must reject empty CountryIsoCode pre-HTTP")
+
+		assert.Equal(t, int32(0), hookCount.Load(),
+			"hook MUST NOT fire when request fails pre-HTTP (validation, NewRequest build) — D-88")
+	})
+}
