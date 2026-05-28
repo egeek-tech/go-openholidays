@@ -466,6 +466,14 @@ func TestRetry_CtxCancel(t *testing.T) {
 			"expected errors.Is(err, context.Canceled); got %v", err)
 		assert.Less(t, elapsed, 200*time.Millisecond,
 			"ctx cancel must interrupt within ≤ 100 ms target (200 ms ceiling for CI slack); took %v", elapsed)
+		// WR-01: loop-top ctx-cancel surface MUST carry the request path
+		// in its error message so operator log routing via
+		// strings.Contains(err.Error(), path) works uniformly across all
+		// three ctx-cancel surfaces (loop-top, mid-sleep, HTTP-layer).
+		assert.Contains(t, err.Error(), "/Countries",
+			"WR-01: loop-top ctx-cancel error must carry the request path")
+		assert.Contains(t, err.Error(), "openholidays: GET",
+			"WR-01: loop-top ctx-cancel error must use the canonical openholidays:GET prefix")
 	})
 
 	t.Run("ctx canceled during sleep between attempts returns ctx.Err() (fc.Sleep path)", func(t *testing.T) {
@@ -507,6 +515,15 @@ func TestRetry_CtxCancel(t *testing.T) {
 			"expected errors.Is(err, context.Canceled); got %v", err)
 		assert.Less(t, elapsed, 200*time.Millisecond,
 			"ctx cancel during sleep must interrupt within ≤ 100 ms target (RESIL-04); took %v", elapsed)
+		// WR-01: mid-sleep ctx-cancel surface MUST carry the request
+		// path. fakeClock.Sleep returns ctx.Err() when ctx is canceled
+		// during the inter-attempt sleep; the doJSONGet wrap promotes
+		// that to "openholidays: GET /Countries: context canceled" so
+		// the WR-05 contract holds uniformly.
+		assert.Contains(t, err.Error(), "/Countries",
+			"WR-01: mid-sleep ctx-cancel error must carry the request path")
+		assert.Contains(t, err.Error(), "openholidays: GET",
+			"WR-01: mid-sleep ctx-cancel error must use the canonical openholidays:GET prefix")
 	})
 }
 

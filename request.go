@@ -102,8 +102,18 @@ func doJSONGet[T any](ctx context.Context, c *Client, path string, q url.Values)
 		// cancellation between attempts surfaces immediately as ctx.Err()
 		// without another c.http.Do dispatch. Ctx errors are NEVER
 		// retried (D-75).
+		//
+		// WR-01: wrap with the same "openholidays: GET %s: %w" prefix the
+		// post-loop httpErr branch uses so the WR-05 path-carrying
+		// contract holds on ALL three ctx-cancel surfaces (loop-top
+		// here, mid-sleep below, HTTP-layer post-loop). Operators routing
+		// logs via strings.Contains(err.Error(), path) get a consistent
+		// shape regardless of which surface fired. errors.Is(err,
+		// context.Canceled) / errors.Is(err, context.DeadlineExceeded)
+		// continues to hold because fmt.Errorf("...%w", ...) preserves
+		// the unwrap chain.
 		if ctxErr := ctx.Err(); ctxErr != nil {
-			return zero, ctxErr
+			return zero, fmt.Errorf("openholidays: GET %s: %w", path, ctxErr)
 		}
 		// WR-07: clone req per attempt so a future endpoint method that
 		// adds a request body cannot accidentally send empty bodies on
@@ -149,8 +159,13 @@ func doJSONGet[T any](ctx context.Context, c *Client, path string, q url.Values)
 		c.randMu.Lock()
 		delay := computeBackoff(attempt, retryAfter, c.retry, c.rand)
 		c.randMu.Unlock()
+		// WR-01: wrap sleepErr (always a ctx.Err() per c.sleepFunc /
+		// fakeClock.Sleep contract) with the same path-carrying prefix
+		// as the loop-top and HTTP-layer surfaces so all three ctx-cancel
+		// returns produce a consistent operator-log shape. errors.Is(err,
+		// context.Canceled) continues to hold via %w.
 		if sleepErr := c.sleepFunc(ctx, delay); sleepErr != nil {
-			return zero, sleepErr // ctx.Err() on cancel during sleep
+			return zero, fmt.Errorf("openholidays: GET %s: %w", path, sleepErr)
 		}
 	}
 	if httpErr != nil {
