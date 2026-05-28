@@ -41,6 +41,7 @@
 package openholidays
 
 import (
+	"context"
 	"errors"
 	"math/rand/v2"
 	"net"
@@ -123,8 +124,28 @@ type retryConfig struct {
 // integer constant), so the conn-reset check uses errors.Is per Go's
 // stdlib convention. Both forms work uniformly on Linux / macOS /
 // Windows because Go's syscall package abstracts the platform values.
+//
+// Ctx-error guard rationale: context.DeadlineExceeded implements
+// net.Error with Timeout() == true (verified live against the Go
+// stdlib), which would otherwise let the net.Error branch claim
+// DeadlineExceeded as retryable — directly violating D-75 ("ctx
+// errors NEVER retried"). The endpoint-layer retry loop's loop-top
+// ctx.Err() check (Task 3 / Pitfall RETRY-3) catches ctx errors
+// before they reach c.http.Do most of the time, but a *http.Client.Do
+// can also surface ctx errors wrapped inside transport errors (e.g.
+// when the timer fires during DNS resolution). The explicit guard
+// below ensures shouldRetry is correct in isolation — making the
+// pure-function contract testable and the retry loop trivially
+// composable.
 func shouldRetry(resp *http.Response, err error) bool {
 	if err != nil {
+		// D-75: ctx errors NEVER retried. Check this BEFORE the
+		// net.Error branch because context.DeadlineExceeded
+		// implements net.Error with Timeout() == true and would
+		// otherwise be claimed as retryable.
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			return false
+		}
 		var netErr net.Error
 		if errors.As(err, &netErr) && netErr.Timeout() {
 			return true

@@ -20,6 +20,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"time"
 )
 
 // maxResponseBytes is the hard ceiling on any decoded response body (D-25).
@@ -72,9 +73,69 @@ func doJSONGet[T any](ctx context.Context, c *Client, path string, q url.Values)
 	if len(q) > 0 {
 		req.URL.RawQuery = q.Encode()
 	}
-	resp, err := c.http.Do(req)
-	if err != nil {
-		return zero, fmt.Errorf("openholidays: GET %s: %w", path, err)
+	// Retry loop wrapping c.http.Do(req) per D-77 + RESIL-05: retry lives
+	// in the endpoint layer (NOT a RoundTripper) so caller-supplied
+	// *http.Client retry middleware does NOT double-fire. The loop runs
+	// exactly maxAttempts times when c.retry.maxAttempts > 0, else once
+	// (retry disabled — D-74). shouldRetry / parseRetryAfter /
+	// computeBackoff live in retry.go (Plan 03 Task 1). The decode path
+	// and the 4xx/5xx error-build path below the loop run ONCE after the
+	// loop exits with the final response.
+	var (
+		resp    *http.Response
+		httpErr error
+	)
+	maxAttempts := 1
+	if c.retry.maxAttempts > 0 {
+		maxAttempts = c.retry.maxAttempts
+	}
+	for attempt := 0; attempt < maxAttempts; attempt++ {
+		// Pitfall RETRY-3 + D-75: ctx.Err() at loop top so a caller
+		// cancellation between attempts surfaces immediately as ctx.Err()
+		// without another c.http.Do dispatch. Ctx errors are NEVER
+		// retried (D-75).
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return zero, ctxErr
+		}
+		resp, httpErr = c.http.Do(req)
+		if !shouldRetry(resp, httpErr) {
+			break
+		}
+		// Last attempt — surface the error verbatim without sleeping.
+		// The post-loop block wraps with retry-exhaustion context.
+		if attempt == maxAttempts-1 {
+			break
+		}
+		// Pitfall HTTP-3: drain+close the about-to-be-retried response
+		// so its keep-alive connection is reusable (the deferred drain-
+		// and-close below only handles the FINAL resp). LimitReader
+		// bounds the drain at maxResponseBytes+1 (T-02-12).
+		var retryAfter time.Duration
+		if resp != nil {
+			retryAfter, _ = parseRetryAfter(resp.Header.Get("Retry-After"), c.nowFunc())
+			_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, maxResponseBytes+1))
+			_ = resp.Body.Close()
+			// Nil out resp so the post-loop drain-and-close defer never
+			// double-closes a body whose underlying connection was
+			// already returned to the pool. The next iteration will
+			// overwrite resp with a fresh c.http.Do return.
+			resp = nil
+		}
+		delay := computeBackoff(attempt, retryAfter, c.retry, c.rand)
+		if sleepErr := c.sleepFunc(ctx, delay); sleepErr != nil {
+			return zero, sleepErr // ctx.Err() on cancel during sleep
+		}
+	}
+	if httpErr != nil {
+		// Retry exhaustion (maxAttempts > 1): wrap with the explicit
+		// retry-exhaustion prefix per D-77 so callers branching on
+		// errors.Is(err, ErrEmptyResponse) / errors.As(err, &APIError)
+		// still match via %w. When retry was disabled (maxAttempts == 1),
+		// preserve the existing Phase 2 error-wrap shape verbatim.
+		if maxAttempts > 1 {
+			return zero, fmt.Errorf("openholidays: retry exhausted (%d attempts): %w", maxAttempts, httpErr)
+		}
+		return zero, fmt.Errorf("openholidays: GET %s: %w", path, httpErr)
 	}
 	defer func() {
 		// Drain before close so the keep-alive connection can be reused
