@@ -1,0 +1,54 @@
+# go-openholidays — Release Please workflow.
+#
+# Trigger: every push to master (i.e. after a PR merges).
+#
+# Behavior on each fire:
+#   1. Release Please scans Conventional Commits since the last release tag.
+#   2. If there are release-worthy commits (feat:, fix:, perf:, deps:),
+#      it opens — or updates — a single open "Release PR" that:
+#        - bumps version per semver
+#        - rewrites CHANGELOG.md with the auto-generated notes
+#        - rewrites the `Version` literal in version.go via the
+#          `// x-release-please-version` marker
+#   3. When the maintainer merges that Release PR, this same workflow
+#      observes the merge commit, sees that the manifest version no
+#      longer matches the latest tag, and:
+#        - creates the v<version> annotated tag
+#        - publishes a GitHub Release with the changelog body
+#   4. The tag push triggers .github/workflows/release.yml separately,
+#      which runs goreleaser (6-binary matrix) and signs the artifacts
+#      via actions/attest-build-provenance.
+#
+# Why two workflows? Release Please owns versioning + tag creation;
+# release.yml owns artifact build + signing. Keeping them split means a
+# future change to either concern doesn't risk regressing the other.
+#
+# Security notes:
+#   * Trigger is push to master — only commits that have already passed
+#     PR review can fire this workflow.
+#   * No untrusted event-payload interpolation reaches a shell.
+#   * Permissions are job-scoped: only release-please needs contents:write
+#     + pull-requests:write to update the Release PR.
+name: Release Please
+
+on:
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+
+jobs:
+  release-please:
+    name: "Release Please — open/update Release PR or cut release"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      # SHA-pinned per egeek-tech org policy. `# v4` is a Dependabot
+      # hint, NOT consulted by the runner.
+      - uses: googleapis/release-please-action@5c625bfb5d1ff62eadeeb3772007f7f66fdcf071  # v4
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json

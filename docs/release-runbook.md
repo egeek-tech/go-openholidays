@@ -38,7 +38,10 @@ remote — they are local readiness gates only.
       27 enabled linters).
 - [ ] `govulncheck ./...` exits 0 locally.
 - [ ] `go test -run Example .` exits 0 (TEST-09 — every `// Output:` block in
-      `example_test.go` still matches).
+      `example_test.go` still matches). Includes `Example_quickstart`,
+      which must stay synchronized with the runnable `package main` snippet
+      in `README.md` (DOC-01 — paste-and-run substance must be byte-for-byte
+      equivalent).
 - [ ] (Optional) `goreleaser check` exits 0 if `goreleaser` is installed locally
       (`goreleaser check` validates `.goreleaser.yaml` without building anything).
 

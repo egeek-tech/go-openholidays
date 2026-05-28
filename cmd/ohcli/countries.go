@@ -70,7 +70,7 @@ func cmdCountries(ctx context.Context, args []string, stdout, stderr io.Writer) 
 	cs, err := c.Countries(ctx, req)
 	if err != nil {
 		fmt.Fprintf(stderr, "ohcli: %v\n", err)
-		return 1
+		return libErrExitCode(err)
 	}
 	if len(cs) == 0 {
 		fmt.Fprintln(stderr, "ohcli: no countries found")

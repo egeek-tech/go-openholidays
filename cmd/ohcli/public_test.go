@@ -194,6 +194,24 @@ func TestCmdPublic(t *testing.T) {
 			"runtime error must leave stdout empty (no partial render)")
 	})
 
+	t.Run("library validation error (invalid country) returns exit 2 not exit 1", func(t *testing.T) {
+		// CR-02 regression: ErrInvalidCountry from the library MUST map
+		// to exit 2 (usage error per D-06), NOT exit 1. The validation
+		// happens client-side before any HTTP call, so no httptest server
+		// is needed — the library's validateCountry rejects "XXX" because
+		// it isn't a 2-letter ISO 3166-1 alpha-2 code.
+		var stdout, stderr bytes.Buffer
+		code := run([]string{"ohcli", "public", "XXX", "2025"}, &stdout, &stderr)
+		require.Equal(t, 2, code,
+			"library validation rejection must exit 2 (usage error per D-06)")
+		assert.Contains(t, stderr.String(), "ohcli: ",
+			"validation-error diagnostic must carry the D-05 prefix")
+		assert.Contains(t, stderr.String(), "invalid country",
+			"stderr should surface the ErrInvalidCountry sentinel message")
+		assert.Empty(t, stdout.String(),
+			"validation error must leave stdout empty")
+	})
+
 	t.Run("--lang reaches the wire as lowercase canonical form", func(t *testing.T) {
 		body, err := os.ReadFile(filepath.Join("..", "..", "testdata", "public_holidays_pl_2025.json"))
 		require.NoError(t, err)

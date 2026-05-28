@@ -3,9 +3,9 @@
 # Two ecosystems are enabled:
 #
 #  - github-actions: keeps the workflow action pins fresh (release.yml + ci.yml
-#    currently pin actions/checkout@v4, actions/setup-go@v5,
-#    goreleaser/goreleaser-action@v6, actions/attest-build-provenance@v4,
-#    golangci/golangci-lint-action@v7, codecov/codecov-action@v5,
+#    currently pin actions/checkout@v6, actions/setup-go@v6,
+#    goreleaser/goreleaser-action@v7, actions/attest-build-provenance@v4,
+#    golangci/golangci-lint-action@v7, codecov/codecov-action@v6,
 #    golang/govulncheck-action@v1).
 #
 #  - gomod: tracks the `go` directive in go.mod (so Dependabot can propose

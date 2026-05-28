@@ -9,9 +9,12 @@
 // Exit code conventions (D-06):
 //
 //   - 0 — success (including the empty-result path per D-07)
-//   - 1 — runtime error (library call returned an error, render error)
+//   - 1 — runtime error (transport/render error from the library)
 //   - 2 — usage error (bad flag, missing positional, out-of-range year,
-//     invalid --format)
+//     invalid --format, or a library-side validation rejection such as
+//     ErrInvalidCountry / ErrInvalidLanguage / ErrInvalidDateRange /
+//     ErrDateRangeTooLarge — these are caller-shape problems, not
+//     runtime failures)
 
 package main
 
@@ -37,8 +40,10 @@ import (
 //
 // On an empty result the handler writes "ohcli: no public holidays found
 // for <country> <year>" to stderr and returns 0 per D-07 — an empty list
-// is a valid outcome, not an error. Library errors and render errors emit
-// "ohcli: %v" on stderr and return exit code 1.
+// is a valid outcome, not an error. Library validation sentinels
+// (ErrInvalidCountry, ErrInvalidLanguage, ErrInvalidDateRange,
+// ErrDateRangeTooLarge) return exit 2 (usage error). Any other library
+// error or render error returns exit 1.
 func cmdPublic(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("public", flag.ContinueOnError)
 	fs.SetOutput(stderr)
@@ -90,7 +95,7 @@ func cmdPublic(ctx context.Context, args []string, stdout, stderr io.Writer) int
 	hs, err := c.PublicHolidays(ctx, req)
 	if err != nil {
 		fmt.Fprintf(stderr, "ohcli: %v\n", err)
-		return 1
+		return libErrExitCode(err)
 	}
 	if len(hs) == 0 {
 		fmt.Fprintf(stderr, "ohcli: no public holidays found for %s %d\n", country, year)
