@@ -6,7 +6,7 @@
 [![Go Reference](https://pkg.go.dev/badge/github.com/egeek-tech/go-openholidays.svg)](https://pkg.go.dev/github.com/egeek-tech/go-openholidays)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-An idiomatic, dependency-light Go client for the public OpenHolidays API. Public holidays + school holidays per administrative subdivision (e.g. Polish *ferie* per województwo).
+An idiomatic, dependency-light Go client for the public [OpenHolidays API](https://www.openholidaysapi.org). Public holidays + school holidays per administrative subdivision (e.g. Polish *ferie* per województwo).
 
 ## Install
 

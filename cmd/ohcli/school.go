@@ -86,7 +86,7 @@ func cmdSchool(ctx context.Context, args []string, stdout, stderr io.Writer) int
 	hs, err := c.SchoolHolidays(ctx, req)
 	if err != nil {
 		fmt.Fprintf(stderr, "ohcli: %v\n", err)
-		return 1
+		return libErrExitCode(err)
 	}
 	if len(hs) == 0 {
 		if *region == "" {

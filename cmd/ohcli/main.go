@@ -21,6 +21,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -182,4 +183,22 @@ func hasByte(s string, b byte) bool {
 		}
 	}
 	return false
+}
+
+// libErrExitCode maps an error returned by the openholidays library to the
+// ohcli exit-code policy (D-06). Library validation sentinels are usage
+// errors (caller-shape problems) and return 2; anything else is a runtime
+// error and returns 1. Used by every subcommand handler after a library
+// call so the 0/1/2 contract stays uniform across `public`, `school`, and
+// `countries`. Resolves CR-02 from .planning/phases/05-distribution/05-REVIEW.md.
+func libErrExitCode(err error) int {
+	switch {
+	case errors.Is(err, openholidays.ErrInvalidCountry),
+		errors.Is(err, openholidays.ErrInvalidLanguage),
+		errors.Is(err, openholidays.ErrInvalidDateRange),
+		errors.Is(err, openholidays.ErrDateRangeTooLarge):
+		return 2
+	default:
+		return 1
+	}
 }
