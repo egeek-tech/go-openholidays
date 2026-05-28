@@ -9,6 +9,15 @@
 // headerTransport and loggingTransport into the documented Phase 2 chain
 // shape (D-29: req → headerTransport → loggingTransport → underlying).
 //
+// Phase 4 additions in this file: the Cache interface (D-79), the
+// RequestHookFunc type (D-87), the retryConfig stub (D-77; Plan 03 fills
+// its fields), and five additive clientConfig fields (retry / cache /
+// cacheTTL / hook / strictDecoding). Phase 4 fills in retry/cache/hook/
+// strict config fields — buildTransport is edited in place by Plans 04
+// (cache) and 05 (hook); this plan only declares the types and config
+// fields, leaving buildTransport untouched so the Phase 2 chain order
+// remains in effect until cache/hook actually exist.
+//
 // No init() and no package-level vars — keeps the CLIENT-10 AST audit in
 // internal_test.go green without modification to its allowlist.
 
@@ -29,7 +38,50 @@ type clientConfig struct {
 	userAgent  string        // non-empty; injected by headerTransport when caller did not set one
 	logger     *slog.Logger  // non-nil; falls back to slog.Default() when caller passes nil
 	timeout    time.Duration // 0 disables the SDK-imposed timeout
+	// Phase 4 (D-77, D-79, D-87, D-91):
+	retry          retryConfig     // D-77; zero-value = disabled
+	cache          Cache           // D-79; nil = disabled
+	cacheTTL       time.Duration   // D-80; set by WithCache(ttl); consumed by composeHTTPClient in Plan 04
+	hook           RequestHookFunc // D-87; nil = no hook
+	strictDecoding bool            // D-91
 }
+
+// retryConfig is the unexported retry policy carried by Client. Plan 03
+// fills in maxAttempts/baseDelay/maxWait. Declared as an empty struct in
+// Plan 02 so Client.retry has a non-interface type to embed without
+// forward-referencing the Plan 03 file (D-77).
+type retryConfig struct{}
+
+// Cache is the contract for any cache backend wired via WithCache or
+// WithCacheBackend (Plan 04). Implementations must be safe for concurrent
+// use from multiple goroutines (CLIENT-07).
+//
+// Get returns the cached value bytes and true on a hit, or nil and false
+// on a miss or on entries that have expired according to the cache's
+// internal clock. Put stores value under key; replacing an existing entry
+// at key is the cache's prerogative. Close is the best-effort shutdown
+// hook called from Client.Close — implementations should stop any
+// sweeper goroutine and return nil on the typical path.
+//
+// The interface is declared in Plan 02 (D-79) so Client.Close can call
+// c.cache.Close() without a build error; the MemoryCache implementation
+// lands in Plan 04.
+type Cache interface {
+	Get(key string) (value []byte, ok bool)
+	Put(key string, value []byte)
+	Close() error
+}
+
+// RequestHookFunc is the function shape accepted by WithRequestHook
+// (Plan 05). It is invoked synchronously on the calling goroutine's stack
+// after every HTTP round trip including cache-hit synthetic responses
+// (D-88 / D-89). Panics propagate; consumers wrap with defer/recover if
+// needed (mirrors stdlib http.Handler convention).
+//
+// On a transport error resp is nil — implementations MUST nil-check.
+// Hooks MUST NOT log resp.Body content above slog.LevelDebug (Pitfall
+// LOG-1).
+type RequestHookFunc func(*http.Request, *http.Response, error)
 
 // defaultConfig returns a fresh *clientConfig populated with every Phase 2
 // default:
