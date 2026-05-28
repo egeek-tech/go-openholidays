@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.2.1](https://github.com/egeek-tech/go-openholidays/compare/v0.2.0...v0.2.1) (2026-05-28)
+
+
+### Bug Fixes
+
+* address all lint findings across the codebase (revive + bodyclose) ([74f98a0](https://github.com/egeek-tech/go-openholidays/commit/74f98a0da4e2c1fd5c1d60407b1feb6d79411864))
+* address lint findings surfaced after exclusion reset ([8d03e52](https://github.com/egeek-tech/go-openholidays/commit/8d03e520f6d5988ba3fddbd4d2f1497e1a514369))
+
+
+### Documentation
+
+* fix Codecov badge branch (main → master) ([e2a9af1](https://github.com/egeek-tech/go-openholidays/commit/e2a9af14d2952e354d40fc12f3de567d70f6e73a))
+
 ## [0.2.0](https://github.com/egeek-tech/go-openholidays/compare/v0.1.0...v0.2.0) (2026-05-28)
 
 
