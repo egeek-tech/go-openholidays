@@ -119,25 +119,3 @@ func isTwoASCIILetters(s string) bool {
 	}
 	return true
 }
-
-// Currently unreachable from validateCountry/validateLanguage after the W-01 reorder; retained as defense-in-depth and for direct testing.
-// isTwoASCIIUppers reports whether s is exactly 2 bytes and each byte is in
-// [A-Z]. Byte arithmetic (rather than unicode.IsUpper) is intentional: we want
-// ASCII-only matching. unicode.IsLetter('Ö') is true, but 'Ö' is not a valid
-// ISO 3166-1 alpha-2 character; the byte-range check rejects it cleanly.
-func isTwoASCIIUppers(s string) bool {
-	if len(s) != 2 {
-		return false
-	}
-	return s[0] >= 'A' && s[0] <= 'Z' && s[1] >= 'A' && s[1] <= 'Z'
-}
-
-// Currently unreachable from validateCountry/validateLanguage after the W-01 reorder; retained as defense-in-depth and for direct testing.
-// isTwoASCIILowers reports whether s is exactly 2 bytes and each byte is in
-// [a-z]. See isTwoASCIIUppers for the byte-arithmetic rationale.
-func isTwoASCIILowers(s string) bool {
-	if len(s) != 2 {
-		return false
-	}
-	return s[0] >= 'a' && s[0] <= 'z' && s[1] >= 'a' && s[1] <= 'z'
-}
