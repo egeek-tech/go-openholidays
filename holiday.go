@@ -77,10 +77,19 @@ func (h Holiday) IsInRegion(code string) bool {
 // EndDate — for example, the Polish ferie zimowe Śląskie 2025 span
 // (2025-01-18 to 2025-01-31) returns 14.
 //
+// When EndDate is strictly before StartDate — a malformed Holiday the
+// endpoint-layer validateHolidays would have rejected but a hand-built
+// Holiday can carry — Days returns 0 (defensive clamp, WR-03). Callers
+// branching on h.Days() > N therefore get a defined, non-negative value
+// for every Holiday they can hold.
+//
 // The implementation delegates to Date.DaysUntil, which operates on
 // UTC-midnight operands and is therefore calendar-correct across DST
 // boundaries (Phase 1 D-10 / Pitfall TZ-2).
 func (h Holiday) Days() int {
+	if h.EndDate.Before(h.StartDate) {
+		return 0
+	}
 	return h.StartDate.DaysUntil(h.EndDate)
 }
 

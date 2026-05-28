@@ -125,6 +125,21 @@ func TestHoliday_Days(t *testing.T) {
 		}
 		assert.Equal(t, 2, h.Days())
 	})
+
+	t.Run("EndDate before StartDate returns 0 (defensive, WR-03)", func(t *testing.T) {
+		t.Parallel()
+		// A hand-built Holiday with EndDate strictly before StartDate would
+		// be rejected by validateHolidays on the endpoint path but can still
+		// be constructed in unit tests or by merging upstream queries. The
+		// defensive clamp ensures Days() is never negative — callers
+		// branching on h.Days() > N get a defined value.
+		h := Holiday{
+			StartDate: NewDate(2025, time.December, 25),
+			EndDate:   NewDate(2025, time.January, 1),
+		}
+		assert.Equal(t, 0, h.Days(),
+			"malformed hand-built Holiday must produce a defined non-negative value")
+	})
 }
 
 // TestHoliday_Range exercises Holiday.Range — the canonical 14-day Polish
