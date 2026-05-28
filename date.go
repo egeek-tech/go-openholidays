@@ -8,6 +8,7 @@ package openholidays
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"time"
 )
@@ -21,7 +22,7 @@ const dateLayout = "2006-01-02"
 // It is intentionally unexported so the public sentinel surface remains at
 // the locked size (D-06): external callers cannot pivot on this identity.
 // Use errors.Is internally only.
-var errEmptyDate = fmt.Errorf("openholidays: empty date string")
+var errEmptyDate = errors.New("openholidays: empty date string")
 
 // Date is a calendar date (no timezone) returned by the OpenHolidays API.
 //
