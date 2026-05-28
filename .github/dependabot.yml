@@ -1,0 +1,22 @@
+# go-openholidays — Dependabot configuration (CI-06).
+#
+# Only the github-actions ecosystem is enabled. The library is zero-runtime-
+# dependency (PROJECT.md constraint) and the lone test-only dependency
+# (github.com/stretchr/testify) is pinned deliberately — gomod bumps are a
+# manual decision, not an automated PR. If a Go dependency ever needs to be
+# updated, a maintainer opens that PR by hand.
+#
+# Weekly cadence keeps action versions fresh (release.yml + ci.yml currently
+# pin actions/checkout@v4, actions/setup-go@v5, goreleaser/goreleaser-action@v6,
+# actions/attest-build-provenance@v4, golangci/golangci-lint-action@v7,
+# codecov/codecov-action@v5, golang/govulncheck-action@v1).
+#
+# open-pull-requests-limit: 5 throttles noise; if multiple actions update in
+# the same week, the rest queue behind these five and roll forward as PRs land.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
