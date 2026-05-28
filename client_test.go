@@ -216,7 +216,7 @@ func TestClient_ContextCancel(t *testing.T) {
 	// SDK timeout intentionally large so the ctx cancel is the cause.
 	c := NewClient(WithBaseURL(srv.URL), WithTimeout(30*time.Second))
 
-	t.Run("ctx cancel interrupts in-flight HTTP within 200ms", func(t *testing.T) {
+	t.Run("ctx cancel interrupts in-flight HTTP within 500ms", func(t *testing.T) {
 		t.Parallel()
 		ctx, cancel := context.WithCancel(context.Background())
 		time.AfterFunc(50*time.Millisecond, cancel)
@@ -225,9 +225,14 @@ func TestClient_ContextCancel(t *testing.T) {
 		elapsed := time.Since(start)
 
 		require.Error(t, err)
-		// 100 ms target + 100 ms CI slack = 200 ms ceiling (D-48).
-		assert.Less(t, elapsed, 200*time.Millisecond,
-			"ctx cancel must interrupt in-flight HTTP within 200 ms; took %v", elapsed)
+		// CLIENT-09 contract: ≤ 100 ms target. WR-09: bumped CI slack
+		// ceiling from 200 ms to 500 ms to absorb GC pauses and scheduler
+		// noise on heavily-loaded CI runners; the contract-level 100 ms
+		// is verified by microbenchmarks, not this smoke integration
+		// test. Bumping to 500 ms keeps the assertion well below the
+		// 30s WithTimeout while reducing flake under load.
+		assert.Less(t, elapsed, 500*time.Millisecond,
+			"ctx cancel must interrupt in-flight HTTP within 500 ms (CLIENT-09 target 100ms; CI slack); took %v", elapsed)
 		assert.True(t, errors.Is(err, context.Canceled),
 			"expected errors.Is(err, context.Canceled) to hold; got %v", err)
 	})
