@@ -23,10 +23,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// countingBody wraps an http.Response body and increments an atomic counter
+// countingBody wraps an [http.Response] body and increments an atomic counter
 // on construction; the counter decrements on Close (single-decrement guarded
-// by a sync.Once-style boolean). This lets WR-02 prove drain-then-close
-// hygiene deterministically — far more reliable than runtime.NumGoroutine()
+// by a [sync.Once]-style boolean). This lets WR-02 prove drain-then-close
+// hygiene deterministically — far more reliable than [runtime.NumGoroutine]()
 // which is process-global and races sibling tests' transport pools.
 type countingBody struct {
 	io.ReadCloser
@@ -41,7 +41,7 @@ func (b *countingBody) Close() error {
 	return b.ReadCloser.Close()
 }
 
-// drainCountingTransport wraps an http.RoundTripper so every returned
+// drainCountingTransport wraps an [http.RoundTripper] so every returned
 // resp.Body is a countingBody tied to a shared atomic counter. The counter
 // is the post-call invariant the test asserts: 0 means every body the
 // pipeline opened was also closed.

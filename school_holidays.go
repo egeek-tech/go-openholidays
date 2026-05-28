@@ -1,4 +1,4 @@
-// Package openholidays — SchoolHolidays endpoint method.
+// SchoolHolidays endpoint method.
 //
 // This file ships only the SchoolHolidays endpoint method and its associated
 // SchoolHolidaysRequest type per D-64 (each endpoint file is scoped to its
@@ -18,6 +18,7 @@
 // codes it accepts (the Polish ferie cohorts are conventionally labeled
 // "A", "B", "C", "D" but the upstream OpenAPI spec exposes the field as a
 // free-form string).
+
 package openholidays
 
 import (
@@ -101,10 +102,10 @@ type SchoolHolidaysRequest struct {
 // field — GroupCode — beyond PublicHolidaysRequest (D-54 / CL-13).
 //
 // Per-request timeout: when the Client was constructed with WithTimeout(d)
-// and d > 0, SchoolHolidays wraps ctx via context.WithTimeout(ctx, d)
+// and d > 0, SchoolHolidays wraps ctx via [context.WithTimeout](ctx, d)
 // before dispatching. Cancellation of the caller's ctx interrupts the
-// in-flight HTTP within ≤ 100 ms (CLIENT-09); errors.Is(err,
-// context.Canceled) holds through the fmt.Errorf %w wrap returned on
+// in-flight HTTP within ≤ 100 ms (CLIENT-09); [errors.Is](err,
+// [context.Canceled]) holds through the [fmt.Errorf] %w wrap returned on
 // transport-level failures.
 //
 // Error handling:
@@ -120,14 +121,14 @@ type SchoolHolidaysRequest struct {
 //   - 4xx and 5xx upstream responses produce *APIError with the StatusCode,
 //     a parsed Message (RFC 7807 ProblemDetails priority: detail → title →
 //     error), and the raw response body capped at 4 KiB (Phase 1 D-17).
-//     Use errors.As(err, &apiErr) to recover the populated value.
-//   - 2xx with an empty body returns an error that errors.Is matches
+//     Use [errors.As](err, &apiErr) to recover the populated value.
+//   - 2xx with an empty body returns an error that [errors.Is] matches
 //     against ErrEmptyResponse.
 //   - Upstream responses exceeding the 10 MiB cap return an error that
-//     errors.Is matches against ErrResponseTooLarge.
+//     [errors.Is] matches against ErrResponseTooLarge.
 //   - A structurally-decodable response that violates the Holiday
 //     post-decode invariants (zero StartDate, zero EndDate, or EndDate
-//     strictly before StartDate) returns an error that errors.Is matches
+//     strictly before StartDate) returns an error that [errors.Is] matches
 //     against ErrMalformedResponse (D-65 / D-66 / CL-12). The error
 //     message includes the offending Holiday's ID and the failing
 //     predicate so an upstream-regression bug report has actionable

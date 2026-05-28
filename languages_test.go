@@ -37,7 +37,7 @@ const languagesFixtureCapturedAt = "2026-05-27"
 //   - 4xx → *APIError with Path /Languages
 //   - 5xx with RFC 7807 title fallback
 //   - malformed JSON wraps a decode error (not a sentinel)
-//   - ctx cancel returns context.Canceled within ≤ 100 ms (CLIENT-09)
+//   - ctx cancel returns [context.Canceled] within ≤ 100 ms (CLIENT-09)
 //
 // Gold Rule 3: exactly one TestClient_Languages; every case is a t.Run.
 func TestClient_Languages(t *testing.T) {

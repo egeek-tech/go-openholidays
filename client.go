@@ -1,15 +1,16 @@
-// Package openholidays — client construction and lifecycle.
+// client construction and lifecycle.
 //
 // This file declares the Client struct (immutable after NewClient returns),
 // the NewClient constructor that applies functional Options to a fresh
 // clientConfig and materializes a usable *http.Client via composeHTTPClient,
-// and the Close method that uses sync.Once to coordinate the cache-sweeper
+// and the Close method that uses [sync.Once] to coordinate the cache-sweeper
 // shutdown (D-85). Phase 4 also wires per-Client time/sleep seams
-// (nowFunc=time.Now, sleepFunc=ctxSleep, D-94) and a ChaCha8-seeded
+// (nowFunc=[time.Now], sleepFunc=ctxSleep, D-94) and a ChaCha8-seeded
 // *math/rand/v2.Rand for jitter (D-78).
 //
 // No init() and no package-level vars — keeps the CLIENT-10 AST audit in
 // internal_test.go green without modification to its allowlist.
+
 package openholidays
 
 import (
@@ -28,13 +29,13 @@ import (
 // one via NewClient and reuse it across goroutines for the lifetime of the
 // program; Client carries no per-call mutable state.
 //
-// The only post-construction state mutation is the sync.Once-guarded
+// The only post-construction state mutation is the [sync.Once]-guarded
 // cache.Close inside Client.Close. Endpoint methods do not read any
 // post-Close flag; the documented Close contract is "idempotent shutdown
 // hook that returns nil and stops the cache sweeper", NOT "fail every
-// subsequent endpoint call". A previously-declared atomic.Bool `closed`
+// subsequent endpoint call". A previously-declared [atomic.Bool] `closed`
 // flag was removed by the IN-02 follow-up because no production code path
-// ever read it — sync.Once already enforces the cache-cleanup idempotency
+// ever read it — [sync.Once] already enforces the cache-cleanup idempotency
 // invariant on its own.
 //
 // Phase 4 additions:
@@ -73,23 +74,23 @@ type Client struct {
 // immutable client. NewClient never returns an error: all Options either
 // silently accept any well-formed input (e.g. WithTimeout(0) means "no
 // SDK-imposed timeout") or fall back to a documented default (e.g.
-// WithLogger(nil) falls back to slog.Default()).
+// WithLogger(nil) falls back to [slog.Default]()).
 //
 // Defaults applied when no Option supplies the field:
 //
-//   - HTTP client: a zero-valued *http.Client (no caller Timeout)
+//   - HTTP client: a zero-valued *[http.Client] (no caller Timeout)
 //   - Base URL:    the upstream production host (D-36 / PROJECT.md)
 //   - User-Agent:  the go-openholidays brand string + Version
-//   - Logger:      slog.Default()
-//   - Timeout:     fifteen seconds (per-request, applied via context.WithTimeout)
-//   - nowFunc:     time.Now (D-94)
+//   - Logger:      [slog.Default]()
+//   - Timeout:     fifteen seconds (per-request, applied via [context.WithTimeout])
+//   - nowFunc:     [time.Now] (D-94)
 //   - sleepFunc:   ctxSleep — a ctx-aware timer-based helper (D-94)
-//   - rand:        per-Client *math/rand/v2.Rand seeded by crypto/rand (D-78)
+//   - rand:        per-Client *[math/rand/v2.Rand] seeded by crypto/rand (D-78)
 //
 // The returned Client is safe for concurrent use from any goroutine
 // (verified by TestClient_ConcurrentAccess under the race detector in a
 // later plan; this plan ships TestClient_Close which mechanically
-// asserts the sync.Once-guarded idempotency invariant under 100
+// asserts the [sync.Once]-guarded idempotency invariant under 100
 // parallel goroutines).
 func NewClient(opts ...Option) *Client {
 	cfg := defaultConfig()
@@ -118,11 +119,11 @@ func NewClient(opts ...Option) *Client {
 // defer client.Close() (CLIENT-08).
 //
 // Mechanical guarantee (D-40 / D-85 / CLIENT-08): the cache.Close call
-// is guarded by sync.Once, so concurrent calls from multiple goroutines
+// is guarded by [sync.Once], so concurrent calls from multiple goroutines
 // under the race detector neither race nor produce a non-nil error. The
 // "subsequent calls return nil unchanged" sentence refers to subsequent
 // Close calls — Close does NOT gate post-Close endpoint dispatch; that
-// is by design (an atomic.Bool `closed` flag was removed by the IN-02
+// is by design (an [atomic.Bool] `closed` flag was removed by the IN-02
 // follow-up after the re-review confirmed no production reader).
 func (c *Client) Close() error {
 	c.closeOnce.Do(func() {
@@ -135,7 +136,7 @@ func (c *Client) Close() error {
 
 // ctxSleep is the default Client.sleepFunc — a ctx-aware sleep helper that
 // returns immediately on context cancellation. D-94 / Pitfall RETRY-3:
-// bare time.Sleep is uninterruptible and would defeat the ≤ 100 ms ctx
+// bare [time.Sleep] is uninterruptible and would defeat the ≤ 100 ms ctx
 // cancellation contract (CLIENT-09). The select on ctx.Done and the timer
 // channel is the standard Go pattern for an interruptible sleep.
 //
@@ -164,12 +165,12 @@ func ctxSleep(ctx context.Context, d time.Duration) error {
 	}
 }
 
-// newClientRand seeds a per-Client *math/rand/v2.Rand via crypto/rand
+// newClientRand seeds a per-Client *[math/rand/v2.Rand] via crypto/rand
 // (D-78) so two Clients in the same process — and across a fleet — do not
 // emit identical jitter sequences (Pitfall RETRY-4: fleet-wide thundering
-// herd). NewChaCha8 wants a 32-byte seed; crypto/rand.Read provides it.
+// herd). NewChaCha8 wants a 32-byte seed; [crypto/rand.Read] provides it.
 //
-// crypto/rand.Read is documented to never fail on a healthy system; on the
+// [crypto/rand.Read] is documented to never fail on a healthy system; on the
 // rare error path the helper falls back to a multi-source mixed seed
 // because NewClient must not return an error (CLIENT-01 contract). The
 // fallback fills all 32 bytes by FNV-hashing nanosecond timestamp + pid
@@ -185,7 +186,7 @@ func newClientRand() *rand.Rand {
 		// and rotate the input across two rounds to populate seed[0:16]
 		// and seed[16:32] from independent hash states.
 		var tb [8]byte
-		// G115 false positive: time.Now().UnixNano() is int64; ChaCha8 needs
+		// G115 false positive: [time.Now]().UnixNano() is int64; ChaCha8 needs
 		// 32 bytes of bit-pattern entropy, the sign bit is fine to retain.
 		binary.LittleEndian.PutUint64(tb[:], uint64(time.Now().UnixNano())) //nolint:gosec // G115: nanosecond timestamp used as bit pattern, not magnitude
 		var pb [8]byte

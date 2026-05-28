@@ -1,10 +1,11 @@
-// Package openholidays — client-side input validators.
+// client-side input validators.
 //
 // This file ships three unexported validator functions that Phase 2 endpoint
 // methods call BEFORE making any HTTP request. Their job is to reject
 // malformed input client-side (ASVS V5.1.3 input-validation control) and
 // produce errors that callers can branch on via errors.Is against the
 // sentinel surface defined in errors.go.
+
 package openholidays
 
 import (
@@ -102,9 +103,9 @@ func validateDateRange(from, to Date) error {
 }
 
 // isTwoASCIILetters reports whether s is exactly 2 bytes and each byte is
-// an ASCII letter (A-Z or a-z). Byte arithmetic (rather than unicode.IsLetter)
+// an ASCII letter (A-Z or a-z). Byte arithmetic (rather than [unicode.IsLetter])
 // is intentional and mandatory: the W-01 fix requires that Unicode characters
-// that fold to ASCII through strings.ToUpper / strings.ToLower (e.g. U+212A
+// that fold to ASCII through [strings.ToUpper] / [strings.ToLower] (e.g. U+212A
 // Kelvin sign → 'k' under ToLower) are rejected here, BEFORE canonicalization runs.
 func isTwoASCIILetters(s string) bool {
 	if len(s) != 2 {

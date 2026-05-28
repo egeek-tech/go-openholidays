@@ -1,4 +1,4 @@
-// Package openholidays — in-memory TTL cache backing WithCache and the
+// in-memory TTL cache backing WithCache and the
 // Cache interface.
 //
 // This file ships the default in-memory cache implementation that
@@ -32,6 +32,7 @@
 //
 // No init() and no package-level vars — keeps the CLIENT-10 AST audit in
 // internal_test.go green without modification to its allowlist.
+
 package openholidays
 
 import (
@@ -56,13 +57,13 @@ type entry struct {
 }
 
 // MemoryCache is the default in-memory TTL cache returned by NewMemoryCache
-// (D-81). The backing storage is map[string]entry under sync.RWMutex —
+// (D-81). The backing storage is map[string]entry under [sync.RWMutex] —
 // safe for concurrent use from any goroutine (CLIENT-07 / Pitfall CACHE-4).
 //
 // Instances are constructed via NewMemoryCache (or newMemoryCacheWithClock
 // inside tests) and stopped via Close. The zero value is NOT usable —
 // fields are populated by the constructor; copying a MemoryCache by value
-// is not supported (sync.RWMutex and sync.Once trigger the standard go vet
+// is not supported ([sync.RWMutex] and [sync.Once] trigger the standard go vet
 // copy-lock warning).
 //
 // Lifecycle:
@@ -87,7 +88,7 @@ type MemoryCache struct {
 }
 
 // NewMemoryCache constructs a *MemoryCache backed by an in-memory map with
-// the supplied TTL (D-79 / D-81). The cache uses time.Now as its clock; for
+// the supplied TTL (D-79 / D-81). The cache uses [time.Now] as its clock; for
 // fake-clock tests, use newMemoryCacheWithClock through a
 // WithCacheBackend(...) wiring (D-86 documents the compromise — options
 // run BEFORE Client construction, so WithCache(ttl) cannot pick up a
@@ -244,7 +245,7 @@ func (m *MemoryCache) evict() {
 // is definitely off the runtime queue".
 //
 // If the sweeper was never started (no Put was ever called), sweepDone
-// stays open forever and the select takes the time.After branch — that's
+// stays open forever and the select takes the [time.After] branch — that's
 // the intended path for an idle cache.
 func (m *MemoryCache) Close() error {
 	m.closeOnce.Do(func() {

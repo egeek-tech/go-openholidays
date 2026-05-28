@@ -12,13 +12,13 @@ import (
 )
 
 // roundTripperFunc is a test-only adapter that lets a plain function satisfy
-// the http.RoundTripper interface. It is used as the "next" slot inside a
+// the [http.RoundTripper] interface. It is used as the "next" slot inside a
 // transport-under-test so the test can capture the request it sees and
 // return a synthesized response. Declared once here and shared with
 // transport_logging_test.go via same-package visibility (D-50).
 type roundTripperFunc func(*http.Request) (*http.Response, error)
 
-// RoundTrip satisfies http.RoundTripper by delegating to f.
+// RoundTrip satisfies [http.RoundTripper] by delegating to f.
 func (f roundTripperFunc) RoundTrip(r *http.Request) (*http.Response, error) {
 	return f(r)
 }
@@ -36,7 +36,7 @@ func (f roundTripperFunc) RoundTrip(r *http.Request) (*http.Response, error) {
 // The Pitfall HTTP-2 invariant (req.Clone-before-mutate) is asserted by the
 // first branch via "caller's original req.Header.Get(Accept) remains empty
 // after RoundTrip" — proving headerTransport did not mutate the inbound
-// *http.Request.
+// *[http.Request].
 func TestHeaderTransport_RoundTrip(t *testing.T) {
 	t.Parallel()
 

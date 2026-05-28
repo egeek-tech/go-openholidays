@@ -1,4 +1,4 @@
-// Package openholidays — Countries endpoint method.
+// Countries endpoint method.
 //
 // This file ships only the Countries endpoint method and its associated
 // CountriesRequest type. The HTTP-and-decode pipeline that Phase 2 inlined
@@ -10,6 +10,7 @@
 // to the uniform (ctx, CountriesRequest) shape that every endpoint
 // method shares (D-51 / D-52 / CL-08). The zero-value CountriesRequest{}
 // reproduces the Phase 2 observable behavior verbatim.
+
 package openholidays
 
 import (
@@ -54,10 +55,10 @@ type CountriesRequest struct {
 // filter restricts the returned Country.Name entries to that language only.
 //
 // Per-request timeout: when the Client was constructed with WithTimeout(d)
-// and d > 0, Countries wraps ctx via context.WithTimeout(ctx, d) before
+// and d > 0, Countries wraps ctx via [context.WithTimeout](ctx, d) before
 // dispatching. Cancellation of the caller's ctx interrupts the in-flight
-// HTTP within ≤ 100 ms (CLIENT-09); errors.Is(err, context.Canceled) holds
-// through the fmt.Errorf %w wrap returned on transport-level failures.
+// HTTP within ≤ 100 ms (CLIENT-09); [errors.Is](err, [context.Canceled]) holds
+// through the [fmt.Errorf] %w wrap returned on transport-level failures.
 //
 // Error handling:
 //
@@ -67,11 +68,11 @@ type CountriesRequest struct {
 //   - 4xx and 5xx upstream responses produce *APIError with the StatusCode,
 //     a parsed Message (RFC 7807 ProblemDetails priority: detail → title →
 //     error), and the raw response body capped at 4 KiB (Phase 1 D-17).
-//     Use errors.As(err, &apiErr) to recover the populated value.
-//   - 2xx with an empty body returns an error that errors.Is matches against
+//     Use [errors.As](err, &apiErr) to recover the populated value.
+//   - 2xx with an empty body returns an error that [errors.Is] matches against
 //     ErrEmptyResponse.
 //   - Upstream responses exceeding the 10 MiB cap return an error that
-//     errors.Is matches against ErrResponseTooLarge.
+//     [errors.Is] matches against ErrResponseTooLarge.
 //   - JSON decode failures wrap the underlying error with the
 //     "openholidays: decode /Countries: " prefix.
 //

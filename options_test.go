@@ -154,7 +154,7 @@ func loggingTransportFromChain(t *testing.T, c *Client) *loggingTransport {
 }
 
 // TestWithLogger covers CLIENT-05 and D-39 (nil falls back to
-// slog.Default()). Two explicit subtests because the nil-vs-non-nil
+// [slog.Default]()). Two explicit subtests because the nil-vs-non-nil
 // comparison is fiddly in a struct literal.
 //
 // WR-01 (re-review) follow-up: Client.logger was removed as dead state —
@@ -222,7 +222,7 @@ func TestWithTimeout(t *testing.T) {
 
 // TestWithStrictDecoding covers D-91 / Pitfall JSON-1 + OBS-03 wire-level
 // behavior (D-92): strict-decoding is OFF by default; WithStrictDecoding(true)
-// flips the immutable c.strict flag AND causes json.Decoder.DisallowUnknownFields
+// flips the immutable c.strict flag AND causes [json.Decoder.DisallowUnknownFields]
 // to fire on the next endpoint call; WithStrictDecoding(false) stores false
 // verbatim. The flag is immutable after NewClient by design (no runtime
 // toggle exists — see D-91 + CL-15).

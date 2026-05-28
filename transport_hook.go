@@ -1,4 +1,4 @@
-// Package openholidays — hookTransport: the observability-hook
+// hookTransport: the observability-hook
 // http.RoundTripper that fires the user-supplied RequestHookFunc after every
 // HTTP round trip.
 //
@@ -38,6 +38,7 @@
 //
 // No init() and no package-level vars — keeps the CLIENT-10 AST audit in
 // internal_test.go green without modification to its allowlist.
+
 package openholidays
 
 import "net/http"
@@ -64,7 +65,7 @@ type hookTransport struct {
 // RoundTripper's (resp, err) verbatim.
 //
 // The hook receives resp.Request when resp != nil and resp.Request != nil
-// — this is the canonical Go convention (stdlib http.Client.Do sets
+// — this is the canonical Go convention (stdlib [http.Client.Do] sets
 // resp.Request to the request that produced the response, which may
 // differ from the inbound request after redirects or chain rewrites).
 // In this SDK the only chain layer that rewrites the request is

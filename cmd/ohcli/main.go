@@ -6,17 +6,16 @@
 //
 // Subcommand dispatch is hand-rolled on top of the stdlib flag package
 // (D-03 / CL-21 from PROJECT.md — zero non-stdlib runtime dependencies).
-// Each subcommand owns its own flag.FlagSet; usage errors flow to stderr
+// Each subcommand owns its own [flag.FlagSet]; usage errors flow to stderr
 // with the literal "ohcli: " prefix (D-05) and a non-zero exit code (D-06):
 //
 //   - exit 0 — success (including the empty-result paths per D-07)
 //   - exit 1 — runtime error (HTTP failure, decode failure, render failure)
 //   - exit 2 — usage error (missing subcommand, bad flag, bad positional)
 //
-// All I/O flows through the io.Writer parameters of run and the subcommand
-// handlers so Plan 02's table-driven tests can wire bytes.Buffer in place of
-// os.Stdout / os.Stderr without re-implementing the CLI.
-
+// All I/O flows through the [io.Writer] parameters of run and the subcommand
+// handlers so Plan 02's table-driven tests can wire [bytes.Buffer] in place of
+// [os.Stdout] / [os.Stderr] without re-implementing the CLI.
 package main
 
 import (
@@ -47,17 +46,17 @@ Environment:
 
 // main is the binary entrypoint. It delegates to run so the integration
 // tests in Plan 02 can drive the full subcommand-dispatch pipeline with a
-// custom args slice and captured stdout/stderr without calling os.Exit.
+// custom args slice and captured stdout/stderr without calling [os.Exit].
 func main() {
 	os.Exit(run(os.Args, os.Stdout, os.Stderr))
 }
 
 // run is the testable entrypoint. It performs subcommand dispatch on
 // args[1] and returns the process exit code (0/1/2 per D-06). stdout and
-// stderr are accepted as io.Writer — not *os.File — so the Plan 02 tests
-// can wire *bytes.Buffer for assertion.
+// stderr are accepted as [io.Writer] — not *[os.File] — so the Plan 02 tests
+// can wire *[bytes.Buffer] for assertion.
 //
-// args[0] is the program name (mirrors os.Args layout); args[1] is the
+// args[0] is the program name (mirrors [os.Args] layout); args[1] is the
 // subcommand; args[2:] is forwarded to the matched handler.
 func run(args []string, stdout, stderr io.Writer) int {
 	if len(args) < 2 {
@@ -92,7 +91,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 //
 // The OPENHOLIDAYS_BASE_URL environment variable, when set non-empty, is
 // forwarded to openholidays.WithBaseURL — this is the test seam Plan 02
-// relies on to point the binary at an httptest.NewServer for the
+// relies on to point the binary at an [httptest.NewServer] for the
 // table-driven integration tests. Production users do not set this env
 // var; the library default (https://openholidaysapi.org) applies.
 func newClient() *openholidays.Client {
@@ -108,10 +107,10 @@ func newClient() *openholidays.Client {
 
 // The cmdPublic / cmdSchool / cmdCountries handlers live in their own
 // files (public.go / school.go / countries.go) so each subcommand keeps a
-// small, focused implementation with its own flag.FlagSet, validation
+// small, focused implementation with its own [flag.FlagSet], validation
 // chain, request construction, and renderer dispatch.
 
-// reorderArgs splits argv into flags-first form so stdlib flag.Parse can
+// reorderArgs splits argv into flags-first form so stdlib [flag.Parse] can
 // consume `ohcli public PL 2025 --json` as well as the equivalent
 // flag-first spelling. The stdlib flag package halts at the first
 // non-flag token, so `[PL 2025 --json]` would otherwise yield NArg=3

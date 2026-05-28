@@ -1,4 +1,4 @@
-// Package openholidays — cacheTransport: the RoundTripper that serves
+// cacheTransport: the RoundTripper that serves
 // previously-fetched response bytes from a Cache backend.
 //
 // Chain placement (D-89): cacheTransport sits BETWEEN hookTransport
@@ -38,6 +38,7 @@
 // internal_test.go::allowedVars is updated to allow this single
 // addition (DEVIATION from CONTEXT.md D-97 step 6 — see plan
 // <deviations> for rationale).
+
 package openholidays
 
 import (
@@ -66,7 +67,7 @@ type cacheHitKeyType struct{}
 // documented miss signal (<specifics> 2).
 var CacheHitContextKey = cacheHitKeyType{}
 
-// cacheTransport is the cache-layer http.RoundTripper. It consults the
+// cacheTransport is the cache-layer [http.RoundTripper]. It consults the
 // configured Cache for allowlisted paths and either returns a synthetic
 // 200 OK response built from cached bytes (cache hit) or forwards to the
 // next RoundTripper and caches the successful response (cache miss).
@@ -104,10 +105,10 @@ func cacheKey(req *http.Request) string {
 	return req.Method + " " + req.URL.Path + "?" + req.URL.Query().Encode()
 }
 
-// RoundTrip implements http.RoundTripper. The branches:
+// RoundTrip implements [http.RoundTripper]. The branches:
 //
 //  1. Non-allowlisted path → forward to next, return unchanged.
-//  2. Cache hit → return a synthetic *http.Response with the cached bytes
+//  2. Cache hit → return a synthetic *[http.Response] with the cached bytes
 //     and CacheHitContextKey == true in resp.Request.Context().
 //  3. Cache miss → forward to next; on err != nil or status != 200,
 //     return resp/err untouched (Pitfall CACHE-1 — never cache errors).

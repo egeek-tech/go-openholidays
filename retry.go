@@ -1,4 +1,4 @@
-// Package openholidays — retry layer for the doJSONGet HTTP pipeline.
+// retry layer for the doJSONGet HTTP pipeline.
 //
 // This file declares the four building blocks of the Phase 4 retry layer
 // per D-77:
@@ -37,6 +37,7 @@
 // AST audit in internal_test.go green without modification to its
 // allowlist (the audit flags package-level `var` declarations; named
 // constants are exempt).
+
 package openholidays
 
 import (
@@ -96,10 +97,10 @@ type retryConfig struct {
 // Matrix (D-75):
 //
 // When err != nil:
-//   - net.Error with Timeout() == true (RESIL-02 explicit) → retry.
-//   - errors.Is(err, syscall.ECONNRESET) (transport reset) → retry.
-//   - any other error (including context.Canceled and
-//     context.DeadlineExceeded) → do NOT retry. The endpoint-layer
+//   - [net.Error] with Timeout() == true (RESIL-02 explicit) → retry.
+//   - [errors.Is](err, [syscall.ECONNRESET]) (transport reset) → retry.
+//   - any other error (including [context.Canceled] and
+//     [context.DeadlineExceeded]) → do NOT retry. The endpoint-layer
 //     retry loop in doJSONGet checks ctx.Err() at the top of the
 //     iteration BEFORE calling shouldRetry, so by construction
 //     shouldRetry should never see a raw ctx error here; the defensive
@@ -118,20 +119,20 @@ type retryConfig struct {
 // explicit): do NOT retry. A nil-resp/nil-err pair signals a programming
 // error upstream of shouldRetry; retrying it would loop forever.
 //
-// net.Error is an interface, so the err-check uses errors.As (interface
-// assertion); errors.Is would unconditionally return false for any
-// interface target. syscall.ECONNRESET is a sentinel value (per-OS
-// integer constant), so the conn-reset check uses errors.Is per Go's
+// [net.Error] is an interface, so the err-check uses [errors.As] (interface
+// assertion); [errors.Is] would unconditionally return false for any
+// interface target. [syscall.ECONNRESET] is a sentinel value (per-OS
+// integer constant), so the conn-reset check uses [errors.Is] per Go's
 // stdlib convention. Both forms work uniformly on Linux / macOS /
 // Windows because Go's syscall package abstracts the platform values.
 //
-// Ctx-error guard rationale: context.DeadlineExceeded implements
-// net.Error with Timeout() == true (verified live against the Go
-// stdlib), which would otherwise let the net.Error branch claim
+// Ctx-error guard rationale: [context.DeadlineExceeded] implements
+// [net.Error] with Timeout() == true (verified live against the Go
+// stdlib), which would otherwise let the [net.Error] branch claim
 // DeadlineExceeded as retryable — directly violating D-75 ("ctx
 // errors NEVER retried"). The endpoint-layer retry loop's loop-top
 // ctx.Err() check (Task 3 / Pitfall RETRY-3) catches ctx errors
-// before they reach c.http.Do most of the time, but a *http.Client.Do
+// before they reach c.http.Do most of the time, but a *[http.Client.Do]
 // can also surface ctx errors wrapped inside transport errors (e.g.
 // when the timer fires during DNS resolution). The explicit guard
 // below ensures shouldRetry is correct in isolation — making the
@@ -140,8 +141,8 @@ type retryConfig struct {
 func shouldRetry(resp *http.Response, err error) bool {
 	if err != nil {
 		// D-75: ctx errors NEVER retried. Check this BEFORE the
-		// net.Error branch because context.DeadlineExceeded
-		// implements net.Error with Timeout() == true and would
+		// [net.Error] branch because context.DeadlineExceeded
+		// implements [net.Error] with Timeout() == true and would
 		// otherwise be claimed as retryable.
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 			return false
@@ -175,10 +176,10 @@ func shouldRetry(resp *http.Response, err error) bool {
 // supplied now (D-76). The header accepts two forms in the wild:
 //
 //   - delta-seconds:    integer seconds (e.g. "120"), parsed by
-//     strconv.Atoi. A non-negative integer returns (s*time.Second,
+//     [strconv.Atoi]. A non-negative integer returns (s*time.Second,
 //     true).
 //   - HTTP-date:        RFC 1123 / RFC 850 / ANSI C asctime (e.g.
-//     "Wed, 21 Oct 2026 07:28:00 GMT"), parsed by http.ParseTime. A
+//     "Wed, 21 Oct 2026 07:28:00 GMT"), parsed by [http.ParseTime]. A
 //     parsed date strictly AFTER now returns (date - now, true).
 //
 // Pitfall 9 negative-duration guard: a parsed date at or BEFORE now is
@@ -199,7 +200,7 @@ func parseRetryAfter(h string, now time.Time) (time.Duration, bool) {
 		return 0, false
 	}
 	if s, err := strconv.Atoi(h); err == nil && s >= 0 {
-		// IN-05 overflow guard: time.Duration is int64-nanoseconds, so
+		// IN-05 overflow guard: [time.Duration] is int64-nanoseconds, so
 		// s * time.Second overflows once s exceeds math.MaxInt64 / 1e9
 		// (~9.2e9 seconds, ~292 years). Two's-complement wraparound can
 		// land on either positive or negative values depending on the
@@ -234,8 +235,8 @@ func parseRetryAfter(h string, now time.Time) (time.Duration, bool) {
 //   - Exponential ceiling: capped := min(cfg.baseDelay << attempt,
 //     cfg.maxWait). The bit-shift mirrors the AWS canonical formula
 //     (base * 2^attempt) without the floating-point round-trip.
-//   - Full jitter:        jitter := rand.Int64N(int64(capped)) cast
-//     back to time.Duration. Uniform in [0, capped). RESIL-01
+//   - Full jitter:        jitter := [rand.Int64N](int64(capped)) cast
+//     back to [time.Duration]. Uniform in [0, capped). RESIL-01
 //     specifies "full jitter" (not equal jitter, not decorrelated
 //     jitter) — AWS canonical, demonstrated to minimize fleet-wide
 //     correlation (Pitfall RETRY-4).
@@ -245,13 +246,13 @@ func parseRetryAfter(h string, now time.Time) (time.Duration, bool) {
 //     Retry-After: 999999999 (threat T-04-05) cannot hold the request
 //     for the lifetime of the process.
 //
-// The rnd argument is the per-Client *math/rand/v2.Rand seeded at
+// The rnd argument is the per-Client *[math/rand/v2.Rand] seeded at
 // NewClient time via newClientRand (D-78). Per-Client randomness
 // prevents the thundering-herd failure mode where every instance in a
 // fleet retries on identical jittered offsets after a shared upstream
 // outage.
 //
-// CR-01: *math/rand/v2.Rand is NOT goroutine-safe on its own — the
+// CR-01: *[math/rand/v2.Rand] is NOT goroutine-safe on its own — the
 // stdlib documentation explicitly states "The methods of Rand are not
 // safe for concurrent use by multiple goroutines". The caller (the
 // retry loop in request.go::doJSONGet) is responsible for serializing
@@ -260,7 +261,7 @@ func parseRetryAfter(h string, now time.Time) (time.Duration, bool) {
 // *Client do not race on the underlying ChaCha8 state.
 //
 // Defensive against a zero baseDelay: capped is forced to >=
-// time.Millisecond so rand.Int64N never sees a non-positive argument
+// [time.Millisecond] so [rand.Int64N] never sees a non-positive argument
 // (the stdlib panics on n <= 0). This defends against a future
 // regression where WithRetry's baseDelay-fallback is removed; the
 // helper still produces a finite, non-panicking sleep.
@@ -271,7 +272,7 @@ func parseRetryAfter(h string, now time.Time) (time.Duration, bool) {
 // promotion + cap) in retry_test.go.
 func computeBackoff(attempt int, retryAfter time.Duration, cfg retryConfig, rnd *rand.Rand) time.Duration {
 	capped := cfg.maxWait
-	// WR-01: time.Duration is int64; baseDelay << attempt overflows the
+	// WR-01: [time.Duration] is int64; baseDelay << attempt overflows the
 	// sign bit at large attempt counts (e.g. baseDelay=100ms shifted by 33
 	// becomes negative). The exp > 0 predicate rejects the overflow case;
 	// attempt < 63 is a defense-in-depth ceiling against the shift itself

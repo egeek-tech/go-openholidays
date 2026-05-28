@@ -1,10 +1,11 @@
-// Package openholidays — tests for the unexported input validators.
+// tests for the unexported input validators.
 //
 // In-package tests are required so validateCountry/validateLanguage/
 // validateDateRange (all unexported per ARCHITECTURE.md Pattern 5) can be
 // exercised directly. Phase 2 endpoint methods call these validators
 // before any HTTP request; the tests below lock the contract those
 // callers depend on.
+
 package openholidays
 
 import (

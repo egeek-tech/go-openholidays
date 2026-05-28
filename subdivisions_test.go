@@ -40,7 +40,7 @@ const subdivisionsPLFixtureCapturedAt = "2026-05-27"
 //   - 4xx → *APIError with Path "/Subdivisions"
 //   - 5xx → *APIError with title-fallback Message
 //   - malformed JSON → decode error (not a sentinel)
-//   - ctx cancel → context.Canceled within ≤ 100 ms (CLIENT-09)
+//   - ctx cancel → [context.Canceled] within ≤ 100 ms (CLIENT-09)
 //
 // Gold Rule 3: exactly one TestClient_Subdivisions; every case is a t.Run.
 func TestClient_Subdivisions(t *testing.T) {

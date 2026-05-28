@@ -62,7 +62,7 @@ func TestSentinelErrors(t *testing.T) {
 }
 
 // TestSentinels_ErrorsIs locks ERR-03 + ROADMAP criterion #2: every sentinel
-// is recoverable via errors.Is through a fmt.Errorf("...: %w", sentinel)
+// is recoverable via [errors.Is] through a [fmt.Errorf]("...: %w", sentinel)
 // wrapper, and wrapping does not bleed identity into a different sentinel.
 func TestSentinels_ErrorsIs(t *testing.T) {
 	t.Parallel()
@@ -226,7 +226,7 @@ func TestAPIError_Is(t *testing.T) {
 	}
 }
 
-// TestAPIError_ErrorsAs locks ERR-02 + ROADMAP criterion #3: errors.As
+// TestAPIError_ErrorsAs locks ERR-02 + ROADMAP criterion #3: [errors.As]
 // extracts a populated *APIError from a %w-wrapped chain with all four
 // fields preserved end-to-end.
 func TestAPIError_ErrorsAs(t *testing.T) {

@@ -1,4 +1,4 @@
-// Package openholidays — pure-value helper methods on Holiday.
+// pure-value helper methods on Holiday.
 //
 // This file declares four side-effect-free methods on Holiday that operate
 // only on the value the caller already holds: NameFor, IsInRegion, Days,
@@ -16,6 +16,7 @@
 //     deviation from ROADMAP success criterion #4's literal text so the
 //     iterator composes directly with Date math helpers (Equal/Before/After,
 //     DaysUntil) without conversion churn. Recorded as CL-11.
+
 package openholidays
 
 import (
@@ -46,7 +47,7 @@ func (h Holiday) NameFor(lang string) string {
 //  2. An empty code on a non-nationwide holiday returns false (defensive —
 //     no panic, no false positive on hand-built empty input).
 //  3. Otherwise, IsInRegion iterates Holiday.Subdivisions and returns true
-//     on the first strings.EqualFold(s.Code, code) match.
+//     on the first [strings.EqualFold](s.Code, code) match.
 //  4. Returns false otherwise.
 //
 // IsInRegion does not recurse into a subdivision tree — Holiday only carries
@@ -106,7 +107,7 @@ func (h Holiday) Days() int {
 //
 // Every yielded Date is rebuilt via NewDate(year, month, day), so each
 // yielded value is at UTC midnight regardless of the receiver's internal
-// time.Time location. Iteration advances via time.Time.AddDate(0, 0, 1),
+// [time.Time] location. Iteration advances via [time.Time].AddDate(0, 0, 1),
 // which is calendar-correct across DST boundaries because the operands
 // are UTC-midnight (Phase 1 D-10 / Pitfall TZ-2 / Pitfall 3).
 //
@@ -115,11 +116,11 @@ func (h Holiday) Days() int {
 // before they reach the caller for endpoint-returned Holidays, but the
 // defensive guard exists so hand-built Holidays do not panic.
 //
-// The yielded element type is Date, not time.Time — a deliberate
-// deviation from ROADMAP success criterion #4's literal iter.Seq[time.Time]
+// The yielded element type is Date, not [time.Time] — a deliberate
+// deviation from ROADMAP success criterion #4's literal [iter.Seq][time.Time]
 // so the iterator composes directly with Date math helpers (Equal/Before/
 // After/Compare/DaysUntil) without conversion churn. Callers that want
-// a time.Time use the embedded field: `for d := range h.Range() { t := d.Time }`.
+// a [time.Time] use the embedded field: `for d := range h.Range() { t := d.Time }`.
 // Recorded as CL-11.
 func (h Holiday) Range() iter.Seq[Date] {
 	return func(yield func(Date) bool) {

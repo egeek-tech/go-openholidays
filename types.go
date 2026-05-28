@@ -1,4 +1,4 @@
-// Package openholidays — domain type contract for the OpenHolidays API.
+// domain type contract for the OpenHolidays API.
 //
 // This file declares every struct the upstream OpenHolidays API returns:
 // Holiday, Country, Language, Subdivision, plus the supporting value types
@@ -6,6 +6,7 @@
 // with its six constants. JSON tags match the upstream camelCase wire shape
 // exactly. Phase 2's endpoint methods decode upstream bytes directly into
 // these structs; Phase 3 helpers operate on them.
+
 package openholidays
 
 import "strings"

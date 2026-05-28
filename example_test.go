@@ -215,7 +215,7 @@ func ExampleHoliday_NameFor() {
 
 // ExampleHoliday_IsInRegion demonstrates the flat (no-HTTP) region check on
 // a Holiday value. A nationwide holiday returns true for any code; a holiday
-// with explicit Subdivisions returns true only on a strings.EqualFold match.
+// with explicit Subdivisions returns true only on a [strings.EqualFold] match.
 func ExampleHoliday_IsInRegion() {
 	h := openholidays.Holiday{
 		Nationwide:   false,

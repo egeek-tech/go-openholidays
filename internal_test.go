@@ -41,12 +41,12 @@ import (
 //     ErrInvalidDateRange, ErrEmptyResponse — the five Phase 1 exported
 //     sentinels declared in errors.go (D-13).
 //   - ErrResponseTooLarge — the sixth exported sentinel added in Phase 2
-//     for the 10 MiB response cap (D-24 / CL-07). Wrapped via fmt.Errorf
+//     for the 10 MiB response cap (D-24 / CL-07). Wrapped via [fmt.Errorf]
 //     %w from Countries when the post-decode sentinel-byte read detects
 //     truncation.
 //   - ErrMalformedResponse — the seventh exported sentinel added in
 //     Phase 3 Plan 04 for post-decode Holiday schema-drift detection
-//     (D-65 / D-66 / CL-12). Wrapped via fmt.Errorf %w from
+//     (D-65 / D-66 / CL-12). Wrapped via [fmt.Errorf] %w from
 //     validateHolidays in request.go when an upstream Holiday violates
 //     the StartDate/EndDate invariants. Listed AFTER ErrResponseTooLarge
 //     in chronological-addition order, not alphabetical, so the diff
@@ -76,8 +76,8 @@ import (
 //     Listed AFTER CacheHitContextKey per the chronological-addition
 //     order convention (Pitfall 6 protocol).
 //
-// Sentinel error values are immutable identities (built via errors.New /
-// fmt.Errorf) — they are not "mutable state" in the CLIENT-10 sense, but
+// Sentinel error values are immutable identities (built via [errors.New] /
+// [fmt.Errorf]) — they are not "mutable state" in the CLIENT-10 sense, but
 // they are package-level vars syntactically, so they must be allowlisted.
 var allowedVars = map[string]struct{}{
 	"ErrInvalidCountry":    {},

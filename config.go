@@ -1,4 +1,4 @@
-// Package openholidays — internal client configuration and HTTP transport composition.
+// internal client configuration and HTTP transport composition.
 //
 // This file declares the unexported clientConfig builder that holds every
 // option-supplied value before NewClient finalizes the *Client; defaultConfig,
@@ -24,6 +24,7 @@
 //
 // No init() and no package-level vars — keeps the CLIENT-10 AST audit in
 // internal_test.go green without modification to its allowlist.
+
 package openholidays
 
 import (
@@ -38,7 +39,7 @@ import (
 // (client_test.go, options_test.go, update_fixtures_test.go); keeping it
 // centralized avoids drift when the upstream host changes (mirror,
 // schema versioning). Constants are NOT in scope of the CLIENT-10 AST
-// audit (the audit filters on ast.GenDecl.Tok == token.VAR), so no
+// audit (the audit filters on ast.GenDecl.Tok == [token.VAR]), so no
 // allowlist update is required.
 const defaultBaseURL = "https://openholidaysapi.org"
 
@@ -86,23 +87,23 @@ type Cache interface {
 // (Plan 05). It is invoked synchronously on the calling goroutine's stack
 // after every HTTP round trip including cache-hit synthetic responses
 // (D-88 / D-89). Panics propagate; consumers wrap with defer/recover if
-// needed (mirrors stdlib http.Handler convention).
+// needed (mirrors stdlib [http.Handler] convention).
 //
 // On a transport error resp is nil — implementations MUST nil-check.
-// Hooks MUST NOT log resp.Body content above slog.LevelDebug (Pitfall
+// Hooks MUST NOT log resp.Body content above [slog.LevelDebug] (Pitfall
 // LOG-1).
 type RequestHookFunc func(*http.Request, *http.Response, error)
 
 // defaultConfig returns a fresh *clientConfig populated with every Phase 2
 // default:
 //
-//   - httpClient: a zero-valued *http.Client (no caller-supplied Timeout;
+//   - httpClient: a zero-valued *[http.Client] (no caller-supplied Timeout;
 //     PROJECT.md leaves the Go-level timer disabled — per-request timeouts
-//     arrive via context.WithTimeout in the endpoint methods, D-26 / D-27).
+//     arrive via [context.WithTimeout] in the endpoint methods, D-26 / D-27).
 //   - baseURL:    the upstream production host per D-36 / PROJECT.md.
 //   - userAgent:  the go-openholidays brand string suffixed with the Phase 1
 //     Version const (PROJECT.md / version.go).
-//   - logger:     slog.Default() (D-39; library never mutates the process default).
+//   - logger:     [slog.Default]() (D-39; library never mutates the process default).
 //   - timeout:    fifteen seconds (CLIENT-06 / D-28 / PROJECT.md).
 //
 // The upstream URL is referenced via the package-level defaultBaseURL
@@ -119,12 +120,12 @@ func defaultConfig() *clientConfig {
 }
 
 // composeHTTPClient shallow-copies cfg.httpClient so that caller mutations of
-// the original *http.Client after NewClient returns do not affect the SDK
+// the original *[http.Client] after NewClient returns do not affect the SDK
 // (Pitfall HTTP-1 / D-37). The Transport on the copy is replaced with the
 // chain returned by buildTransport (D-29).
 //
 // The shallow copy preserves every non-Transport field on the caller's
-// *http.Client (CheckRedirect, Jar, Timeout) so callers who supplied a
+// *[http.Client] (CheckRedirect, Jar, Timeout) so callers who supplied a
 // pre-configured client keep those settings — only Transport is overwritten
 // so the SDK's middleware chain is invoked on every request.
 func composeHTTPClient(cfg *clientConfig) *http.Client {
@@ -140,13 +141,13 @@ func composeHTTPClient(cfg *clientConfig) *http.Client {
 //	      headerTransport → underlying
 //
 // Where underlying is cfg.httpClient.Transport if the caller supplied a
-// custom Transport on their *http.Client, else the stdlib default. Layers
+// custom Transport on their *[http.Client], else the stdlib default. Layers
 // in square brackets are conditional on the corresponding option being
 // passed (WithCache/WithCacheBackend for cacheTransport; WithRequestHook
 // for hookTransport).
 //
 // hookTransport is OUTERMOST (D-89) so it observes every round trip —
-// including the synthetic *http.Response returned by cacheTransport on
+// including the synthetic *[http.Response] returned by cacheTransport on
 // cache hits. Consumers detect cache hits inside their hook via
 // req.Context().Value(openholidays.CacheHitContextKey).
 //

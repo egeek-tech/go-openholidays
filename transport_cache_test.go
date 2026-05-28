@@ -49,7 +49,7 @@ func newTestCacheTransport(t *testing.T, body []byte, status int) (*cacheTranspo
 	}, &hits
 }
 
-// newTestRequest builds an http.Request with the given path + query for the
+// newTestRequest builds an [http.Request] with the given path + query for the
 // cacheTransport tests. Host is irrelevant because the cache key excludes
 // it (D-82).
 func newTestRequest(t *testing.T, path string, query url.Values) *http.Request {

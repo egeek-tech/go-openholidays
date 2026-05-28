@@ -53,7 +53,7 @@ func TestCacheInterface_Conformance(t *testing.T) {
 // TestNewMemoryCache covers the constructor: returns a non-nil *MemoryCache
 // configured with the supplied TTL. The "no goroutines spawned yet"
 // lazy-start invariant is locked separately in TestMemoryCache_SweeperLazyStart
-// (which uses runtime.NumGoroutine to assert the sweeper does not run until
+// (which uses [runtime.NumGoroutine] to assert the sweeper does not run until
 // the first Put).
 func TestNewMemoryCache(t *testing.T) {
 	t.Parallel()
@@ -140,7 +140,7 @@ func TestMemoryCache_GetPut(t *testing.T) {
 // sweeper goroutine is NOT spawned by NewMemoryCache, NOT spawned by Get,
 // and IS spawned by the first Put. Close stops it.
 //
-// runtime.NumGoroutine() is the no-dep approach per D-96 (avoids adding
+// [runtime.NumGoroutine]() is the no-dep approach per D-96 (avoids adding
 // go.uber.org/goleak as a test-only dep).
 //
 // IN-02 (round 3) — accepted design choice: a deterministic alternative
@@ -228,7 +228,7 @@ func TestMemoryCache_TTLEviction(t *testing.T) {
 // goroutines.
 //
 // IN-02 (round 3) — accepted design choice: the concurrent-close
-// subtest uses runtime.NumGoroutine() because the 100-goroutine pile-up
+// subtest uses [runtime.NumGoroutine]() because the 100-goroutine pile-up
 // has no per-goroutine completion signal short of waiting on sweepDone
 // (which would only confirm the sweeper exited once, not that 100
 // concurrent Close calls all completed). The wg.Wait() already locks

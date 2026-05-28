@@ -1,4 +1,4 @@
-// Package openholidays — HTTP RoundTripper decorators.
+// HTTP RoundTripper decorators.
 //
 // This file ships two unexported http.RoundTripper structs that compose
 // Phase 2's HTTP middleware chain (D-29):
@@ -21,6 +21,7 @@
 // Neither transport is exported. Endpoint methods consume the chain via the
 // *http.Client returned by composeHTTPClient (Phase 2 plan 02 wires the
 // chain into Client construction).
+
 package openholidays
 
 import (
@@ -41,12 +42,12 @@ import (
 //     (caller override wins per D-30 / TRANS-01).
 //
 // Implementation note: RoundTrip deep-copies the inbound request via
-// req.Clone(req.Context()) BEFORE any header mutation. The http.RoundTripper
+// req.Clone(req.Context()) BEFORE any header mutation. The [http.RoundTripper]
 // contract (pkg.go.dev/net/http#RoundTripper) requires that RoundTrip not
-// modify the request, and req.Header is a shared http.Header map across
+// modify the request, and req.Header is a shared [http.Header] map across
 // shallow copies (req.WithContext does NOT deep-copy it); only req.Clone
 // produces a deep-copied Header map. Mutating the caller's req.Header would
-// otherwise race with concurrent reuse of the same *http.Request (Pitfall
+// otherwise race with concurrent reuse of the same *[http.Request] (Pitfall
 // HTTP-2).
 type headerTransport struct {
 	userAgent string
@@ -67,7 +68,7 @@ func (h *headerTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	return h.next.RoundTrip(reqCopy)
 }
 
-// loggingTransport emits a single slog.LevelDebug record per HTTP round trip
+// loggingTransport emits a single [slog.LevelDebug] record per HTTP round trip
 // carrying the six OBS-02 structured fields.
 //
 // Fields (D-31 / OBS-02):
@@ -76,7 +77,7 @@ func (h *headerTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 //   - path:        req.URL.Path (no host, no query — host is fixed per
 //     Client; query is omitted to avoid leaking parameters at Debug).
 //   - status:      resp.StatusCode, or -1 when resp is nil (network failure).
-//   - duration_ms: time.Since(start).Milliseconds(), int64.
+//   - duration_ms: [time.Since](start).Milliseconds(), int64.
 //   - attempt:     hardcoded to 1 in Phase 2. Phase 3's retry transport will
 //     inject a per-attempt counter via a context value; loggingTransport
 //     will then read it from req.Context().
@@ -87,14 +88,14 @@ func (h *headerTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 //     0). Returns -1 when resp is nil.
 //
 // Response body invariant (OBS-01, Pitfall OBS-1): RoundTrip MUST NOT call
-// Read, io.ReadAll, or io.Copy on the response body. Doing so would consume
+// Read, [io.ReadAll], or [io.Copy] on the response body. Doing so would consume
 // bytes before the endpoint decoder runs and risks leaking payload data into
 // operator logs via a downstream handler that elevates Debug records. The
 // unit test transport_logging_test.go::TestLoggingTransport_RoundTrip
 // mechanically asserts this via a trackedReader whose Read counter must
 // remain at zero after RoundTrip.
 //
-// Level invariant (OBS-01): the record is emitted at slog.LevelDebug only.
+// Level invariant (OBS-01): the record is emitted at [slog.LevelDebug] only.
 // No other level appears in this file.
 type loggingTransport struct {
 	logger *slog.Logger

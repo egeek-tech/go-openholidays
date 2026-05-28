@@ -1,4 +1,4 @@
-// Package openholidays — Subdivisions endpoint method.
+// Subdivisions endpoint method.
 //
 // This file ships only the Subdivisions endpoint method and its associated
 // SubdivisionsRequest type. The HTTP-and-decode pipeline lives in request.go's
@@ -8,6 +8,7 @@
 //
 // File scope is intentionally narrow (D-64): the SubdivisionsRequest type
 // and the endpoint method (≤ 30 lines). No HTTP plumbing is duplicated here.
+
 package openholidays
 
 import (
@@ -52,10 +53,10 @@ type SubdivisionsRequest struct {
 // Children slice referencing the same Subdivision type.
 //
 // Per-request timeout: when the Client was constructed with WithTimeout(d)
-// and d > 0, Subdivisions wraps ctx via context.WithTimeout(ctx, d) before
+// and d > 0, Subdivisions wraps ctx via [context.WithTimeout](ctx, d) before
 // dispatching. Cancellation of the caller's ctx interrupts the in-flight
-// HTTP within ≤ 100 ms (CLIENT-09); errors.Is(err, context.Canceled) holds
-// through the fmt.Errorf %w wrap returned on transport-level failures.
+// HTTP within ≤ 100 ms (CLIENT-09); [errors.Is](err, [context.Canceled]) holds
+// through the [fmt.Errorf] %w wrap returned on transport-level failures.
 //
 // Error handling:
 //
@@ -67,11 +68,11 @@ type SubdivisionsRequest struct {
 //   - 4xx and 5xx upstream responses produce *APIError with the StatusCode,
 //     a parsed Message (RFC 7807 ProblemDetails priority: detail → title →
 //     error), and the raw response body capped at 4 KiB (Phase 1 D-17).
-//     Use errors.As(err, &apiErr) to recover the populated value.
-//   - 2xx with an empty body returns an error that errors.Is matches against
+//     Use [errors.As](err, &apiErr) to recover the populated value.
+//   - 2xx with an empty body returns an error that [errors.Is] matches against
 //     ErrEmptyResponse.
 //   - Upstream responses exceeding the 10 MiB cap return an error that
-//     errors.Is matches against ErrResponseTooLarge.
+//     [errors.Is] matches against ErrResponseTooLarge.
 //   - JSON decode failures wrap the underlying error with the
 //     "openholidays: decode /Subdivisions: " prefix.
 //

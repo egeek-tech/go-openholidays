@@ -1,8 +1,9 @@
-// Package openholidays — Date type for calendar dates (no timezone).
+// Date type for calendar dates (no timezone).
 //
 // This file implements the custom Date wrapper that every Holiday.StartDate
 // and Holiday.EndDate field will use. Date is the foundational type for all
 // subsequent Phase 1 work beyond errors.
+
 package openholidays
 
 import (
@@ -20,18 +21,18 @@ const dateLayout = "2006-01-02"
 // errEmptyDate signals an empty or null date payload during JSON decode.
 // It is intentionally unexported so the public sentinel surface remains at
 // the locked size (D-06): external callers cannot pivot on this identity.
-// Use errors.Is internally only.
+// Use [errors.Is] internally only.
 var errEmptyDate = errors.New("openholidays: empty date string")
 
 // Date is a calendar date (no timezone) returned by the OpenHolidays API.
 //
-// Internally, Date wraps a time.Time normalized to UTC midnight so the
-// embedded time.Time methods (Year, Month, Day, Format, IsZero, ...) work
+// Internally, Date wraps a [time.Time] normalized to UTC midnight so the
+// embedded [time.Time] methods (Year, Month, Day, Format, IsZero, ...) work
 // naturally without timezone surprises. Construct a Date via NewDate or
 // ParseDate, or decode one from a JSON "YYYY-MM-DD" string via the standard
 // encoding/json package.
 //
-// The zero Date{} represents January 1 of year 1 (matching the time.Time
+// The zero Date{} represents January 1 of year 1 (matching the [time.Time]
 // zero), and round-trips to the JSON literal "0001-01-01". Use IsZero to
 // distinguish a populated Date from an absent one.
 type Date struct {
@@ -39,7 +40,7 @@ type Date struct {
 }
 
 // NewDate constructs a Date at UTC midnight on the given calendar year,
-// month, and day. The returned Date.Location() is always time.UTC and the
+// month, and day. The returned Date.Location() is always [time.UTC] and the
 // time-of-day fields (Hour, Minute, Second, Nanosecond) are all zero.
 func NewDate(year int, month time.Month, day int) Date {
 	return Date{time.Date(year, month, day, 0, 0, 0, 0, time.UTC)}
@@ -49,7 +50,7 @@ func NewDate(year int, month time.Month, day int) Date {
 // UTC-midnight Date.
 //
 // An empty string returns an error wrapping the internal empty-date sentinel.
-// Malformed input returns a wrapped time.Parse error containing the offending
+// Malformed input returns a wrapped [time.Parse] error containing the offending
 // value in quoted form for diagnostics.
 func ParseDate(s string) (Date, error) {
 	if s == "" {
@@ -64,7 +65,7 @@ func ParseDate(s string) (Date, error) {
 
 // MarshalJSON emits the Date as a JSON string in YYYY-MM-DD form.
 //
-// The zero Date{} round-trips to "0001-01-01" — symmetric with time.Time's
+// The zero Date{} round-trips to "0001-01-01" — symmetric with [time.Time]'s
 // MarshalJSON semantics. Callers detect missing dates via Date.IsZero, not
 // by checking against the marshaled string.
 func (d Date) MarshalJSON() ([]byte, error) {
@@ -82,7 +83,7 @@ func (d Date) MarshalJSON() ([]byte, error) {
 // an error wrapping the internal empty-date sentinel — silent zero values
 // are not produced. Non-string JSON tokens (numbers, booleans, objects, ...)
 // return a "must be a JSON string" error with the offending bytes echoed
-// for diagnostics. Malformed date strings return a wrapped time.Parse error.
+// for diagnostics. Malformed date strings return a wrapped [time.Parse] error.
 //
 // On success, the receiver is replaced with a UTC-midnight Date.
 func (d *Date) UnmarshalJSON(b []byte) error {
@@ -106,8 +107,8 @@ func (d *Date) UnmarshalJSON(b []byte) error {
 
 // String returns the Date in YYYY-MM-DD form.
 //
-// This shadows the embedded time.Time.String() method to avoid the noisy
-// "0001-01-01 00:00:00 +0000 UTC" format that time.Time produces by default;
+// This shadows the embedded [time.Time].String() method to avoid the noisy
+// "0001-01-01 00:00:00 +0000 UTC" format that [time.Time] produces by default;
 // the YYYY-MM-DD shape matches the JSON wire format and is friendlier in
 // CLI table output.
 func (d Date) String() string {
@@ -118,7 +119,7 @@ func (d Date) String() string {
 //
 // Both operands are defensively normalized to UTC midnight before comparison
 // so a Date constructed outside NewDate/ParseDate (for example via a struct
-// literal with a non-UTC time.Time) still compares calendar-correctly.
+// literal with a non-UTC [time.Time]) still compares calendar-correctly.
 func (d Date) Equal(other Date) bool {
 	return d.toUTCMidnight().Equal(other.toUTCMidnight())
 }
@@ -164,7 +165,7 @@ func (d Date) DaysUntil(other Date) int {
 }
 
 // toUTCMidnight is the canonical normalization used by every comparison
-// method on Date. It rebuilds the time.Time at UTC midnight using only the
+// method on Date. It rebuilds the [time.Time] at UTC midnight using only the
 // Year/Month/Day fields of the receiver, defensively erasing any timezone
 // or time-of-day component that external code might have introduced via a
 // Date{} struct literal.

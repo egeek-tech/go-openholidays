@@ -1,4 +1,4 @@
-// Package openholidays — shared HTTP-and-decode pipeline used by every
+// shared HTTP-and-decode pipeline used by every
 // endpoint method.
 //
 // This file ships the single, generic helper doJSONGet[T any] that
@@ -9,6 +9,7 @@
 // the maxResponseBytes / apiErrorBodyCap constants live here too — their
 // natural home is the shared pipeline, not the Countries-specific endpoint
 // file.
+
 package openholidays
 
 import (
@@ -37,12 +38,12 @@ const apiErrorBodyCap = 4 << 10
 // returns it. It encapsulates the Phase 2 D-41..D-45 + D-24 pipeline:
 //
 //   - nil-ctx defensive guard
-//   - per-request context.WithTimeout(ctx, c.timeout) when timeout > 0
-//   - http.NewRequestWithContext + req.URL.RawQuery = q.Encode()
+//   - per-request [context.WithTimeout](ctx, c.timeout) when timeout > 0
+//   - [http.NewRequestWithContext] + req.URL.RawQuery = q.Encode()
 //   - c.http.Do dispatch through the RoundTripper chain
 //   - deferred drain-then-close (10 MiB cap on the drain itself)
 //   - 4xx/5xx → *APIError via buildAPIError(resp, path)
-//   - 2xx + empty body → fmt.Errorf("...: %w", ErrEmptyResponse)
+//   - 2xx + empty body → [fmt.Errorf]("...: %w", ErrEmptyResponse)
 //   - mid-truncation gate (limited.N == 0 + decode error) → ErrResponseTooLarge
 //   - boundary-truncation gate (decoder.More() == true) → ErrResponseTooLarge
 //
@@ -276,8 +277,8 @@ func doJSONGet[T any](ctx context.Context, c *Client, path string, q url.Values)
 	return out, nil
 }
 
-// buildAPIError constructs an *APIError from a non-2xx *http.Response. The
-// upstream body is read via io.LimitReader so APIError.Body never exceeds
+// buildAPIError constructs an *APIError from a non-2xx *[http.Response]. The
+// upstream body is read via [io.LimitReader] so APIError.Body never exceeds
 // apiErrorBodyCap (4 KiB, Phase 1 D-17). Message is parsed best-effort via
 // parseAPIMessage; an unparseable body yields an empty Message and the
 // Error() output omits the suffix.
@@ -298,14 +299,14 @@ func buildAPIError(resp *http.Response, path string) *APIError {
 // validateHolidays runs the post-decode Holiday schema-drift checks
 // mandated by D-65 / CL-12 / Pitfall JSON-4. The function returns nil when
 // every Holiday in hs satisfies the invariants, or the first violation
-// wrapped via fmt.Errorf %w against ErrMalformedResponse.
+// wrapped via [fmt.Errorf] %w against ErrMalformedResponse.
 //
 // Invariants enforced (per holiday):
 //
 //   - h.StartDate.IsZero() == false. A zero Date corresponds to the
-//     time.Time zero value (Pitfall JSON-4) and would silently masquerade
+//     [time.Time] zero value (Pitfall JSON-4) and would silently masquerade
 //     as a valid 0001-01-01 calendar date downstream. Reject loudly here
-//     so callers can branch with errors.Is(err, ErrMalformedResponse).
+//     so callers can branch with [errors.Is](err, ErrMalformedResponse).
 //   - h.EndDate.IsZero() == false. Same rationale as StartDate; the
 //     upstream OpenAPI spec marks both as required so any zero EndDate
 //     is upstream schema drift.

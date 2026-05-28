@@ -47,10 +47,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// fakeNetError is a test-only net.Error implementation used to drive
-// shouldRetry's net.Error.Timeout() branch (D-75). The Timeout() flag
+// fakeNetError is a test-only [net.Error] implementation used to drive
+// shouldRetry's [net.Error].Timeout() branch (D-75). The Timeout() flag
 // is the only field that matters for the retry matrix; Temporary() is
-// deprecated but still part of the net.Error interface so it returns
+// deprecated but still part of the [net.Error] interface so it returns
 // false (a non-temporary timeout is still retryable per D-75).
 type fakeNetError struct{ timeout bool }
 
@@ -58,8 +58,8 @@ func (e *fakeNetError) Error() string   { return "fake net error" }
 func (e *fakeNetError) Timeout() bool   { return e.timeout }
 func (e *fakeNetError) Temporary() bool { return false }
 
-// newTestRand builds a deterministic rand.Rand for the helper tests via
-// rand.NewChaCha8 with a fixed 32-byte seed. Test isolation matters
+// newTestRand builds a deterministic [rand.Rand] for the helper tests via
+// [rand.NewChaCha8] with a fixed 32-byte seed. Test isolation matters
 // more than entropy here — the same seed across runs produces the same
 // jitter sequence, so range assertions (lower ≤ got < upper) are
 // stable.
@@ -74,8 +74,8 @@ func newTestRand() *rand.Rand {
 }
 
 // TestShouldRetry locks the D-75 retryable-conditions matrix verbatim.
-// Eight+ cases: HTTP statuses (true and false branches), net.Error
-// timeout (true), syscall.ECONNRESET (true), raw ctx errors (false —
+// Eight+ cases: HTTP statuses (true and false branches), [net.Error]
+// timeout (true), [syscall.ECONNRESET] (true), raw ctx errors (false —
 // shouldRetry must never claim to retry these), defensive nil-pair
 // (false).
 func TestShouldRetry(t *testing.T) {
@@ -227,7 +227,7 @@ func TestParseRetryAfter(t *testing.T) {
 // TestComputeBackoff locks the full-jitter formula at three attempt
 // counts: attempt=0 (capped at baseDelay), attempt=3 (capped at
 // baseDelay << 3 < maxWait), and a Retry-After-only test in
-// TestComputeBackoff_HonorsRetryAfter. The deterministic rand.Rand
+// TestComputeBackoff_HonorsRetryAfter. The deterministic [rand.Rand]
 // seed makes the upper-bound assertion stable.
 func TestComputeBackoff(t *testing.T) {
 	t.Parallel()
@@ -459,8 +459,8 @@ func TestRetry_HonorsRetryAfterDate(t *testing.T) {
 // TestRetry_CtxCancel verifies RESIL-04 + CLIENT-09 ≤ 100 ms
 // cancellation contract: a ctx canceled BEFORE the retry loop runs
 // causes the very first c.http.Do(req) to return ctx.Err(), and the
-// post-loop wrap surfaces an error matching errors.Is(err,
-// context.Canceled).
+// post-loop wrap surfaces an error matching [errors.Is](err,
+// [context.Canceled]).
 //
 // Two pathways are tested:
 //
@@ -559,7 +559,7 @@ func TestRetry_CtxCancel(t *testing.T) {
 
 // TestRetry_NeverRetriesCtxErrors is the direct verification of D-75
 // "ctx errors NEVER retried": shouldRetry must return false for both
-// context.Canceled and context.DeadlineExceeded passed as raw errors.
+// [context.Canceled] and [context.DeadlineExceeded] passed as raw errors.
 // This is a pure-function test — no HTTP path — that locks the
 // shouldRetry contract on its own.
 //
