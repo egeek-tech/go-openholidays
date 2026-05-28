@@ -172,6 +172,67 @@ func TestDate_UnmarshalJSON(t *testing.T) {
 		assert.Contains(t, err.Error(), `openholidays: invalid date "not-a-date"`)
 		assert.True(t, d.IsZero())
 	})
+
+	t.Run("non_string_token_bounded_in_error_short_input", func(t *testing.T) {
+		// IN-05 follow-up: short non-string tokens echo as-is.
+		t.Parallel()
+		var d Date
+		err := d.UnmarshalJSON([]byte("12345"))
+		require.Error(t, err)
+		msg := err.Error()
+		assert.Contains(t, msg, "date must be a JSON string")
+		assert.Contains(t, msg, "12345",
+			"short caller input must be echoed verbatim")
+		assert.NotContains(t, msg, "truncated",
+			"short input must not carry a truncation suffix")
+		assert.True(t, d.IsZero())
+	})
+
+	t.Run("non_string_token_bounded_in_error_oversized_input", func(t *testing.T) {
+		// IN-05 follow-up: oversized non-string tokens are capped and
+		// labeled with the total byte count.
+		t.Parallel()
+		oversized := make([]byte, 200)
+		for i := range oversized {
+			oversized[i] = 'A'
+		}
+		var d Date
+		err := d.UnmarshalJSON(oversized)
+		require.Error(t, err)
+		msg := err.Error()
+		assert.Contains(t, msg, "date must be a JSON string")
+		assert.Contains(t, msg, "(truncated, 200 total bytes)",
+			"oversized caller input must be labeled with byte count")
+		// 200 bytes of 'A' must not all appear in the error string.
+		assert.NotContains(t, msg, string(oversized),
+			"oversized caller input must not be echoed in full")
+		assert.True(t, d.IsZero())
+	})
+
+	t.Run("non_string_token_non_printable_bytes_sanitized", func(t *testing.T) {
+		// IN-05 follow-up: non-printable bytes (NUL, control codes, raw
+		// binary, multi-byte UTF-8) are replaced with '?' before reaching
+		// the operator-visible error string. This protects log integrity
+		// when a caller invokes UnmarshalJSON directly with attacker-
+		// controlled bytes.
+		t.Parallel()
+		// 0x00 (NUL), 0x01 (SOH), 0x7F (DEL), 0xFF (out of 7-bit ASCII).
+		nonPrintable := []byte{0x00, 0x01, 0x7F, 0xFF}
+		var d Date
+		err := d.UnmarshalJSON(nonPrintable)
+		require.Error(t, err)
+		msg := err.Error()
+		assert.Contains(t, msg, "date must be a JSON string")
+		// The exact substring "????" must appear: four masked bytes.
+		assert.Contains(t, msg, "????",
+			"non-printable bytes must be replaced with '?'")
+		// Defense: literal control codes must not survive into the message.
+		for _, c := range nonPrintable {
+			assert.NotContains(t, msg, string([]byte{c}),
+				"non-printable byte 0x%02x must not appear verbatim", c)
+		}
+		assert.True(t, d.IsZero())
+	})
 }
 
 func TestDate_String(t *testing.T) {

@@ -91,7 +91,7 @@ func (d *Date) UnmarshalJSON(b []byte) error {
 		return fmt.Errorf("openholidays: null is not a valid date: %w", errEmptyDate)
 	}
 	if len(b) < 2 || b[0] != '"' || b[len(b)-1] != '"' {
-		return fmt.Errorf("openholidays: date must be a JSON string, got %s", b)
+		return fmt.Errorf("openholidays: date must be a JSON string, got %s", truncateForError(b, 64))
 	}
 	s := string(b[1 : len(b)-1])
 	if s == "" {
@@ -171,4 +171,50 @@ func (d Date) DaysUntil(other Date) int {
 // Date{} struct literal.
 func (d Date) toUTCMidnight() time.Time {
 	return time.Date(d.Year(), d.Month(), d.Day(), 0, 0, 0, 0, time.UTC)
+}
+
+// truncateForError returns a byte-bounded, printable-only representation of b
+// suitable for echoing into an operator-visible error string.
+//
+// When len(b) <= maxBytes the value is returned as-is with non-printable
+// bytes replaced by '?'. When len(b) > maxBytes the first maxBytes bytes
+// are returned with the same printable-only filter, followed by the
+// suffix " (truncated, N total bytes)" where N is the original length.
+//
+// This bounds the error-string size so a hostile caller invoking
+// UnmarshalJSON directly with attacker-controlled bytes cannot inflate the
+// error message without limit, and protects operator log integrity by
+// keeping non-printable bytes (NUL, control codes, raw binary) out of the
+// rendered string. encoding/json already bounds upstream token size in
+// practice, so this is a defense-in-depth measure aligned with the ERR-04
+// "never echo unbounded caller input into operator-visible strings"
+// principle (see PROJECT.md Conventions / IN-05 follow-up).
+func truncateForError(b []byte, maxBytes int) string {
+	if maxBytes <= 0 {
+		return ""
+	}
+	if len(b) <= maxBytes {
+		return string(sanitizeForError(b))
+	}
+	return string(sanitizeForError(b[:maxBytes])) +
+		fmt.Sprintf(" (truncated, %d total bytes)", len(b))
+}
+
+// sanitizeForError replaces non-printable ASCII bytes (anything outside the
+// 0x20..0x7E range) with '?'. Multi-byte UTF-8 sequences are also masked
+// because we cannot guarantee their downstream rendering is safe in
+// operator logs, and the input that lands here is by definition malformed
+// JSON for a date (encoding/json hands us a JSON token; non-string tokens
+// reach this branch). Returns a fresh slice; the input slice is not
+// mutated.
+func sanitizeForError(b []byte) []byte {
+	out := make([]byte, len(b))
+	for i, c := range b {
+		if c < 0x20 || c > 0x7E {
+			out[i] = '?'
+			continue
+		}
+		out[i] = c
+	}
+	return out
 }
