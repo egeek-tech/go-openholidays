@@ -179,8 +179,8 @@ None — no external service configuration. The Codecov `use_oidc: true` path wo
   - All three jobs green across the matrix.
   - Coverage stays ≥ 85% on the stable leg (current local measurement under `go test -race -coverprofile`: should comfortably clear; needs the first CI run to confirm against the canonical Go version).
   - govulncheck reports no advisories.
-- Plan 05-06 (Dependabot + finalization) can land next; the action versions pinned in `ci.yml` (`@v4`/`@v5`/`@v7`/`@v1`) are the Dependabot tracking targets.
-- Plan 05-08 (release workflow) reuses the same action version policy (checkout@v4, setup-go@v5) established here.
+- Plan 05-06 (Dependabot + finalization) can land next; the action versions pinned in `ci.yml` at this plan's commit time (checkout@v4, setup-go@v5, codecov-action@v5, golangci-lint-action@v7, govulncheck-action@v1) are the initial Dependabot tracking targets. Dependabot has since advanced several majors; see `.github/dependabot.yml` and PROJECT.md CL-18 for the up-to-date policy.
+- Plan 05-08 (release workflow) reuses the same action-version policy established here: Dependabot is the authoritative source for current pins.
 
 ## Self-Check: PASSED
 

@@ -5,14 +5,14 @@
 #   - test: matrix on Go 1.23.x, 1.24.x, stable x ubuntu-latest. Runs
 #     go vet + go build + go test -race -coverprofile. On the stable leg
 #     additionally verifies `go mod tidy` is clean (CI-03), enforces the
-#     85% coverage gate (TEST-10), and uploads to Codecov via @v5 OIDC
+#     85% coverage gate (TEST-10), and uploads to Codecov via OIDC
 #     (CI-07 / D-09).
 #   - lint: golangci-lint v2.12.2 against the committed .golangci.yml.
 #   - vuln: govulncheck against the full module.
 #
-# Action versions pinned per Phase 5 RESEARCH Source-current notes:
-# checkout@v4, setup-go@v5, codecov-action@v5, golangci-lint-action@v7,
-# govulncheck-action@v1.
+# Action versions in this file are kept fresh by Dependabot (.github/dependabot.yml).
+# Current pins: checkout@v6, setup-go@v6, codecov-action@v6,
+# golangci-lint-action@v7, govulncheck-action@v1.
 #
 # Workflow-controlled inputs only: every `${{ ... }}` reference resolves
 # to matrix entries or first-party action outputs. No untrusted

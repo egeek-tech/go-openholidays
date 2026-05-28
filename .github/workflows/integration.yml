@@ -20,8 +20,9 @@
 # step is the literal OPENHOLIDAYS_LIVE: "1" gate. No command-injection
 # surface present per the GitHub Actions security guide.
 #
-# Action versions pinned per Phase 5 RESEARCH Source-current notes:
-# actions/checkout@v4, actions/setup-go@v5.
+# Action versions in this file are kept fresh by Dependabot
+# (see .github/dependabot.yml). Current pins:
+#   actions/checkout@v6, actions/setup-go@v6.
 name: Integration (nightly)
 
 on:

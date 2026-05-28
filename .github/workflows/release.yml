@@ -30,9 +30,10 @@
 # default GITHUB_TOKEN scoped by the top-level permissions: block. No
 # `github.event.*` references, no head_ref, no author-controlled values.
 #
-# Action versions pinned per Phase 5 RESEARCH Source-current notes:
-# actions/checkout@v4, actions/setup-go@v5, goreleaser/goreleaser-action@v6,
-# actions/attest-build-provenance@v4.
+# Action versions in this file are kept fresh by Dependabot
+# (see .github/dependabot.yml). Current pins:
+#   actions/checkout@v6, actions/setup-go@v6,
+#   goreleaser/goreleaser-action@v7, actions/attest-build-provenance@v4.
 name: Release
 
 on:
