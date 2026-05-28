@@ -83,15 +83,22 @@ var allowedVars = map[string]struct{}{
 
 // skipDirs are directory names anywhere in the walk that the audit skips.
 // Phase 1 has none of these subdirectories, but later phases will add
-// internal/, cmd/, testdata/, and the planning/git trees should never be
-// scanned. Defensive: the allowlist-only audit catches future regressions
-// without modification.
+// cmd/, testdata/, and the planning/git trees should never be scanned.
+// Defensive: the allowlist-only audit catches future regressions without
+// modification.
+//
+// IN-05 follow-up: "internal" was previously listed here as a defensive
+// skip, but doing so pre-emptively defeated CLIENT-10 for any future
+// internal/ package. With "internal" removed, the audit will fail the
+// day a non-allowlisted package-level var lands under internal/ —
+// which is exactly the moment the maintainer should review (see
+// CONTEXT.md D-34 / RESEARCH.md Pitfall 6). Empty-cost change: no
+// internal/ package exists yet.
 var skipDirs = map[string]struct{}{
 	".planning": {},
 	".git":      {},
 	".claude":   {},
 	"testdata":  {},
-	"internal":  {},
 }
 
 // TestNoInitOrGlobalState walks every production *.go file in the repo and
