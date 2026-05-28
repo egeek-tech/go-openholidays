@@ -92,7 +92,7 @@
   - [x] 04-02-PLAN.md — Strict decoding + Client field plumbing: extends Client struct with 8 Phase 4 fields (closeOnce, nowFunc, sleepFunc, rand, strict, cache, requestHook, retry); declares Cache interface + RequestHookFunc + retryConfig stub; ships WithStrictDecoding(bool); adds ctxSleep + newClientRand helpers + newClientForTest seam (D-91/D-92/D-94/D-78/D-85)
   - [x] 04-03-PLAN.md — Retry layer (retry.go): retryConfig (filled), shouldRetry, parseRetryAfter, computeBackoff + WithRetry(n, baseDelay) + WithMaxRetryWait(d); wraps c.http.Do inside doJSONGet (D-77 + RESIL-05); 10 tests (TestShouldRetry, TestParseRetryAfter, TestComputeBackoff, TestRetry_E2E_429Then500Then200, TestRetry_HonorsRetryAfter[Seconds|Date], TestRetry_CtxCancel, TestRetry_NeverRetriesCtxErrors, TestRetry_DeterministicClock, TestRetry_NotARoundTripper)
   - [x] 04-04-PLAN.md — Cache layer (cache.go + transport_cache.go): MemoryCache + NewMemoryCache + sweeper goroutine + cacheTransport + isCacheablePath + CacheHitContextKey; WithCache(ttl) + WithCacheBackend(c Cache); buildTransport edit (cache above logging); allowedVars adds CacheHitContextKey (DEVIATION from CONTEXT.md D-97 step 6); composition tests for sweeper-stop, strict+cache, default-off, per-Client isolation (RESIL-06..09 + CLIENT-08 full wiring)
-  - [ ] 04-05-PLAN.md — Hook RoundTripper (transport_hook.go): hookTransport (outermost per D-89) + WithRequestHook(fn); buildTransport edit (hook outermost when cfg.hook != nil); composition tests for fires-per-attempt, sees-cache-hits, does-not-fire-on-decode-error, panic-propagates (TRANS-05)
+  - [x] 04-05-PLAN.md — Hook RoundTripper (transport_hook.go): hookTransport (outermost per D-89) + WithRequestHook(fn); buildTransport edit (hook outermost when cfg.hook != nil); composition tests for fires-per-attempt, sees-cache-hits, does-not-fire-on-decode-error, panic-propagates (TRANS-05)
   - [ ] 04-06-PLAN.md — PROJECT.md Key Decisions append: CL-15 (Cache public surface) + CL-16 (strict-decoding immutability); DEVIATION from CONTEXT.md D-80 wording — Phase 3 already took CL-14, so cache uses CL-15 and strict uses CL-16
 
 ### Phase 5: Distribution
@@ -116,7 +116,7 @@
 | 1. Foundation | 6/6 | Complete   | 2026-05-27 |
 | 2. Transport | 4/4 | Complete   | 2026-05-27 |
 | 3. Endpoints & Helpers | 11/11 | Complete   | 2026-05-27 |
-| 4. Resilience | 4/6 | In Progress|  |
+| 4. Resilience | 5/6 | In Progress|  |
 | 5. Distribution | 0/0 | Not started | - |
 
 ---
