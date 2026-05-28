@@ -1,0 +1,129 @@
+//go:build integration
+
+// Package openholidays — live-API integration tests for TEST-08.
+//
+// This file is compiled only when -tags=integration is supplied to go test
+// AND has effect only when OPENHOLIDAYS_LIVE=1 is also set. Both gates must
+// be true to issue any HTTP request to the live upstream; either being unset
+// causes the test to skip silently (compile-time exclusion in the first
+// case, runtime t.Skip in the second). The double gate exactly mirrors
+// update_fixtures_test.go and the D-67 / D-68 design captured in
+// .planning/phases/03-endpoints-helpers/03-CONTEXT.md.
+//
+// Purpose — surface upstream API drift (schema changes, new fields, removed
+// endpoints, holiday-list adjustments) on a nightly cadence rather than at
+// v0.1.0 release time. The Phase 3 golden fixtures define the expected
+// shape; these integration tests assert the live API still matches.
+//
+// Two assertions captured here, both anchored to Phase 3 golden fixtures
+// (testdata/public_holidays_pl_2025.json,
+// testdata/school_holidays_pl_2025.json):
+//
+//   - PL 2025 public holidays: exactly 14 entries (incl. the new
+//     2025-12-24 Wigilia entry that landed upstream in 2025).
+//   - PL 2025 school-holiday periods: exactly 7 (4 staggered ferie zimowe
+//     cohorts + wiosenna przerwa świąteczna + ferie letnie + zimowa przerwa
+//     świąteczna).
+//
+// Canonical run command — exercise live API against the golden assertions:
+//
+//	OPENHOLIDAYS_LIVE=1 go test -tags=integration -count=1 -timeout=5m ./...
+//
+// The nightly integration.yml workflow (Plan 06) supplies both gates. Local
+// developers running the default `go test ./...` see no live calls.
+//
+// Pitfall 1 enforcement — uses context.Background() + context.WithTimeout
+// instead of the Go 1.24 testing context helper. The newer helper was
+// added in Go 1.24 and would break the project's Go 1.23 CI matrix leg.
+// See .planning/phases/05-distribution/05-RESEARCH.md §"Common Pitfalls →
+// Pitfall 1".
+
+package openholidays
+
+import (
+	"context"
+	"os"
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/require"
+)
+
+// TestIntegration_PublicHolidays_PL_2025 exercises Client.PublicHolidays
+// against the live OpenHolidays API and asserts the Phase 3 golden truth
+// that PL 2025 has exactly 14 public holidays. Drift in this count
+// indicates the upstream schema or the PL public-holiday list changed and
+// requires investigation before the next release.
+//
+// Skips silently when OPENHOLIDAYS_LIVE != "1" so a developer who supplies
+// -tags=integration without setting the env var does not accidentally hit
+// the live API.
+//
+// Not parallelized — live-API tests serialize against the public free
+// upstream to avoid any chance of overlapping requests stressing the
+// volunteer-run service.
+func TestIntegration_PublicHolidays_PL_2025(t *testing.T) {
+	if os.Getenv("OPENHOLIDAYS_LIVE") != "1" {
+		t.Skip("OPENHOLIDAYS_LIVE not set; skipping live-API integration test")
+	}
+
+	c := NewClient(WithTimeout(15 * time.Second))
+	t.Cleanup(func() { _ = c.Close() })
+
+	// context.Background() + context.WithTimeout — pinned to a non-Go-1.24
+	// API surface to keep the Go 1.23 CI leg green (Pitfall 1).
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	t.Cleanup(cancel)
+
+	t.Run("14 public holidays for PL 2025", func(t *testing.T) {
+		hs, err := c.PublicHolidays(ctx, PublicHolidaysRequest{
+			CountryIsoCode: "PL",
+			ValidFrom:      NewDate(2025, time.January, 1),
+			ValidTo:        NewDate(2025, time.December, 31),
+		})
+		require.NoError(t, err)
+		require.Len(t, hs, 14,
+			"PL 2025 has 14 public holidays per Phase 3 golden fixture — "+
+				"if this fails the upstream schema or PL holiday list drifted")
+	})
+}
+
+// TestIntegration_SchoolHolidays_PL_2025 exercises Client.SchoolHolidays
+// against the live OpenHolidays API and asserts the Phase 3 golden truth
+// that PL 2025 has exactly 7 school-holiday periods (4 staggered ferie
+// zimowe cohorts + wiosenna przerwa świąteczna + ferie letnie + zimowa
+// przerwa świąteczna). Drift in this count indicates the upstream schema
+// or the PL school-holiday calendar changed and requires investigation
+// before the next release.
+//
+// Skips silently when OPENHOLIDAYS_LIVE != "1" so a developer who supplies
+// -tags=integration without setting the env var does not accidentally hit
+// the live API.
+//
+// Not parallelized — live-API tests serialize against the public free
+// upstream to avoid any chance of overlapping requests stressing the
+// volunteer-run service.
+func TestIntegration_SchoolHolidays_PL_2025(t *testing.T) {
+	if os.Getenv("OPENHOLIDAYS_LIVE") != "1" {
+		t.Skip("OPENHOLIDAYS_LIVE not set; skipping live-API integration test")
+	}
+
+	c := NewClient(WithTimeout(15 * time.Second))
+	t.Cleanup(func() { _ = c.Close() })
+
+	// context.Background() + context.WithTimeout — pinned to a non-Go-1.24
+	// API surface to keep the Go 1.23 CI leg green (Pitfall 1).
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	t.Cleanup(cancel)
+
+	t.Run("7 school-holiday periods for PL 2025", func(t *testing.T) {
+		hs, err := c.SchoolHolidays(ctx, SchoolHolidaysRequest{
+			CountryIsoCode: "PL",
+			ValidFrom:      NewDate(2025, time.January, 1),
+			ValidTo:        NewDate(2025, time.December, 31),
+		})
+		require.NoError(t, err)
+		require.Len(t, hs, 7,
+			"PL 2025 has 7 school-holiday periods per Phase 3 golden fixture")
+	})
+}
