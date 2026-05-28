@@ -175,11 +175,21 @@ jobs:
           go-version: stable
           cache: true
 
-      - name: Run golangci-lint (library scope)
+      - name: Run golangci-lint (library scope, all build tags, unlimited issues)
+        # --build-tags=integration so the nightly-only files
+        # (integration_test.go, update_fixtures_test.go) are linted on
+        # every PR instead of falling through to the live integration
+        # workflow that doesn't lint at all.
+        #
+        # --max-issues-per-linter=0 --max-same-issues=0 disable
+        # golangci-lint's default per-linter / per-issue caps (50 / 3).
+        # Caps make a real fail batch look small in the log; with 0/0
+        # CI surfaces every finding in one run so the contributor sees
+        # the complete set and isn't surprised by a follow-up wave.
         uses: golangci/golangci-lint-action@82606bf257cbaff209d206a39f5134f0cfbfd2ee  # v9.2.1
         with:
           version: v2.12.2
-          args: --timeout=5m .
+          args: --timeout=5m --build-tags=integration --max-issues-per-linter=0 --max-same-issues=0 .
 
   ohcli-test:
     name: "ohcli — tests (matrix)"
@@ -237,11 +247,14 @@ jobs:
           go-version: stable
           cache: true
 
-      - name: Run golangci-lint (ohcli scope)
+      - name: Run golangci-lint (ohcli scope, unlimited issues)
+        # See library-lint for the rationale on `--max-issues-per-linter=0
+        # --max-same-issues=0`. No --build-tags here because cmd/ohcli has
+        # no integration-tagged files (only the root library carries them).
         uses: golangci/golangci-lint-action@82606bf257cbaff209d206a39f5134f0cfbfd2ee  # v9.2.1
         with:
           version: v2.12.2
-          args: --timeout=5m ./cmd/ohcli/...
+          args: --timeout=5m --max-issues-per-linter=0 --max-same-issues=0 ./cmd/ohcli/...
 
   ohcli-build:
     name: "ohcli — build + smoke"

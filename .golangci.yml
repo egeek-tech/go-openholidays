@@ -18,6 +18,7 @@ linters:
     - staticcheck
     - gosec
     - revive
+    - godox
     - gocritic
     # HTTP-client SDK criticals — added 2026-05-28. Without bodyclose a
     # missing `defer resp.Body.Close()` leaks sockets in long-lived consumer
@@ -44,6 +45,7 @@ linters:
     - sloglint
     - testifylint
     - thelper
+    - tparallel
     - unconvert
     # unparam: disabled 2026-05-11. 13 findings split between real code
     # smells (dead returns / dead params / a stub `buildLazyModal` whose
