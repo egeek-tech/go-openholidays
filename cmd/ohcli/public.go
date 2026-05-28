@@ -47,7 +47,12 @@ func cmdPublic(ctx context.Context, args []string, stdout, stderr io.Writer) int
 	asJSON := fs.Bool("json", false, "shortcut for --format=json")
 	asCSV := fs.Bool("csv", false, "shortcut for --format=csv")
 
-	if err := fs.Parse(args); err != nil {
+	// Stdlib flag halts at the first non-flag token, so callers writing
+	// `ohcli public PL 2025 --json` would otherwise see --json land in
+	// the positional set. Reorder argv to flags-first form before parsing
+	// so the documented CLI shape `public <country> <year> [--flag]`
+	// works regardless of token order.
+	if err := fs.Parse(reorderArgs(args, map[string]struct{}{"json": {}, "csv": {}})); err != nil {
 		// fs.Parse already wrote the error to stderr via SetOutput.
 		return 2
 	}

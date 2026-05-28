@@ -109,3 +109,77 @@ func newClient() *openholidays.Client {
 // files (public.go / school.go / countries.go) so each subcommand keeps a
 // small, focused implementation with its own flag.FlagSet, validation
 // chain, request construction, and renderer dispatch.
+
+// reorderArgs splits argv into flags-first form so stdlib flag.Parse can
+// consume `ohcli public PL 2025 --json` as well as the equivalent
+// flag-first spelling. The stdlib flag package halts at the first
+// non-flag token, so `[PL 2025 --json]` would otherwise yield NArg=3
+// with --json unparsed. This helper preserves order within each group
+// (flags keep their relative order, positionals keep theirs) so
+// `--region PL-SL` keeps its value paired with its flag name.
+//
+// Recognition rules:
+//   - A token beginning with '-' is a flag. A bare "-" or "--" is
+//     treated as a positional (matches Go's flag package convention).
+//   - A token of the form -name=value is a single self-contained flag.
+//   - A flag of the form -name value (no '=') consumes the next token
+//     as its value when the following arg does not itself start with
+//     '-'. This is how stdlib flag parses non-bool flags
+//     (`--region PL-SL`).
+//   - Bool flags (named in the boolFlags set) consume no value.
+//
+// boolFlags lists the per-FlagSet bool flag names so the helper can
+// distinguish `--json PL` (one bool flag, one positional) from
+// `--region PL` (one flag whose value is PL). For ohcli's three
+// subcommands the bool flags are exactly --json and --csv; --lang,
+// --format, --region are strings.
+func reorderArgs(args []string, boolFlags map[string]struct{}) []string {
+	flags := make([]string, 0, len(args))
+	positionals := make([]string, 0, len(args))
+	for i := 0; i < len(args); i++ {
+		a := args[i]
+		// Bare "-" and "--" are positional per stdlib flag convention,
+		// as are any tokens that do not begin with '-'.
+		if a == "-" || a == "--" || len(a) < 2 || a[0] != '-' {
+			positionals = append(positionals, a)
+			continue
+		}
+		// Self-contained flag of form -name=value.
+		if hasByte(a, '=') {
+			flags = append(flags, a)
+			continue
+		}
+		// Compute the bare flag name (strip leading "-" or "--").
+		name := a
+		for len(name) > 0 && name[0] == '-' {
+			name = name[1:]
+		}
+		// Bool flag — consumes no value.
+		if _, isBool := boolFlags[name]; isBool {
+			flags = append(flags, a)
+			continue
+		}
+		// Non-bool flag — consume the following token as its value when
+		// the next arg is present and does not itself start with '-'.
+		if i+1 < len(args) && len(args[i+1]) > 0 && args[i+1][0] != '-' {
+			flags = append(flags, a, args[i+1])
+			i++
+			continue
+		}
+		// Trailing non-bool flag with no value — let flag.Parse emit the
+		// canonical error (it expects a value).
+		flags = append(flags, a)
+	}
+	return append(flags, positionals...)
+}
+
+// hasByte reports whether s contains the byte b. Inlined here to keep
+// reorderArgs free of strings/bytes imports in the dispatcher file.
+func hasByte(s string, b byte) bool {
+	for i := 0; i < len(s); i++ {
+		if s[i] == b {
+			return true
+		}
+	}
+	return false
+}

@@ -45,7 +45,10 @@ func cmdSchool(ctx context.Context, args []string, stdout, stderr io.Writer) int
 	asJSON := fs.Bool("json", false, "shortcut for --format=json")
 	asCSV := fs.Bool("csv", false, "shortcut for --format=csv")
 
-	if err := fs.Parse(args); err != nil {
+	// Reorder argv to flags-first form so callers can write
+	// `ohcli school PL 2025 --region PL-SL` (positionals first) and have
+	// the --region flag still bind correctly. See reorderArgs in main.go.
+	if err := fs.Parse(reorderArgs(args, map[string]struct{}{"json": {}, "csv": {}})); err != nil {
 		return 2
 	}
 	if fs.NArg() != 2 {
