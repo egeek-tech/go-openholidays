@@ -68,12 +68,23 @@ func TestNewClient(t *testing.T) {
 		require.NotNil(t, c)
 		assert.Equal(t, defaultBaseURL, c.baseURL,
 			"default baseURL must match D-36 / PROJECT.md")
-		assert.Equal(t, "go-openholidays/"+Version, c.userAgent,
-			"default userAgent must be go-openholidays/<Version>")
 		assert.Equal(t, 15*time.Second, c.timeout,
 			"default timeout must be 15s per CLIENT-06 / D-28")
-		require.NotNil(t, c.logger, "default logger must be non-nil (slog.Default())")
 		require.NotNil(t, c.http, "default http client must be non-nil")
+
+		// WR-01 (re-review) follow-up: Client.userAgent and Client.logger
+		// were removed as dead state. The default User-Agent value and
+		// non-nil logger now live exclusively on the transport-chain
+		// decorators built by buildTransport. Walk the chain to assert
+		// the documented defaults are reachable.
+		lt, ok := c.http.Transport.(*loggingTransport)
+		require.True(t, ok, "default chain's outermost layer must be *loggingTransport")
+		require.NotNil(t, lt.logger,
+			"default loggingTransport.logger must be non-nil (slog.Default())")
+		ht, ok := lt.next.(*headerTransport)
+		require.True(t, ok, "default chain must be loggingTransport → headerTransport")
+		assert.Equal(t, "go-openholidays/"+Version, ht.userAgent,
+			"default headerTransport.userAgent must be go-openholidays/<Version>")
 	})
 
 	t.Run("Options compose left-to-right (later wins)", func(t *testing.T) {

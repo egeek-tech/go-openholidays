@@ -18,7 +18,6 @@ import (
 	crand "crypto/rand"
 	"encoding/binary"
 	"hash/fnv"
-	"log/slog"
 	"math/rand/v2"
 	"net/http"
 	"os"
@@ -45,15 +44,17 @@ import (
 //   - rand: per-Client ChaCha8-seeded jitter source (D-78).
 //   - closeOnce: guards cache.Close inside Close (D-85).
 //
-// Note: WithRequestHook stores the hook on cfg.hook only — it is consumed
-// by hookTransport in buildTransport (config.go) and never lives on the
-// Client struct after construction (WR-04 follow-up removed the
-// previously-unread Client.requestHook field).
+// Note: WithRequestHook, WithUserAgent, and WithLogger store their values
+// on cfg only — they are consumed by hookTransport / headerTransport /
+// loggingTransport (constructed in buildTransport, config.go) and never
+// live on the Client struct after construction. WR-04 follow-up removed
+// the previously-unread Client.requestHook field; the WR-01 (re-review)
+// follow-up removed Client.userAgent and Client.logger for the same
+// dead-state reason — the only production readers are the transport
+// decorators, which read from cfg directly.
 type Client struct {
 	http      *http.Client                               // chain-wrapped client built by composeHTTPClient
 	baseURL   string                                     // trailing-slash-trimmed; concatenated with "/EndpointPath"
-	userAgent string                                     // injected by headerTransport when caller request lacks UA
-	logger    *slog.Logger                               // non-nil; passed to loggingTransport
 	timeout   time.Duration                              // 0 disables the SDK-imposed timeout
 	closed    atomic.Bool                                // flipped by Close; reads are race-safe
 	retry     retryConfig                                // D-77; zero-value = disabled
@@ -95,8 +96,6 @@ func NewClient(opts ...Option) *Client {
 	return &Client{
 		http:      composeHTTPClient(cfg),
 		baseURL:   cfg.baseURL,
-		userAgent: cfg.userAgent,
-		logger:    cfg.logger,
 		timeout:   cfg.timeout,
 		retry:     cfg.retry,
 		cache:     cfg.cache,

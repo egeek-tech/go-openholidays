@@ -100,6 +100,12 @@ func TestWithBaseURL(t *testing.T) {
 
 // TestWithUserAgent covers CLIENT-04 and D-38 (empty = no-op so the SDK
 // never sends an empty User-Agent — Pitfall HTTP-5 mitigation).
+//
+// WR-01 (re-review) follow-up: Client.userAgent was removed as dead
+// state — the only production consumer of the value is
+// headerTransport.userAgent, populated from cfg.userAgent inside
+// buildTransport. The assertions now walk the chain
+// (loggingTransport → headerTransport) to inspect the source of truth.
 func TestWithUserAgent(t *testing.T) {
 	t.Parallel()
 
@@ -107,7 +113,8 @@ func TestWithUserAgent(t *testing.T) {
 		t.Parallel()
 		cli := NewClient(WithUserAgent("my-app/2.0"))
 		require.NotNil(t, cli)
-		assert.Equal(t, "my-app/2.0", cli.userAgent,
+		ht := headerTransportFromChain(t, cli)
+		assert.Equal(t, "my-app/2.0", ht.userAgent,
 			"non-empty argument must replace the default UA")
 	})
 
@@ -115,14 +122,47 @@ func TestWithUserAgent(t *testing.T) {
 		t.Parallel()
 		cli := NewClient(WithUserAgent(""))
 		require.NotNil(t, cli)
-		assert.Equal(t, "go-openholidays/"+Version, cli.userAgent,
+		ht := headerTransportFromChain(t, cli)
+		assert.Equal(t, "go-openholidays/"+Version, ht.userAgent,
 			"empty argument must keep the default UA (D-38 / Pitfall HTTP-5)")
 	})
+}
+
+// headerTransportFromChain walks the default chain
+// loggingTransport → headerTransport (the shape produced by buildTransport
+// when no cache/hook option is in effect) and returns the *headerTransport
+// for inspection. Test-only helper used by TestWithUserAgent and
+// TestNewClient's "defaults applied" subtest after WR-01 (re-review)
+// removed Client.userAgent.
+func headerTransportFromChain(t *testing.T, c *Client) *headerTransport {
+	t.Helper()
+	require.NotNil(t, c.http, "client.http must be non-nil")
+	lt, ok := c.http.Transport.(*loggingTransport)
+	require.True(t, ok, "default chain's outermost layer must be *loggingTransport")
+	ht, ok := lt.next.(*headerTransport)
+	require.True(t, ok, "default chain must be loggingTransport → headerTransport")
+	return ht
+}
+
+// loggingTransportFromChain returns the outermost *loggingTransport in the
+// default chain. Test-only helper used by TestWithLogger after WR-01
+// (re-review) removed Client.logger.
+func loggingTransportFromChain(t *testing.T, c *Client) *loggingTransport {
+	t.Helper()
+	require.NotNil(t, c.http, "client.http must be non-nil")
+	lt, ok := c.http.Transport.(*loggingTransport)
+	require.True(t, ok, "default chain's outermost layer must be *loggingTransport")
+	return lt
 }
 
 // TestWithLogger covers CLIENT-05 and D-39 (nil falls back to
 // slog.Default()). Two explicit subtests because the nil-vs-non-nil
 // comparison is fiddly in a struct literal.
+//
+// WR-01 (re-review) follow-up: Client.logger was removed as dead state —
+// the only production consumer is loggingTransport.logger, populated
+// from cfg.logger inside buildTransport. The assertions now type-assert
+// the outermost layer to *loggingTransport and inspect its logger.
 func TestWithLogger(t *testing.T) {
 	t.Parallel()
 
@@ -131,7 +171,8 @@ func TestWithLogger(t *testing.T) {
 		customLogger := slog.New(slog.NewTextHandler(io.Discard, nil))
 		cli := NewClient(WithLogger(customLogger))
 		require.NotNil(t, cli)
-		assert.Same(t, customLogger, cli.logger,
+		lt := loggingTransportFromChain(t, cli)
+		assert.Same(t, customLogger, lt.logger,
 			"custom logger must be assigned verbatim, not wrapped")
 	})
 
@@ -139,13 +180,14 @@ func TestWithLogger(t *testing.T) {
 		t.Parallel()
 		cli := NewClient(WithLogger(nil))
 		require.NotNil(t, cli)
+		lt := loggingTransportFromChain(t, cli)
 		// slog.Default() returns a non-stable pointer, so we cannot assert
 		// pointer equality. The contract is "the logger is non-nil and the
 		// library did not mutate the process-wide default" — non-nil is
 		// mechanically checked here; the no-mutation invariant is checked
 		// at the package level by acceptance grep (count must be 0 across
 		// production source).
-		assert.NotNil(t, cli.logger,
+		assert.NotNil(t, lt.logger,
 			"nil logger argument must be replaced by slog.Default(), never left nil")
 	})
 }
