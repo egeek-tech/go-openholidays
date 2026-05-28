@@ -1,0 +1,59 @@
+# go-openholidays — .gitignore
+#
+# What this file ignores (kept tight on purpose):
+#  - compiled binaries (cmd/ohcli/ohcli, /bin/, /dist/ from goreleaser)
+#  - test artifacts (coverage.out, *.test, *.prof)
+#  - environment files (.env*) — never commit secrets
+#  - editor/IDE state (.idea/, .vscode/, swap files)
+#  - OS junk (.DS_Store, Thumbs.db)
+#  - Claude Code runtime worktrees (.claude/worktrees/) — agent scratch space
+#
+# What it intentionally does NOT ignore:
+#  - .planning/  — GSD workflow artifacts; these belong in version control
+#  - testdata/   — golden fixtures including Polish characters; intentional
+#  - go.sum      — required for reproducible test-only deps
+
+# Compiled binaries
+/cmd/ohcli/ohcli
+/cmd/ohcli/ohcli.exe
+/bin/
+/dist/
+
+# Test artifacts
+coverage.out
+coverage.html
+*.coverprofile
+*.test
+*.prof
+*.pprof
+
+# Toolchain leftovers
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Environment / secrets (never commit)
+.env
+.env.local
+.env.*.local
+
+# Editor / IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.history/
+
+# OS metadata
+.DS_Store
+Thumbs.db
+
+# Claude Code agent worktrees
+/.claude/worktrees/
+
+# Local scratch
+*.local
+*.tmp
