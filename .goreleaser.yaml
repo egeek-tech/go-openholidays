@@ -1,0 +1,102 @@
+# go-openholidays — goreleaser v2 configuration (Plan 05-06, CI-05 / REL-03).
+#
+# Drives the tag-triggered release workflow (.github/workflows/release.yml).
+# Pushing a tag matching `v*` (e.g. v0.1.0) builds six binaries (3 OS x 2
+# arch), produces archives + checksums.txt + a release on GitHub, then the
+# release.yml workflow signs ./dist/checksums.txt via
+# actions/attest-build-provenance@v4 (D-11).
+#
+# Deferred per D-10 — NOT present in this config: no `brews:` (Homebrew tap),
+# no `signs:` (cosign — attestations cover provenance), no `source:` (source
+# tarball), no `sboms:` block.
+#
+# W-05 fix on ldflags Version inject — version.go declares
+# `var Version = "0.1.0"` with NO leading `v`. The release tag is `v0.1.0`
+# with the leading `v`. Without the `trimPrefix "v" .Version` template
+# function, a goreleaser-built binary would emit
+# `User-Agent: go-openholidays/v0.1.0` while a `go build` / `go install`
+# binary (which reads version.go directly) emits
+# `User-Agent: go-openholidays/0.1.0` — a silent divergence. The template
+# `{{ trimPrefix "v" .Version }}` strips the leading `v` from the tag so
+# the injected literal matches version.go exactly.
+version: 2
+
+project_name: go-openholidays
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: ohcli
+    main: ./cmd/ohcli
+    binary: ohcli
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+      - -X github.com/egeek-tech/go-openholidays.Version={{ trimPrefix "v" .Version }}
+    mod_timestamp: "{{ .CommitTimestamp }}"
+
+archives:
+  - id: ohcli-archive
+    name_template: "ohcli_{{.Version}}_{{.Os}}_{{.Arch}}"
+    format_overrides:
+      - goos: windows
+        format: zip
+    files:
+      - LICENSE
+      - README.md
+      - CHANGELOG.md
+
+checksum:
+  name_template: "checksums.txt"
+  algorithm: sha256
+
+release:
+  github:
+    owner: egeek-tech
+    name: go-openholidays
+  draft: false
+  prerelease: auto
+
+changelog:
+  sort: asc
+  use: github
+  groups:
+    - title: Features
+      regexp: '^.*?feat(\([[:word:]]+\))??!?:.+$'
+      order: 0
+    - title: Bug Fixes
+      regexp: '^.*?fix(\([[:word:]]+\))??!?:.+$'
+      order: 1
+    - title: Performance
+      regexp: '^.*?perf(\([[:word:]]+\))??!?:.+$'
+      order: 2
+    - title: Other
+      order: 999
+  filters:
+    exclude:
+      - '^chore:'
+      - '^chore\('
+      - '^docs:'
+      - '^docs\('
+      - '^test:'
+      - '^test\('
+      - '^style:'
+      - '^style\('
+      - '^refactor:'
+      - '^refactor\('
+      - '^ci:'
+      - '^ci\('
+      - typo
+      - merge conflict
