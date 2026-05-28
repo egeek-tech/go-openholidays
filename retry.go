@@ -230,8 +230,15 @@ func parseRetryAfter(h string, now time.Time) (time.Duration, bool) {
 // NewClient time via newClientRand (D-78). Per-Client randomness
 // prevents the thundering-herd failure mode where every instance in a
 // fleet retries on identical jittered offsets after a shared upstream
-// outage. Goroutine-safety of *math/rand/v2.Rand is established by the
-// stdlib (math/rand/v2 docs).
+// outage.
+//
+// CR-01: *math/rand/v2.Rand is NOT goroutine-safe on its own — the
+// stdlib documentation explicitly states "The methods of Rand are not
+// safe for concurrent use by multiple goroutines". The caller (the
+// retry loop in request.go::doJSONGet) is responsible for serializing
+// access to rnd; the current implementation holds Client.randMu around
+// this entire call so concurrent endpoint invocations sharing the same
+// *Client do not race on the underlying ChaCha8 state.
 //
 // Defensive against a zero baseDelay: capped is forced to >=
 // time.Millisecond so rand.Int64N never sees a non-positive argument

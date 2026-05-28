@@ -130,7 +130,16 @@ func doJSONGet[T any](ctx context.Context, c *Client, path string, q url.Values)
 			// overwrite resp with a fresh c.http.Do return.
 			resp = nil
 		}
+		// CR-01: *math/rand/v2.Rand is NOT safe for concurrent use — its
+		// stdlib docs state "The methods of Rand are not safe for concurrent
+		// use by multiple goroutines". Concurrent endpoint calls sharing
+		// this *Client all reach computeBackoff(..., c.rand), so the
+		// rnd.Int64N inside would race. Guard with c.randMu for the
+		// duration of the single computeBackoff call — the lock is held
+		// for nanoseconds (one Int64N) so contention is negligible.
+		c.randMu.Lock()
 		delay := computeBackoff(attempt, retryAfter, c.retry, c.rand)
+		c.randMu.Unlock()
 		if sleepErr := c.sleepFunc(ctx, delay); sleepErr != nil {
 			return zero, sleepErr // ctx.Err() on cancel during sleep
 		}

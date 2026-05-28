@@ -294,6 +294,89 @@ func TestClient_ConcurrentAccess(t *testing.T) {
 	})
 }
 
+// TestClient_ConcurrentRetry_RaceClean locks the CR-01 fix: concurrent
+// endpoint calls with WithRetry enabled must NOT race on Client.rand.
+// math/rand/v2.Rand is documented as NOT safe for concurrent use — its
+// stdlib docs state "The methods of Rand are not safe for concurrent use
+// by multiple goroutines". Before the fix, the retry loop in doJSONGet
+// called computeBackoff(..., c.rand) without synchronization, so two
+// goroutines retrying at the same instant raced on the underlying
+// ChaCha8 state. The c.randMu mutex added in client.go serializes that
+// single Int64N call.
+//
+// The test fires N parallel Countries calls against a flaky server that
+// returns 503 on its first response and 200 thereafter. With WithRetry
+// enabled, every goroutine hits at least one 503, triggering a
+// computeBackoff (and therefore an rnd.Int64N). Under `go test -race`
+// the test fails immediately if c.rand is accessed without
+// synchronization. Under non-race builds the assertion is just "all
+// calls succeed" — the race detector is the load-bearing signal.
+//
+// Mirrors TestClient_ConcurrentAccess in shape but ADDS WithRetry +
+// uses the per-server-attempt counter to guarantee every goroutine
+// drives at least one retry path. The fakeClock seam is intentionally
+// NOT used here because the race occurs in the retry loop independent
+// of the sleep mechanism, and using a real sleepFunc with a short
+// baseDelay produces a faster signal under the race detector than a
+// fake-clock harness would.
+func TestClient_ConcurrentRetry_RaceClean(t *testing.T) {
+	t.Parallel()
+
+	body, err := os.ReadFile(filepath.Join("testdata", "countries.json"))
+	require.NoError(t, err, "fixture missing — re-capture per Plan 02-03 Task 2")
+
+	// Server returns 503 on odd-numbered global attempts and 200 on
+	// even-numbered attempts. With maxAttempts=8 every goroutine
+	// eventually lands on an even-numbered attempt and succeeds, and
+	// most goroutines drive at least one 503 → retry → backoff cycle.
+	// The combination guarantees the race-sensitive code path
+	// (computeBackoff → c.rand.Int64N inside the c.randMu critical
+	// section) is exercised by concurrent goroutines. Under
+	// `go test -race`, an unsynchronized access to c.rand would be
+	// flagged immediately.
+	const N = 50
+	var attempts atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		n := attempts.Add(1)
+		if n%2 == 1 {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write(body)
+	}))
+	t.Cleanup(srv.Close)
+
+	// maxAttempts=8 gives every goroutine ample budget — under the
+	// odd-503/even-200 pattern, a string of all-odd attempts is
+	// vanishingly unlikely past 4-5 tries. baseDelay 1 ms keeps the
+	// test cheap.
+	c := NewClient(
+		WithBaseURL(srv.URL),
+		WithRetry(8, time.Millisecond),
+		WithMaxRetryWait(10*time.Millisecond),
+	)
+	t.Cleanup(func() { _ = c.Close() })
+
+	var wg sync.WaitGroup
+	errs := make([]error, N)
+	for i := 0; i < N; i++ {
+		wg.Add(1)
+		go func(idx int) {
+			defer wg.Done()
+			_, errs[idx] = c.Countries(context.Background(), CountriesRequest{})
+		}(i)
+	}
+	wg.Wait()
+
+	t.Run("all N parallel retry-enabled calls succeed (race detector validates rand serialization)", func(t *testing.T) {
+		for i := 0; i < N; i++ {
+			require.NoError(t, errs[i],
+				"call %d failed under concurrent retry — if `go test -race` flagged a data race on c.rand, the CR-01 fix has regressed", i)
+		}
+	})
+}
+
 // TestClient_ContextCancel verifies CLIENT-09 + D-48: ctx cancellation
 // interrupts in-flight HTTP within ≤ 100 ms (asserted at the 200 ms ceiling
 // for 2x CI slack); errors.Is(err, context.Canceled) holds through

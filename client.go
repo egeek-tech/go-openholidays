@@ -65,6 +65,7 @@ type Client struct {
 	nowFunc   func() time.Time                           // D-94; defaults to time.Now
 	sleepFunc func(context.Context, time.Duration) error // D-94; defaults to ctxSleep
 	rand      *rand.Rand                                 // D-78; per-Client ChaCha8-seeded
+	randMu    sync.Mutex                                 // CR-01; guards rand against concurrent Int64N calls from the retry loop
 	closeOnce sync.Once                                  // D-85; guards cache.Close inside Close()
 }
 
