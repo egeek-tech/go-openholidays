@@ -55,11 +55,12 @@ func TestHeaderTransport_RoundTrip(t *testing.T) {
 			}),
 		}
 
-		req, err := http.NewRequest(http.MethodGet, "https://example.test/Countries", nil)
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "https://example.test/Countries", nil)
 		require.NoError(t, err)
 
-		_, err = h.RoundTrip(req)
+		resp, err := h.RoundTrip(req)
 		require.NoError(t, err)
+		defer func() { _ = resp.Body.Close() }()
 		require.NotNil(t, captured, "next.RoundTrip was not invoked")
 
 		assert.Equal(t, "application/json", captured.Header.Get("Accept"),
@@ -92,13 +93,14 @@ func TestHeaderTransport_RoundTrip(t *testing.T) {
 			}),
 		}
 
-		req, err := http.NewRequest(http.MethodGet, "https://example.test/Countries", nil)
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "https://example.test/Countries", nil)
 		require.NoError(t, err)
 		req.Header.Set("Accept", "application/vnd.custom+json")
 		req.Header.Set("User-Agent", "my-app/2.0")
 
-		_, err = h.RoundTrip(req)
+		resp, err := h.RoundTrip(req)
 		require.NoError(t, err)
+		defer func() { _ = resp.Body.Close() }()
 		require.NotNil(t, captured, "next.RoundTrip was not invoked")
 
 		assert.Equal(t, "application/vnd.custom+json", captured.Header.Get("Accept"),
@@ -118,10 +120,13 @@ func TestHeaderTransport_RoundTrip(t *testing.T) {
 			}),
 		}
 
-		req, err := http.NewRequest(http.MethodGet, "https://example.test/Countries", nil)
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "https://example.test/Countries", nil)
 		require.NoError(t, err)
 
 		resp, err := h.RoundTrip(req)
+		if resp != nil {
+			defer func() { _ = resp.Body.Close() }()
+		}
 		assert.Nil(t, resp, "headerTransport must propagate nil response on next error")
 		require.Error(t, err)
 		assert.Equal(t, "boom", err.Error(),

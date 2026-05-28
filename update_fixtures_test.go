@@ -118,9 +118,9 @@ func nonEmptyJSONArray(b []byte) error {
 // request.go) so legitimate boundary responses are not truncated by the
 // helper itself; corruption from a hostile streaming upstream is still
 // bounded.
-func readAll(t *testing.T, r io.Reader, max int) []byte {
+func readAll(t *testing.T, r io.Reader, maxBytes int) []byte {
 	t.Helper()
-	lr := io.LimitReader(r, int64(max))
+	lr := io.LimitReader(r, int64(maxBytes))
 	b, err := io.ReadAll(lr)
 	require.NoError(t, err, "failed to read live response body")
 	return b
@@ -151,7 +151,7 @@ func TestUpdateFixtures(t *testing.T) {
 	// 15s; the refresher uses 30s to give the slowest endpoint
 	// (Subdivisions per country) extra headroom on a cold day.
 	client := http.Client{Timeout: 30 * time.Second}
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Minute)
 	defer cancel()
 
 	type capture struct {
@@ -250,8 +250,7 @@ func TestUpdateFixtures(t *testing.T) {
 			// Overwrite mode: write the pretty-printed body atomically via
 			// temp file + os.Rename — never a half-written fixture.
 
-			tmpDir := filepath.Join("testdata")
-			tmp, err := os.CreateTemp(tmpDir, c.fixture+".tmp-*")
+			tmp, err := os.CreateTemp("testdata", c.fixture+".tmp-*")
 			require.NoError(t, err)
 			// IN-05: defer Close alongside Remove so a require.NoError
 			// abort between CreateTemp and the explicit Close below does
@@ -270,7 +269,7 @@ func TestUpdateFixtures(t *testing.T) {
 			require.NoError(t, err)
 			require.NoError(t, tmp.Close())
 
-			target := filepath.Join(tmpDir, c.fixture)
+			target := filepath.Join("testdata", c.fixture)
 			require.NoError(t, os.Rename(tmp.Name(), target))
 			t.Logf("captured %s (%d bytes pretty-printed)", c.fixture, pretty.Len())
 		})

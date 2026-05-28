@@ -51,7 +51,7 @@ func FuzzParseLocalizedText(f *testing.F) {
 	f.Add([]byte(`[{"language":"pl","text":"Wigilia"},{"language":"","text":""}]`))
 	f.Add([]byte(`[{"language":"xx","text":null}]`))
 
-	f.Fuzz(func(t *testing.T, data []byte) {
+	f.Fuzz(func(_ *testing.T, data []byte) {
 		var entries []LocalizedText
 		// Return value intentionally ignored — the invariant is panic-freedom.
 		_ = json.Unmarshal(data, &entries)
@@ -77,7 +77,7 @@ func FuzzUnmarshalHoliday(f *testing.F) {
 	f.Add([]byte(`{"id":"","startDate":"2025-01-01","endDate":"2024-12-31","type":"Public","name":[]}`))
 	f.Add([]byte(`[{"id":"x","startDate":null,"endDate":"2025-01-01","type":"","name":null}]`))
 
-	f.Fuzz(func(t *testing.T, data []byte) {
+	f.Fuzz(func(_ *testing.T, data []byte) {
 		var hs []Holiday
 		// Return value intentionally ignored — the invariant is panic-freedom.
 		_ = json.Unmarshal(data, &hs)

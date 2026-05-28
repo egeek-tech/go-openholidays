@@ -126,7 +126,7 @@ func TestNewClient(t *testing.T) {
 		require.NotNil(t, c)
 		assert.True(t, c.nowFunc().Equal(time.Unix(0, 0)),
 			"newClientForTest must replace Client.nowFunc with the supplied function (D-94)")
-		require.NoError(t, c.sleepFunc(context.Background(), time.Second),
+		require.NoError(t, c.sleepFunc(t.Context(), time.Second),
 			"supplied sleep must not return an error on a live ctx")
 		assert.True(t, fc.Now().Equal(time.Unix(0, 0).Add(time.Second)),
 			"calling Client.sleepFunc must advance the fakeClock by d (D-94 seam wiring)")
@@ -219,7 +219,7 @@ func TestClient_Close(t *testing.T) {
 		t.Cleanup(srv.Close)
 
 		c := NewClient(WithBaseURL(srv.URL), WithCache(1*time.Millisecond))
-		_, err := c.Countries(context.Background(), CountriesRequest{})
+		_, err := c.Countries(t.Context(), CountriesRequest{})
 		require.NoError(t, err, "Countries call must succeed against the fake server")
 
 		// Same-package access lets us reach into the concrete *MemoryCache
@@ -260,7 +260,7 @@ func TestClient_ConcurrentAccess(t *testing.T) {
 	// Synthetic delay simulates real network latency without flake risk.
 	// math/rand/v2.IntN (D-47 5-20 ms range) is concurrent-safe without
 	// seeding — preferred over math/rand v1 per CLAUDE.md What-NOT-to-Use.
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		time.Sleep(time.Duration(5+rand.IntN(15)) * time.Millisecond) //nolint:gosec // G404: synthetic latency jitter, not cryptographic
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write(body)
@@ -277,7 +277,7 @@ func TestClient_ConcurrentAccess(t *testing.T) {
 		wg.Add(1)
 		go func(idx int) {
 			defer wg.Done()
-			results[idx], errs[idx] = c.Countries(context.Background(), CountriesRequest{})
+			results[idx], errs[idx] = c.Countries(t.Context(), CountriesRequest{})
 		}(i)
 	}
 	wg.Wait()
@@ -364,7 +364,7 @@ func TestClient_ConcurrentRetry_RaceClean(t *testing.T) {
 		wg.Add(1)
 		go func(idx int) {
 			defer wg.Done()
-			_, errs[idx] = c.Countries(context.Background(), CountriesRequest{})
+			_, errs[idx] = c.Countries(t.Context(), CountriesRequest{})
 		}(i)
 	}
 	wg.Wait()
@@ -430,7 +430,7 @@ func TestClient_FinalAttemptRespBodyDrained(t *testing.T) {
 		c := NewClient(WithBaseURL(srv.URL), WithHTTPClient(httpClient))
 		t.Cleanup(func() { _ = c.Close() })
 
-		_, err := c.Countries(context.Background(), CountriesRequest{})
+		_, err := c.Countries(t.Context(), CountriesRequest{})
 		require.Error(t, err, "CheckRedirect rejection must surface as error")
 		require.ErrorIs(t, err, injected,
 			"injected CheckRedirect error must be wrapped via %%w so callers can errors.Is to it")
@@ -457,7 +457,7 @@ func TestCtxSleep(t *testing.T) {
 
 	t.Run("returns ctx.Err() when ctx already cancelled and d > 0", func(t *testing.T) {
 		t.Parallel()
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := context.WithCancel(t.Context())
 		cancel()
 		err := ctxSleep(ctx, time.Hour)
 		assert.ErrorIs(t, err, context.Canceled,
@@ -466,7 +466,7 @@ func TestCtxSleep(t *testing.T) {
 
 	t.Run("returns ctx.Err() when ctx already cancelled and d == 0 (WR-04 parity with fakeClock.Sleep)", func(t *testing.T) {
 		t.Parallel()
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := context.WithCancel(t.Context())
 		cancel()
 		err := ctxSleep(ctx, 0)
 		assert.ErrorIs(t, err, context.Canceled,
@@ -475,7 +475,7 @@ func TestCtxSleep(t *testing.T) {
 
 	t.Run("returns ctx.Err() when ctx already cancelled and d < 0 (WR-04 parity)", func(t *testing.T) {
 		t.Parallel()
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := context.WithCancel(t.Context())
 		cancel()
 		err := ctxSleep(ctx, -1*time.Second)
 		assert.ErrorIs(t, err, context.Canceled,
@@ -484,14 +484,14 @@ func TestCtxSleep(t *testing.T) {
 
 	t.Run("returns nil when ctx live and d <= 0", func(t *testing.T) {
 		t.Parallel()
-		assert.NoError(t, ctxSleep(context.Background(), 0))
-		assert.NoError(t, ctxSleep(context.Background(), -1*time.Millisecond))
+		assert.NoError(t, ctxSleep(t.Context(), 0))
+		assert.NoError(t, ctxSleep(t.Context(), -1*time.Millisecond))
 	})
 
 	t.Run("returns nil after the timer fires on live ctx with d > 0", func(t *testing.T) {
 		t.Parallel()
 		start := time.Now()
-		err := ctxSleep(context.Background(), 5*time.Millisecond)
+		err := ctxSleep(t.Context(), 5*time.Millisecond)
 		require.NoError(t, err)
 		assert.GreaterOrEqual(t, time.Since(start), 5*time.Millisecond,
 			"the sleep must actually elapse the requested duration on a live ctx")
@@ -499,7 +499,7 @@ func TestCtxSleep(t *testing.T) {
 
 	t.Run("returns ctx.Err() when ctx cancels during the sleep", func(t *testing.T) {
 		t.Parallel()
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := context.WithCancel(t.Context())
 		time.AfterFunc(5*time.Millisecond, cancel)
 		err := ctxSleep(ctx, time.Hour)
 		assert.ErrorIs(t, err, context.Canceled,
@@ -538,7 +538,7 @@ func TestClient_RetryExhaustedPrefix(t *testing.T) {
 		)
 		t.Cleanup(func() { _ = c.Close() })
 
-		_, err := c.Countries(context.Background(), CountriesRequest{})
+		_, err := c.Countries(t.Context(), CountriesRequest{})
 		require.Error(t, err)
 		require.ErrorIs(t, err, injected,
 			"underlying transport error must remain wrapped via %%w")
@@ -566,7 +566,7 @@ func TestClient_RetryExhaustedPrefix(t *testing.T) {
 		)
 		t.Cleanup(func() { _ = c.Close() })
 
-		_, err := c.Countries(context.Background(), CountriesRequest{})
+		_, err := c.Countries(t.Context(), CountriesRequest{})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "retry exhausted (3 attempts)",
 			"WR-03 contract: when retries actually ran to exhaustion, the prefix must report the actual attempt count")
@@ -598,7 +598,7 @@ func TestClient_ContextCancel(t *testing.T) {
 
 	t.Run("ctx cancel interrupts in-flight HTTP within 500ms", func(t *testing.T) {
 		t.Parallel()
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := context.WithCancel(t.Context())
 		time.AfterFunc(50*time.Millisecond, cancel)
 		start := time.Now()
 		_, err := c.Countries(ctx, CountriesRequest{})
@@ -657,7 +657,7 @@ func TestCache_StrictDecodingComposes(t *testing.T) {
 		// First call: server hit, bytes cached (cacheTransport's gate is
 		// status==200 && err==nil — decode error fires AFTER), decoder
 		// fires.
-		_, err := c.Countries(context.Background(), CountriesRequest{})
+		_, err := c.Countries(t.Context(), CountriesRequest{})
 		require.Error(t, err, "first call: strict mode must surface a decode error on unknown field")
 		assert.Contains(t, err.Error(), "extra_unknown_field",
 			"first call: error message must name the offending field")
@@ -665,7 +665,7 @@ func TestCache_StrictDecodingComposes(t *testing.T) {
 		// Second call: cache hit (server should NOT be contacted again);
 		// decoder STILL fires because cached bytes flow through the same
 		// strict gate (D-93).
-		_, err = c.Countries(context.Background(), CountriesRequest{})
+		_, err = c.Countries(t.Context(), CountriesRequest{})
 		require.Error(t, err, "second call: strict mode must still reject the cached bytes (D-93)")
 		assert.Contains(t, err.Error(), "extra_unknown_field",
 			"second call: error message must name the offending field on the cache-hit path")
@@ -690,7 +690,7 @@ func TestClient_NoCache_AllCallsHitNetwork(t *testing.T) {
 		t.Cleanup(func() { _ = c.Close() })
 
 		for range 3 {
-			_, err := c.Countries(context.Background(), CountriesRequest{})
+			_, err := c.Countries(t.Context(), CountriesRequest{})
 			require.NoError(t, err)
 		}
 
@@ -718,9 +718,9 @@ func TestCache_PerClientIsolation(t *testing.T) {
 		t.Cleanup(func() { _ = cA.Close() })
 		t.Cleanup(func() { _ = cB.Close() })
 
-		_, err := cA.Countries(context.Background(), CountriesRequest{})
+		_, err := cA.Countries(t.Context(), CountriesRequest{})
 		require.NoError(t, err)
-		_, err = cB.Countries(context.Background(), CountriesRequest{})
+		_, err = cB.Countries(t.Context(), CountriesRequest{})
 		require.NoError(t, err)
 
 		assert.Equal(t, int32(1), hitsA.Load(),
@@ -774,7 +774,7 @@ func TestHook_FiresOnRetryAttempts(t *testing.T) {
 		)
 		t.Cleanup(func() { _ = c.Close() })
 
-		_, err := c.Countries(context.Background(), CountriesRequest{})
+		_, err := c.Countries(t.Context(), CountriesRequest{})
 		require.NoError(t, err, "third attempt returns 200; the retry loop must succeed")
 
 		assert.Equal(t, int32(3), hits.Load(),
@@ -820,7 +820,7 @@ func TestHook_SeesCacheHits(t *testing.T) {
 		t.Cleanup(func() { _ = c.Close() })
 
 		// First call — cache miss. Hook fires; CacheHitContextKey absent.
-		_, err := c.Countries(context.Background(), CountriesRequest{})
+		_, err := c.Countries(t.Context(), CountriesRequest{})
 		require.NoError(t, err, "first call must succeed (server hit, response cached)")
 		assert.Equal(t, int32(1), hookCount.Load(),
 			"first call must fire hook exactly once")
@@ -829,7 +829,7 @@ func TestHook_SeesCacheHits(t *testing.T) {
 
 		// Second call — cache hit. Hook fires on the synthetic response;
 		// CacheHitContextKey is set to true by cacheTransport (Plan 04).
-		_, err = c.Countries(context.Background(), CountriesRequest{})
+		_, err = c.Countries(t.Context(), CountriesRequest{})
 		require.NoError(t, err, "second call must succeed from cache")
 		assert.Equal(t, int32(2), hookCount.Load(),
 			"second call must fire hook again (D-88 fires on cache hits too)")
@@ -879,7 +879,7 @@ func TestHook_DoesNotFireOnDecodeError(t *testing.T) {
 		c := NewClient(WithBaseURL(srv.URL), WithRequestHook(hook))
 		t.Cleanup(func() { _ = c.Close() })
 
-		_, err := c.Countries(context.Background(), CountriesRequest{})
+		_, err := c.Countries(t.Context(), CountriesRequest{})
 		require.Error(t, err, "malformed JSON must produce a decode error")
 
 		assert.Equal(t, int32(1), hits.Load(),
@@ -904,7 +904,7 @@ func TestHook_DoesNotFireOnDecodeError(t *testing.T) {
 
 		// Empty CountryIsoCode is rejected by validateCountry BEFORE
 		// doJSONGet runs at all — no HTTP attempt, no hook firing.
-		_, err := c.PublicHolidays(context.Background(), PublicHolidaysRequest{
+		_, err := c.PublicHolidays(t.Context(), PublicHolidaysRequest{
 			CountryIsoCode: "", // missing required field
 		})
 		require.Error(t, err, "validateCountry must reject empty CountryIsoCode pre-HTTP")

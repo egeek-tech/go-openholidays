@@ -60,7 +60,7 @@ func TestClient_Languages(t *testing.T) {
 		t.Cleanup(srv.Close)
 
 		c := NewClient(WithBaseURL(srv.URL))
-		got, err := c.Languages(context.Background(), LanguagesRequest{})
+		got, err := c.Languages(t.Context(), LanguagesRequest{})
 		require.NoError(t, err)
 		require.GreaterOrEqual(t, len(got), 14,
 			"D-70 floor: expected ≥ 14 languages in the fixture, got %d", len(got))
@@ -95,7 +95,7 @@ func TestClient_Languages(t *testing.T) {
 		c := NewClient(WithBaseURL(srv.URL))
 		// Uppercase input → validateLanguage canonicalizes to lowercase
 		// "en" before the query param is set.
-		got, err := c.Languages(context.Background(), LanguagesRequest{LanguageIsoCode: "EN"})
+		got, err := c.Languages(t.Context(), LanguagesRequest{LanguageIsoCode: "EN"})
 		require.NoError(t, err)
 		assert.NotEmpty(t, got)
 	})
@@ -105,7 +105,7 @@ func TestClient_Languages(t *testing.T) {
 		// http://example.invalid is RFC 6761 reserved; if the validator
 		// failed to short-circuit, the HTTP dispatch would fail loudly.
 		c := NewClient(WithBaseURL("http://example.invalid"))
-		_, err := c.Languages(context.Background(), LanguagesRequest{LanguageIsoCode: "x"})
+		_, err := c.Languages(t.Context(), LanguagesRequest{LanguageIsoCode: "x"})
 		require.Error(t, err)
 		assert.ErrorIs(t, err, ErrInvalidLanguage,
 			"expected ErrInvalidLanguage via errors.Is, got %v", err)
@@ -113,7 +113,7 @@ func TestClient_Languages(t *testing.T) {
 
 	t.Run("4xx returns *APIError with Path /Languages", func(t *testing.T) {
 		t.Parallel()
-		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("Content-Type", "application/problem+json")
 			w.WriteHeader(http.StatusNotFound)
 			_, _ = w.Write([]byte(`{"detail":"Language not supported"}`))
@@ -121,7 +121,7 @@ func TestClient_Languages(t *testing.T) {
 		t.Cleanup(srv.Close)
 
 		c := NewClient(WithBaseURL(srv.URL))
-		langs, err := c.Languages(context.Background(), LanguagesRequest{})
+		langs, err := c.Languages(t.Context(), LanguagesRequest{})
 		require.Error(t, err)
 		assert.Nil(t, langs)
 
@@ -135,7 +135,7 @@ func TestClient_Languages(t *testing.T) {
 
 	t.Run("5xx with title fallback", func(t *testing.T) {
 		t.Parallel()
-		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("Content-Type", "application/problem+json")
 			w.WriteHeader(http.StatusInternalServerError)
 			_, _ = w.Write([]byte(`{"title":"Internal Server Error"}`))
@@ -143,7 +143,7 @@ func TestClient_Languages(t *testing.T) {
 		t.Cleanup(srv.Close)
 
 		c := NewClient(WithBaseURL(srv.URL))
-		_, err := c.Languages(context.Background(), LanguagesRequest{})
+		_, err := c.Languages(t.Context(), LanguagesRequest{})
 		require.Error(t, err)
 
 		var apiErr *APIError
@@ -156,7 +156,7 @@ func TestClient_Languages(t *testing.T) {
 
 	t.Run("malformed JSON returns decode error (not sentinel)", func(t *testing.T) {
 		t.Parallel()
-		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 			// Truncated array opener — json.Decoder.Decode surfaces a
@@ -166,7 +166,7 @@ func TestClient_Languages(t *testing.T) {
 		t.Cleanup(srv.Close)
 
 		c := NewClient(WithBaseURL(srv.URL))
-		_, err := c.Languages(context.Background(), LanguagesRequest{})
+		_, err := c.Languages(t.Context(), LanguagesRequest{})
 		require.Error(t, err)
 
 		var apiErr *APIError
@@ -195,7 +195,7 @@ func TestClient_Languages(t *testing.T) {
 		t.Cleanup(srv.Close)
 
 		c := NewClient(WithBaseURL(srv.URL))
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := context.WithCancel(t.Context())
 		cancel() // immediate cancel before the call
 
 		start := time.Now()

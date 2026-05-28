@@ -418,7 +418,7 @@ func FuzzDateUnmarshal(f *testing.F) {
 	f.Add([]byte("123"))          // non-string JSON number
 	f.Add([]byte(`"not-a-date"`)) // malformed date string
 	f.Add([]byte(""))             // empty byte slice
-	f.Fuzz(func(t *testing.T, b []byte) {
+	f.Fuzz(func(_ *testing.T, b []byte) {
 		var d Date
 		// Return value intentionally ignored — the invariant is panic-freedom.
 		_ = d.UnmarshalJSON(b)

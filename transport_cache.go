@@ -38,7 +38,6 @@
 // internal_test.go::allowedVars is updated to allow this single
 // addition (DEVIATION from CONTEXT.md D-97 step 6 — see plan
 // <deviations> for rationale).
-
 package openholidays
 
 import (

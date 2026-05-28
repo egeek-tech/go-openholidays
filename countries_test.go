@@ -10,7 +10,6 @@ package openholidays
 
 import (
 	"bytes"
-	"context"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -88,14 +87,14 @@ func TestClient_Countries(t *testing.T) {
 		require.NoError(t, err, "fixture missing — re-capture per Plan 02-03 Task 2")
 		t.Logf("fixture captured %s", countriesFixtureCapturedAt)
 
-		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			_, _ = w.Write(body)
 		}))
 		t.Cleanup(srv.Close)
 
 		c := NewClient(WithBaseURL(srv.URL))
-		countries, err := c.Countries(context.Background(), CountriesRequest{})
+		countries, err := c.Countries(t.Context(), CountriesRequest{})
 		require.NoError(t, err)
 		require.Len(t, countries, 2)
 
@@ -118,7 +117,7 @@ func TestClient_Countries(t *testing.T) {
 
 	t.Run("4xx returns *APIError with detail Message", func(t *testing.T) {
 		t.Parallel()
-		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("Content-Type", "application/problem+json")
 			w.WriteHeader(http.StatusNotFound)
 			_, _ = w.Write([]byte(`{"detail": "Country not supported"}`))
@@ -126,7 +125,7 @@ func TestClient_Countries(t *testing.T) {
 		t.Cleanup(srv.Close)
 
 		c := NewClient(WithBaseURL(srv.URL))
-		countries, err := c.Countries(context.Background(), CountriesRequest{})
+		countries, err := c.Countries(t.Context(), CountriesRequest{})
 		require.Error(t, err)
 		assert.Nil(t, countries)
 
@@ -142,7 +141,7 @@ func TestClient_Countries(t *testing.T) {
 
 	t.Run("5xx with title fallback", func(t *testing.T) {
 		t.Parallel()
-		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("Content-Type", "application/problem+json")
 			w.WriteHeader(http.StatusInternalServerError)
 			_, _ = w.Write([]byte(`{"title": "Internal Server Error"}`))
@@ -150,7 +149,7 @@ func TestClient_Countries(t *testing.T) {
 		t.Cleanup(srv.Close)
 
 		c := NewClient(WithBaseURL(srv.URL))
-		_, err := c.Countries(context.Background(), CountriesRequest{})
+		_, err := c.Countries(t.Context(), CountriesRequest{})
 		require.Error(t, err)
 
 		var apiErr *APIError
@@ -163,7 +162,7 @@ func TestClient_Countries(t *testing.T) {
 
 	t.Run("error field fallback when detail and title absent", func(t *testing.T) {
 		t.Parallel()
-		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusServiceUnavailable)
 			_, _ = w.Write([]byte(`{"error": "Service Unavailable"}`))
@@ -171,7 +170,7 @@ func TestClient_Countries(t *testing.T) {
 		t.Cleanup(srv.Close)
 
 		c := NewClient(WithBaseURL(srv.URL))
-		_, err := c.Countries(context.Background(), CountriesRequest{})
+		_, err := c.Countries(t.Context(), CountriesRequest{})
 		require.Error(t, err)
 
 		var apiErr *APIError
@@ -185,14 +184,14 @@ func TestClient_Countries(t *testing.T) {
 	t.Run("4xx body truncated at 4 KiB (Phase 1 D-17 cap)", func(t *testing.T) {
 		t.Parallel()
 		big := bytes.Repeat([]byte("X"), 8192) // 8 KiB > 4 KiB cap
-		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusBadRequest)
 			_, _ = w.Write(big)
 		}))
 		t.Cleanup(srv.Close)
 
 		c := NewClient(WithBaseURL(srv.URL))
-		_, err := c.Countries(context.Background(), CountriesRequest{})
+		_, err := c.Countries(t.Context(), CountriesRequest{})
 		require.Error(t, err)
 
 		var apiErr *APIError
@@ -204,7 +203,7 @@ func TestClient_Countries(t *testing.T) {
 
 	t.Run("empty body wraps ErrEmptyResponse", func(t *testing.T) {
 		t.Parallel()
-		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 			// Zero-byte body. json.Decoder.Decode returns io.EOF.
@@ -212,7 +211,7 @@ func TestClient_Countries(t *testing.T) {
 		t.Cleanup(srv.Close)
 
 		c := NewClient(WithBaseURL(srv.URL))
-		_, err := c.Countries(context.Background(), CountriesRequest{})
+		_, err := c.Countries(t.Context(), CountriesRequest{})
 		require.Error(t, err)
 		assert.ErrorIs(t, err, ErrEmptyResponse,
 			"expected ErrEmptyResponse via errors.Is, got %v", err)
@@ -250,7 +249,7 @@ func TestClient_Countries(t *testing.T) {
 		// outer `]`. The result is structurally valid JSON that exceeds
 		// the maxResponseBytes (10 MiB) cap.
 		entry := `{"isoCode":"PL","name":[{"language":"EN","text":"Poland"}],"officialLanguages":["PL"]}`
-		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 			flusher, _ := w.(http.Flusher)
@@ -284,7 +283,7 @@ func TestClient_Countries(t *testing.T) {
 		httpClient := &http.Client{Transport: countingRT}
 		c := NewClient(WithBaseURL(srv.URL), WithHTTPClient(httpClient))
 
-		_, err := c.Countries(context.Background(), CountriesRequest{})
+		_, err := c.Countries(t.Context(), CountriesRequest{})
 		require.Error(t, err)
 		require.ErrorIs(t, err, ErrResponseTooLarge,
 			"expected ErrResponseTooLarge via errors.Is, got %v", err)
@@ -307,7 +306,7 @@ func TestClient_Countries(t *testing.T) {
 		// boundary. The fix replaces the sentinel-byte read with
 		// decoder.More(), which correctly ignores RFC 8259 whitespace.
 		entry := `{"isoCode":"PL","name":[{"language":"EN","text":"Poland"}],"officialLanguages":["PL"]}`
-		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 			flusher, _ := w.(http.Flusher)
@@ -325,7 +324,7 @@ func TestClient_Countries(t *testing.T) {
 		t.Cleanup(srv.Close)
 
 		c := NewClient(WithBaseURL(srv.URL))
-		countries, err := c.Countries(context.Background(), CountriesRequest{})
+		countries, err := c.Countries(t.Context(), CountriesRequest{})
 		require.NoError(t, err, "trailing whitespace in a separate chunk must NOT be reported as ErrResponseTooLarge (CR-01)")
 		require.NotErrorIs(t, err, ErrResponseTooLarge,
 			"CR-01 regression: small body + trailing whitespace must not match ErrResponseTooLarge")
@@ -351,7 +350,7 @@ func TestClient_Countries(t *testing.T) {
 		t.Cleanup(srv.Close)
 
 		c := NewClient(WithBaseURL(srv.URL))
-		countries, err := c.Countries(context.Background(), CountriesRequest{LanguageIsoCode: "PL"})
+		countries, err := c.Countries(t.Context(), CountriesRequest{LanguageIsoCode: "PL"})
 		require.NoError(t, err)
 		assert.NotEmpty(t, countries)
 	})
@@ -370,7 +369,7 @@ func TestClient_Countries(t *testing.T) {
 		t.Cleanup(srv.Close)
 
 		c := NewClient(WithBaseURL(srv.URL))
-		_, err = c.Countries(context.Background(), CountriesRequest{})
+		_, err = c.Countries(t.Context(), CountriesRequest{})
 		require.NoError(t, err)
 	})
 
@@ -379,10 +378,9 @@ func TestClient_Countries(t *testing.T) {
 		// http://example.invalid is RFC 6761 reserved; if the validator
 		// failed to short-circuit, the HTTP dispatch would fail loudly.
 		c := NewClient(WithBaseURL("http://example.invalid"))
-		_, err := c.Countries(context.Background(), CountriesRequest{LanguageIsoCode: "X"})
+		_, err := c.Countries(t.Context(), CountriesRequest{LanguageIsoCode: "X"})
 		require.Error(t, err)
 		assert.ErrorIs(t, err, ErrInvalidLanguage,
 			"expected ErrInvalidLanguage via errors.Is, got %v", err)
 	})
 }
-

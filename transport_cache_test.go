@@ -14,7 +14,6 @@ package openholidays
 
 import (
 	"bytes"
-	"context"
 	"io"
 	"net/http"
 	"net/url"
@@ -56,7 +55,7 @@ func newTestCacheTransport(t *testing.T, body []byte, status int) (*cacheTranspo
 func newTestRequest(t *testing.T, path string, query url.Values) *http.Request {
 	t.Helper()
 	u := &url.URL{Scheme: "http", Host: "example.test", Path: path, RawQuery: query.Encode()}
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, u.String(), nil)
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, u.String(), nil)
 	require.NoError(t, err)
 	return req
 }
@@ -262,9 +261,9 @@ func TestCacheTransport_RawBytesKey(t *testing.T) {
 		// in client_test.go::TestCache_PerClientIsolation.
 		uA := &url.URL{Scheme: "http", Host: "host-a.test", Path: "/Countries"}
 		uB := &url.URL{Scheme: "http", Host: "host-b.test", Path: "/Countries"}
-		reqA, err := http.NewRequestWithContext(context.Background(), http.MethodGet, uA.String(), nil)
+		reqA, err := http.NewRequestWithContext(t.Context(), http.MethodGet, uA.String(), nil)
 		require.NoError(t, err)
-		reqB, err := http.NewRequestWithContext(context.Background(), http.MethodGet, uB.String(), nil)
+		reqB, err := http.NewRequestWithContext(t.Context(), http.MethodGet, uB.String(), nil)
 		require.NoError(t, err)
 
 		respA, err := tr.RoundTrip(reqA)

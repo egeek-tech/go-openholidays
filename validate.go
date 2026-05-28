@@ -5,7 +5,6 @@
 // malformed input client-side (ASVS V5.1.3 input-validation control) and
 // produce errors that callers can branch on via errors.Is against the
 // sentinel surface defined in errors.go.
-
 package openholidays
 
 import (

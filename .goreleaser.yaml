@@ -1,10 +1,18 @@
 # go-openholidays — goreleaser v2 configuration (Plan 05-06, CI-05 / REL-03).
 #
-# Drives the tag-triggered release workflow (.github/workflows/release.yml).
-# Pushing a tag matching `v*` (e.g. v0.1.0) builds six binaries (3 OS x 2
-# arch), produces archives + checksums.txt + a release on GitHub, then the
-# release.yml workflow signs ./dist/checksums.txt via
-# actions/attest-build-provenance@v4 (D-11).
+# Driven from the consolidated release workflow
+# (.github/workflows/release-please.yml). When release-please cuts a
+# new tag + GitHub Release on master, the same workflow run continues
+# (gated on `steps.release.outputs.release_created`) into goreleaser,
+# which builds six binaries (3 OS x 2 arch) per this config + produces
+# archives + checksums.txt, then `actions/attest-build-provenance@v4`
+# signs ./dist/checksums.txt (D-11).
+#
+# Same-workflow execution is deliberate: a tag pushed by GITHUB_TOKEN
+# does NOT cascade to a separate workflow (GitHub's anti-loop guard).
+# The standalone release.yml that used to live alongside this config
+# silently no-op'd when release-please created v0.2.0 — observed,
+# removed, replaced by the consolidated flow.
 #
 # Deferred per D-10 — NOT present in this config: no `brews:` (Homebrew tap),
 # no `signs:` (cosign — attestations cover provenance), no `source:` (source

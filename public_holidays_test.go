@@ -69,7 +69,7 @@ func TestClient_PublicHolidays(t *testing.T) {
 		t.Cleanup(srv.Close)
 
 		c := NewClient(WithBaseURL(srv.URL))
-		holidays, err := c.PublicHolidays(context.Background(), PublicHolidaysRequest{
+		holidays, err := c.PublicHolidays(t.Context(), PublicHolidaysRequest{
 			CountryIsoCode: "PL",
 			ValidFrom:      NewDate(2025, time.January, 1),
 			ValidTo:        NewDate(2025, time.December, 31),
@@ -101,7 +101,7 @@ func TestClient_PublicHolidays(t *testing.T) {
 		// http://example.invalid is RFC 6761 reserved; if the validator
 		// failed to short-circuit, the HTTP dispatch would fail loudly.
 		c := NewClient(WithBaseURL("http://example.invalid"))
-		holidays, err := c.PublicHolidays(context.Background(), PublicHolidaysRequest{
+		holidays, err := c.PublicHolidays(t.Context(), PublicHolidaysRequest{
 			ValidFrom: NewDate(2025, time.January, 1),
 			ValidTo:   NewDate(2025, time.December, 31),
 		})
@@ -114,7 +114,7 @@ func TestClient_PublicHolidays(t *testing.T) {
 	t.Run("validation error: from > to wraps ErrInvalidDateRange", func(t *testing.T) {
 		t.Parallel()
 		c := NewClient(WithBaseURL("http://example.invalid"))
-		holidays, err := c.PublicHolidays(context.Background(), PublicHolidaysRequest{
+		holidays, err := c.PublicHolidays(t.Context(), PublicHolidaysRequest{
 			CountryIsoCode: "PL",
 			ValidFrom:      NewDate(2026, time.January, 1),
 			ValidTo:        NewDate(2025, time.December, 31),
@@ -128,7 +128,7 @@ func TestClient_PublicHolidays(t *testing.T) {
 	t.Run("validation error: window > 3 years wraps ErrDateRangeTooLarge", func(t *testing.T) {
 		t.Parallel()
 		c := NewClient(WithBaseURL("http://example.invalid"))
-		holidays, err := c.PublicHolidays(context.Background(), PublicHolidaysRequest{
+		holidays, err := c.PublicHolidays(t.Context(), PublicHolidaysRequest{
 			CountryIsoCode: "PL",
 			ValidFrom:      NewDate(2020, time.January, 1),
 			ValidTo:        NewDate(2025, time.January, 1),
@@ -142,7 +142,7 @@ func TestClient_PublicHolidays(t *testing.T) {
 	t.Run("validation error: invalid LanguageIsoCode wraps ErrInvalidLanguage", func(t *testing.T) {
 		t.Parallel()
 		c := NewClient(WithBaseURL("http://example.invalid"))
-		holidays, err := c.PublicHolidays(context.Background(), PublicHolidaysRequest{
+		holidays, err := c.PublicHolidays(t.Context(), PublicHolidaysRequest{
 			CountryIsoCode:  "PL",
 			ValidFrom:       NewDate(2025, time.January, 1),
 			ValidTo:         NewDate(2025, time.December, 31),
@@ -156,7 +156,7 @@ func TestClient_PublicHolidays(t *testing.T) {
 
 	t.Run("4xx returns *APIError with detail Message", func(t *testing.T) {
 		t.Parallel()
-		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("Content-Type", "application/problem+json")
 			w.WriteHeader(http.StatusNotFound)
 			_, _ = w.Write([]byte(`{"detail": "Country not supported"}`))
@@ -164,7 +164,7 @@ func TestClient_PublicHolidays(t *testing.T) {
 		t.Cleanup(srv.Close)
 
 		c := NewClient(WithBaseURL(srv.URL))
-		holidays, err := c.PublicHolidays(context.Background(), PublicHolidaysRequest{
+		holidays, err := c.PublicHolidays(t.Context(), PublicHolidaysRequest{
 			CountryIsoCode: "PL",
 			ValidFrom:      NewDate(2025, time.January, 1),
 			ValidTo:        NewDate(2025, time.December, 31),
@@ -182,7 +182,7 @@ func TestClient_PublicHolidays(t *testing.T) {
 
 	t.Run("5xx with title fallback", func(t *testing.T) {
 		t.Parallel()
-		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("Content-Type", "application/problem+json")
 			w.WriteHeader(http.StatusInternalServerError)
 			_, _ = w.Write([]byte(`{"title": "Internal Server Error"}`))
@@ -190,7 +190,7 @@ func TestClient_PublicHolidays(t *testing.T) {
 		t.Cleanup(srv.Close)
 
 		c := NewClient(WithBaseURL(srv.URL))
-		_, err := c.PublicHolidays(context.Background(), PublicHolidaysRequest{
+		_, err := c.PublicHolidays(t.Context(), PublicHolidaysRequest{
 			CountryIsoCode: "PL",
 			ValidFrom:      NewDate(2025, time.January, 1),
 			ValidTo:        NewDate(2025, time.December, 31),
@@ -208,14 +208,14 @@ func TestClient_PublicHolidays(t *testing.T) {
 
 	t.Run("malformed JSON wraps decode error (no sentinel)", func(t *testing.T) {
 		t.Parallel()
-		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			_, _ = w.Write([]byte(`{"this": "is not an array of Holiday"`)) // missing closing brace
 		}))
 		t.Cleanup(srv.Close)
 
 		c := NewClient(WithBaseURL(srv.URL))
-		_, err := c.PublicHolidays(context.Background(), PublicHolidaysRequest{
+		_, err := c.PublicHolidays(t.Context(), PublicHolidaysRequest{
 			CountryIsoCode: "PL",
 			ValidFrom:      NewDate(2025, time.January, 1),
 			ValidTo:        NewDate(2025, time.December, 31),
@@ -236,12 +236,12 @@ func TestClient_PublicHolidays(t *testing.T) {
 		// Handler blocks until the client disconnects; the test cancels
 		// ctx after a short delay, exercising the in-flight cancellation
 		// path (CLIENT-09: within ≤ 100 ms).
-		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		srv := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
 			<-r.Context().Done()
 		}))
 		t.Cleanup(srv.Close)
 
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := context.WithCancel(t.Context())
 		go func() {
 			time.Sleep(20 * time.Millisecond)
 			cancel()
@@ -271,14 +271,14 @@ func TestClient_PublicHolidays(t *testing.T) {
 			"type":"Public","name":[{"language":"en","text":"X"}],
 			"nationwide":true,"regionalScope":"National","temporalScope":"FullDay"
 		}]`
-		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			_, _ = w.Write([]byte(bad))
 		}))
 		t.Cleanup(srv.Close)
 
 		c := NewClient(WithBaseURL(srv.URL))
-		holidays, err := c.PublicHolidays(context.Background(), PublicHolidaysRequest{
+		holidays, err := c.PublicHolidays(t.Context(), PublicHolidaysRequest{
 			CountryIsoCode: "PL",
 			ValidFrom:      NewDate(2025, time.January, 1),
 			ValidTo:        NewDate(2025, time.December, 31),
@@ -304,7 +304,7 @@ func TestClient_PublicHolidays(t *testing.T) {
 		t.Cleanup(srv.Close)
 
 		c := NewClient(WithBaseURL(srv.URL))
-		holidays, err := c.PublicHolidays(context.Background(), PublicHolidaysRequest{
+		holidays, err := c.PublicHolidays(t.Context(), PublicHolidaysRequest{
 			CountryIsoCode:  "PL",
 			ValidFrom:       NewDate(2025, time.January, 1),
 			ValidTo:         NewDate(2025, time.December, 31),
@@ -328,7 +328,7 @@ func TestClient_PublicHolidays(t *testing.T) {
 		t.Cleanup(srv.Close)
 
 		c := NewClient(WithBaseURL(srv.URL))
-		_, err = c.PublicHolidays(context.Background(), PublicHolidaysRequest{
+		_, err = c.PublicHolidays(t.Context(), PublicHolidaysRequest{
 			CountryIsoCode: "PL",
 			ValidFrom:      NewDate(2025, time.January, 1),
 			ValidTo:        NewDate(2025, time.December, 31),
@@ -350,7 +350,7 @@ func TestClient_PublicHolidays(t *testing.T) {
 		t.Cleanup(srv.Close)
 
 		c := NewClient(WithBaseURL(srv.URL))
-		_, err = c.PublicHolidays(context.Background(), PublicHolidaysRequest{
+		_, err = c.PublicHolidays(t.Context(), PublicHolidaysRequest{
 			CountryIsoCode:  "PL",
 			ValidFrom:       NewDate(2025, time.January, 1),
 			ValidTo:         NewDate(2025, time.December, 31),

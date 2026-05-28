@@ -28,7 +28,6 @@
 package openholidays
 
 import (
-	"context"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -62,7 +61,7 @@ func BenchmarkClient_PublicHolidays(b *testing.B) {
 		c := NewClient(WithBaseURL(srv.URL))
 		b.Cleanup(func() { _ = c.Close() })
 
-		ctx := context.Background()
+		ctx := b.Context()
 		b.ResetTimer()
 		for range b.N {
 			if _, err := c.PublicHolidays(ctx, req); err != nil {
@@ -91,7 +90,7 @@ func BenchmarkClient_Countries(b *testing.B) {
 		c := NewClient(WithBaseURL(srv.URL), WithCache(time.Hour))
 		b.Cleanup(func() { _ = c.Close() })
 
-		ctx := context.Background()
+		ctx := b.Context()
 		// Warm the cache so the measured loop hits the cacheTransport.
 		_, _ = c.Countries(ctx, CountriesRequest{})
 

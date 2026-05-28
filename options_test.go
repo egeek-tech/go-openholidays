@@ -8,8 +8,6 @@
 package openholidays
 
 import (
-	"context"
-	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -53,7 +51,7 @@ func TestWithHTTPClient(t *testing.T) {
 		// RESEARCH OQ-2: composeHTTPClient's shallow copy must preserve
 		// every non-Transport field on the caller's *http.Client.
 		custom := &http.Client{
-			CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
 				return http.ErrUseLastResponse
 			},
 		}
@@ -168,7 +166,7 @@ func TestWithLogger(t *testing.T) {
 
 	t.Run("non-nil is assigned verbatim", func(t *testing.T) {
 		t.Parallel()
-		customLogger := slog.New(slog.NewTextHandler(io.Discard, nil))
+		customLogger := slog.New(slog.DiscardHandler)
 		cli := NewClient(WithLogger(customLogger))
 		require.NotNil(t, cli)
 		lt := loggingTransportFromChain(t, cli)
@@ -278,7 +276,7 @@ func TestWithStrictDecoding(t *testing.T) {
 		t.Cleanup(srv.Close)
 
 		c := NewClient(WithBaseURL(srv.URL), WithStrictDecoding(true))
-		_, err := c.Countries(context.Background(), CountriesRequest{})
+		_, err := c.Countries(t.Context(), CountriesRequest{})
 		require.Error(t, err, "strict mode must surface a decode error on unknown field")
 		assert.Contains(t, err.Error(), "extra_unknown_field",
 			"error message must name the offending field (json.Decoder.DisallowUnknownFields convention)")
@@ -299,7 +297,7 @@ func TestWithStrictDecoding(t *testing.T) {
 		t.Cleanup(srv.Close)
 
 		c := NewClient(WithBaseURL(srv.URL)) // NO WithStrictDecoding
-		cs, err := c.Countries(context.Background(), CountriesRequest{})
+		cs, err := c.Countries(t.Context(), CountriesRequest{})
 		require.NoError(t, err,
 			"default Client must accept unknown JSON fields (Pitfall JSON-1 — upstream adds fields routinely)")
 		require.Len(t, cs, 1, "decoded payload must produce exactly one Country")

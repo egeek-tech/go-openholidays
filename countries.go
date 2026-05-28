@@ -10,7 +10,6 @@
 // to the uniform (ctx, CountriesRequest) shape that every endpoint
 // method shares (D-51 / D-52 / CL-08). The zero-value CountriesRequest{}
 // reproduces the Phase 2 observable behavior verbatim.
-
 package openholidays
 
 import (

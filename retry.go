@@ -6,7 +6,7 @@
 //   - retryConfig (unexported struct: maxAttempts / baseDelay / maxWait)
 //   - shouldRetry(resp, err) — pure predicate over the D-75 matrix
 //   - parseRetryAfter(h, now) — RFC 7231 §7.1.1.1 parser (integer seconds
-//     + RFC 1123 / RFC 850 / ANSI C asctime via http.ParseTime, plus the
+//   - RFC 1123 / RFC 850 / ANSI C asctime via http.ParseTime, plus the
 //     Pitfall 9 negative-duration guard)
 //   - computeBackoff(attempt, retryAfter, cfg, rnd) — full-jitter
 //     exponential backoff (AWS canonical formula) with Retry-After
@@ -37,7 +37,6 @@
 // AST audit in internal_test.go green without modification to its
 // allowlist (the audit flags package-level `var` declarations; named
 // constants are exempt).
-
 package openholidays
 
 import (

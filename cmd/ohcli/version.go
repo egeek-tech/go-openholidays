@@ -6,7 +6,6 @@
 // goreleaser's ldflags), fall back to the library's openholidays.Version
 // constant when ReadBuildInfo reports "(devel)" or no version (the common
 // case when the binary is built from inside the module's working tree).
-
 package main
 
 import (

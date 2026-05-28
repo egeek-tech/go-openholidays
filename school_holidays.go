@@ -18,7 +18,6 @@
 // codes it accepts (the Polish ferie cohorts are conventionally labeled
 // "A", "B", "C", "D" but the upstream OpenAPI spec exposes the field as a
 // free-form string).
-
 package openholidays
 
 import (
