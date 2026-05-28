@@ -176,7 +176,7 @@ func reorderArgs(args []string, boolFlags map[string]struct{}) []string {
 // hasByte reports whether s contains the byte b. Inlined here to keep
 // reorderArgs free of strings/bytes imports in the dispatcher file.
 func hasByte(s string, b byte) bool {
-	for i := 0; i < len(s); i++ {
+	for i := range len(s) {
 		if s[i] == b {
 			return true
 		}
