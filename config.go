@@ -33,6 +33,16 @@ import (
 	"time"
 )
 
+// defaultBaseURL is the upstream production host per D-36 / PROJECT.md.
+// Extracted to a package-level const (IN-02 follow-up) because the same
+// literal is referenced from defaultConfig and from several test files
+// (client_test.go, options_test.go, update_fixtures_test.go); keeping it
+// centralized avoids drift when the upstream host changes (mirror,
+// schema versioning). Constants are NOT in scope of the CLIENT-10 AST
+// audit (the audit filters on ast.GenDecl.Tok == token.VAR), so no
+// allowlist update is required.
+const defaultBaseURL = "https://openholidaysapi.org"
+
 // clientConfig is the internal builder state filled by Options between
 // NewClient's start and Client construction. Unexported — never escapes the
 // package. Field-by-field semantics mirror the public WithX godoc.
@@ -92,13 +102,13 @@ type RequestHookFunc func(*http.Request, *http.Response, error)
 //   - logger:     slog.Default() (D-39; library never mutates the process default).
 //   - timeout:    fifteen seconds (CLIENT-06 / D-28 / PROJECT.md).
 //
-// Every default literal appears in the struct literal below and nowhere else
-// in this file: RESEARCH OQ-4 + D-36 lock the upstream URL, so an extracted
-// const buys nothing but the indirection cost.
+// The upstream URL is referenced via the package-level defaultBaseURL
+// const declared above so test code can pin against the same source of
+// truth (IN-02 follow-up).
 func defaultConfig() *clientConfig {
 	return &clientConfig{
 		httpClient: &http.Client{},
-		baseURL:    "https://openholidaysapi.org",
+		baseURL:    defaultBaseURL,
 		userAgent:  "go-openholidays/" + Version,
 		logger:     slog.Default(),
 		timeout:    15 * time.Second,

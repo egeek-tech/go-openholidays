@@ -189,7 +189,11 @@ func TestUpdateFixtures(t *testing.T) {
 		},
 	}
 
-	const baseURL = "https://openholidaysapi.org"
+	// baseURL pins against the package-level defaultBaseURL const so
+	// the fixture refresher always targets the same upstream as a
+	// default-constructed Client (IN-02 follow-up — no more drift
+	// between the fixture refresher and the production default).
+	baseURL := defaultBaseURL
 
 	for _, c := range captures {
 		t.Run(c.fixture, func(t *testing.T) {

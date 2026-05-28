@@ -59,7 +59,7 @@ func TestNewClient(t *testing.T) {
 		t.Parallel()
 		c := NewClient()
 		require.NotNil(t, c)
-		assert.Equal(t, "https://openholidaysapi.org", c.baseURL,
+		assert.Equal(t, defaultBaseURL, c.baseURL,
 			"default baseURL must match D-36 / PROJECT.md")
 		assert.Equal(t, "go-openholidays/"+Version, c.userAgent,
 			"default userAgent must be go-openholidays/<Version>")

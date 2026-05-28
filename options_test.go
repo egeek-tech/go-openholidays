@@ -77,14 +77,14 @@ func TestWithBaseURL(t *testing.T) {
 		{name: "no trailing slash passes through", in: "https://example.test", want: "https://example.test"},
 		{name: "single trailing slash trimmed", in: "https://example.test/", want: "https://example.test"},
 		{name: "multiple trailing slashes trimmed", in: "https://example.test///", want: "https://example.test"},
-		{name: "empty string is no-op (default kept)", in: "", want: "https://openholidaysapi.org"},
+		{name: "empty string is no-op (default kept)", in: "", want: defaultBaseURL},
 		// WR-01 regression: inputs that collapse to "" after
 		// strings.TrimRight(u, "/") must be treated as no-op too,
 		// otherwise cfg.baseURL silently becomes "" and downstream
 		// HTTP calls fail with opaque "unsupported protocol scheme"
 		// errors far from the misconfiguration.
-		{name: "single slash trims to empty is no-op (default kept)", in: "/", want: "https://openholidaysapi.org"},
-		{name: "all-slashes trims to empty is no-op (default kept)", in: "////", want: "https://openholidaysapi.org"},
+		{name: "single slash trims to empty is no-op (default kept)", in: "/", want: defaultBaseURL},
+		{name: "all-slashes trims to empty is no-op (default kept)", in: "////", want: defaultBaseURL},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
