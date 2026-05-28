@@ -64,6 +64,20 @@ type hookTransport struct {
 // synchronously on the calling goroutine, then returns the next
 // RoundTripper's (resp, err) verbatim.
 //
+// The hook receives resp.Request when resp != nil and resp.Request != nil
+// — this is the canonical Go convention (stdlib http.Client.Do sets
+// resp.Request to the request that produced the response, which may
+// differ from the inbound request after redirects or chain rewrites).
+// In this SDK the only chain layer that rewrites the request is
+// cacheTransport: on a cache hit it sets resp.Request to a clone of the
+// inbound req with CacheHitContextKey attached to its context. Passing
+// resp.Request to the hook therefore lets consumers detect cache hits
+// uniformly via req.Context().Value(openholidays.CacheHitContextKey)
+// without inspecting resp.Request directly (D-88 + plan must_haves).
+//
+// On transport error (resp == nil) the hook receives the original inbound
+// req — there is no alternative to fall back on.
+//
 // Invariants (D-87..D-90):
 //
 //   - The hook is invoked exactly once per RoundTrip call, even when err is
@@ -78,7 +92,16 @@ type hookTransport struct {
 func (t *hookTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	resp, err := t.next.RoundTrip(req)
 	if t.hook != nil {
-		t.hook(req, resp, err) // D-90: synchronous; panics propagate; consumer owns goroutines.
+		hookReq := req
+		if resp != nil && resp.Request != nil {
+			// D-88: cacheTransport stamps the cache-hit context-key onto
+			// resp.Request. Pass it to the hook so consumers see the key
+			// uniformly via req.Context() (no resp.Request inspection
+			// required). Stdlib convention also points here — resp.Request
+			// is the canonical "request that produced this response".
+			hookReq = resp.Request
+		}
+		t.hook(hookReq, resp, err) // D-90: synchronous; panics propagate; consumer owns goroutines.
 	}
 	return resp, err
 }
