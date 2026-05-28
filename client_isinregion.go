@@ -7,9 +7,9 @@
 // child-level subdivision code is covered by a holiday whose declared
 // Holiday.Subdivisions only contain the parent.
 //
-// Same fast-path guards as Holiday.IsInRegion (D-58):
-//   - empty code → (false, nil), no HTTP
-//   - h.Nationwide → (true, nil), no HTTP
+// Same fast-path guards as Holiday.IsInRegion (D-58 / WR-06):
+//   - h.Nationwide → (true, nil), no HTTP — nationwide wins over empty code
+//   - empty code on non-nationwide → (false, nil), no HTTP
 //   - flat strings.EqualFold match against h.Subdivisions[].Code → (true, nil),
 //     no HTTP
 //   - h.Subdivisions empty (and not Nationwide) → (false, nil), no HTTP — no
@@ -41,8 +41,10 @@ import (
 //
 // Fast paths (no HTTP issued):
 //
-//  1. code == "" → returns (false, nil).
-//  2. h.Nationwide → returns (true, nil).
+//  1. h.Nationwide → returns (true, nil) — a nationwide holiday applies
+//     everywhere, including the empty-string code (WR-06).
+//  2. code == "" → returns (false, nil) — defensive guard on non-nationwide
+//     holidays only.
 //  3. Flat strings.EqualFold match against h.Subdivisions[].Code → returns
 //     (true, nil).
 //  4. len(h.Subdivisions) == 0 (and not Nationwide) → returns (false, nil) —
@@ -73,11 +75,11 @@ import (
 // *Client is immutable after NewClient and the inner c.Subdivisions call is
 // itself concurrency-safe (CLIENT-07).
 func (c *Client) IsInRegion(ctx context.Context, h Holiday, code string) (bool, error) {
-	if code == "" {
-		return false, nil
-	}
 	if h.Nationwide {
 		return true, nil
+	}
+	if code == "" {
+		return false, nil
 	}
 	// Fast path: flat match on Holiday.Subdivisions directly.
 	for _, s := range h.Subdivisions {

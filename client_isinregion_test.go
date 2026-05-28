@@ -70,7 +70,7 @@ func findFirstWithChildren(t *testing.T, tree []Subdivision) (string, string) {
 func TestClient_IsInRegion(t *testing.T) {
 	t.Parallel()
 
-	t.Run("empty code returns (false, nil) without HTTP", func(t *testing.T) {
+	t.Run("empty code on non-nationwide returns (false, nil) without HTTP", func(t *testing.T) {
 		t.Parallel()
 		// http://example.invalid is RFC 6761 reserved; an accidental HTTP
 		// dispatch would fail loudly with a DNS error.
@@ -88,6 +88,20 @@ func TestClient_IsInRegion(t *testing.T) {
 		ok, err := c.IsInRegion(context.Background(), h, "PL-SL")
 		require.NoError(t, err)
 		assert.True(t, ok)
+	})
+
+	t.Run("Nationwide wins over empty code without HTTP (WR-06)", func(t *testing.T) {
+		t.Parallel()
+		// WR-06 contract: a nationwide holiday applies to every region by
+		// definition, so Client.IsInRegion with an empty code on a
+		// Nationwide holiday returns (true, nil) — symmetric with the
+		// Holiday.IsInRegion fast path.
+		c := NewClient(WithBaseURL("http://example.invalid"))
+		h := Holiday{Nationwide: true}
+		ok, err := c.IsInRegion(context.Background(), h, "")
+		require.NoError(t, err)
+		assert.True(t, ok,
+			"Nationwide holiday must report true for empty code — nationwide applies everywhere")
 	})
 
 	t.Run("flat match on h.Subdivisions returns (true, nil) without HTTP", func(t *testing.T) {

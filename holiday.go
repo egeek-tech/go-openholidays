@@ -41,9 +41,11 @@ func (h Holiday) NameFor(lang string) string {
 // IsInRegion reports whether the holiday h applies to the administrative
 // subdivision identified by code. The match is flat and side-effect-free:
 //
-//  1. An empty code returns false (defensive — no panic).
-//  2. A nationwide holiday returns true for any non-empty code (the holiday
-//     applies everywhere, including the named subdivision).
+//  1. A nationwide holiday returns true for any code (including the empty
+//     string) — a nationwide holiday applies everywhere by definition, so
+//     "applies in <code>" is true regardless of <code> (WR-06).
+//  2. An empty code on a non-nationwide holiday returns false (defensive —
+//     no panic, no false positive on hand-built empty input).
 //  3. Otherwise, IsInRegion iterates Holiday.Subdivisions and returns true
 //     on the first strings.EqualFold(s.Code, code) match.
 //  4. Returns false otherwise.
@@ -56,11 +58,11 @@ func (h Holiday) NameFor(lang string) string {
 // instead — that method fetches /Subdivisions and walks Subdivision.Children
 // to answer hierarchical questions (CL-09).
 func (h Holiday) IsInRegion(code string) bool {
-	if code == "" {
-		return false
-	}
 	if h.Nationwide {
 		return true
+	}
+	if code == "" {
+		return false
 	}
 	for _, s := range h.Subdivisions {
 		if strings.EqualFold(s.Code, code) {

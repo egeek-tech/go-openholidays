@@ -58,16 +58,29 @@ func TestHoliday_NameFor(t *testing.T) {
 func TestHoliday_IsInRegion(t *testing.T) {
 	t.Parallel()
 
-	t.Run("empty code returns false even when Nationwide", func(t *testing.T) {
+	t.Run("Nationwide wins over empty code (WR-06: nationwide applies everywhere)", func(t *testing.T) {
 		t.Parallel()
+		// WR-06 contract: a nationwide holiday applies to every region by
+		// definition, so IsInRegion("") on a Nationwide holiday returns
+		// true. This is a pre-1.0 break from the prior "empty code always
+		// returns false" rule — the prior rule was a footgun for callers
+		// who forgot to validate user-supplied codes upstream.
 		h := Holiday{Nationwide: true}
-		assert.False(t, h.IsInRegion(""))
+		assert.True(t, h.IsInRegion(""),
+			"Nationwide holiday must report true for empty code — nationwide applies everywhere")
 	})
 
 	t.Run("Nationwide returns true for any non-empty code", func(t *testing.T) {
 		t.Parallel()
 		h := Holiday{Nationwide: true}
 		assert.True(t, h.IsInRegion("PL-SL"))
+	})
+
+	t.Run("empty code on non-nationwide returns false (defensive)", func(t *testing.T) {
+		t.Parallel()
+		h := Holiday{Subdivisions: []SubdivisionRef{{Code: "PL-SL"}}}
+		assert.False(t, h.IsInRegion(""),
+			"non-nationwide holiday with empty code input must return false (no panic, no false positive)")
 	})
 
 	t.Run("matches Code in Subdivisions case-insensitively", func(t *testing.T) {
