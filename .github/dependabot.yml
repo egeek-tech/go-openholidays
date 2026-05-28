@@ -1,21 +1,35 @@
 # go-openholidays — Dependabot configuration (CI-06).
 #
-# Only the github-actions ecosystem is enabled. The library is zero-runtime-
-# dependency (PROJECT.md constraint) and the lone test-only dependency
-# (github.com/stretchr/testify) is pinned deliberately — gomod bumps are a
-# manual decision, not an automated PR. If a Go dependency ever needs to be
-# updated, a maintainer opens that PR by hand.
+# Two ecosystems are enabled:
 #
-# Weekly cadence keeps action versions fresh (release.yml + ci.yml currently
-# pin actions/checkout@v4, actions/setup-go@v5, goreleaser/goreleaser-action@v6,
-# actions/attest-build-provenance@v4, golangci/golangci-lint-action@v7,
-# codecov/codecov-action@v5, golang/govulncheck-action@v1).
+#  - github-actions: keeps the workflow action pins fresh (release.yml + ci.yml
+#    currently pin actions/checkout@v4, actions/setup-go@v5,
+#    goreleaser/goreleaser-action@v6, actions/attest-build-provenance@v4,
+#    golangci/golangci-lint-action@v7, codecov/codecov-action@v5,
+#    golang/govulncheck-action@v1).
 #
-# open-pull-requests-limit: 5 throttles noise; if multiple actions update in
-# the same week, the rest queue behind these five and roll forward as PRs land.
+#  - gomod: tracks the `go` directive in go.mod (so Dependabot can propose
+#    Go-toolchain floor bumps as new releases land) and the test-only modules
+#    in go.sum (currently github.com/stretchr/testify). The library itself is
+#    zero-runtime-dependency (PROJECT.md constraint) — any non-test `require`
+#    line appearing here would itself be a Key Decision to revisit.
+#
+# Note: Dependabot does NOT automatically bump the `go-version` matrix in
+# .github/workflows/ci.yml. When the go.mod floor moves, the CI matrix entries
+# (`"1.23.x"`, `"1.24.x"`, `"stable"`) must be revisited by hand.
+#
+# Weekly cadence keeps both surfaces fresh. open-pull-requests-limit: 5
+# throttles noise; if multiple updates land in the same week, the rest queue
+# behind these five and roll forward as PRs are merged.
 version: 2
 updates:
   - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: gomod
     directory: /
     schedule:
       interval: weekly
