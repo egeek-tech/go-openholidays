@@ -63,8 +63,8 @@ type entry struct {
 // Instances are constructed via NewMemoryCache (or newMemoryCacheWithClock
 // inside tests) and stopped via Close. The zero value is NOT usable —
 // fields are populated by the constructor; copying a MemoryCache by value
-// is not supported (sync.RWMutex / sync.Once / sync.Cancel triggers the
-// standard go vet copy-lock warning).
+// is not supported (sync.RWMutex and sync.Once trigger the standard go vet
+// copy-lock warning).
 //
 // Lifecycle:
 //
