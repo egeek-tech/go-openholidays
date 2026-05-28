@@ -122,10 +122,12 @@ func TestShouldRetry(t *testing.T) {
 	}
 }
 
-// TestParseRetryAfter locks D-76 + Pitfall 9 past-date guard. Six
-// cases cover integer seconds, RFC 1123 future date, RFC 1123 past
-// date (rejected per Pitfall 9), ANSI C asctime format, empty header,
-// and garbage input.
+// TestParseRetryAfter locks D-76 + Pitfall 9 past-date guard + IN-05
+// integer-seconds overflow guard. Eight cases cover integer seconds,
+// RFC 1123 future date, RFC 1123 past date (rejected per Pitfall 9),
+// ANSI C asctime format, empty header, garbage input, the 12-digit
+// integer overflow case (rejected per IN-05), and the largest
+// non-overflowing 10-digit case (accepted).
 func TestParseRetryAfter(t *testing.T) {
 	t.Parallel()
 
@@ -180,6 +182,33 @@ func TestParseRetryAfter(t *testing.T) {
 			now:    now,
 			wantD:  0,
 			wantOK: false,
+		},
+		{
+			// IN-05: integer-seconds overflow boundary. time.Duration is
+			// int64 nanoseconds; s * time.Second wraps to a negative
+			// duration once s exceeds math.MaxInt64 / 1e9 (~9.2e9).
+			// A 12-digit Retry-After such as "999999999999" is within
+			// RFC 7231 §7.1.1.1 but must be rejected with (0, false)
+			// so the caller falls back to jitter rather than receiving
+			// a misleading (negative, true). Defense vs. T-04-05 extreme.
+			name:   "12-digit integer overflow rejected (defense vs. T-04-05 extreme)",
+			h:      "999999999999",
+			now:    now,
+			wantD:  0,
+			wantOK: false,
+		},
+		{
+			// IN-05 companion: the largest non-overflowing s. With
+			// math.MaxInt64 ≈ 9.223372036854775807e18 nanoseconds and
+			// 1e9 ns/s, s = 9223372036 (10 digits, ~292 years) is the
+			// last value that does NOT overflow. Locks the boundary so
+			// a future refactor of the overflow guard cannot silently
+			// also reject legitimate (if pathologically large) values.
+			name:   "10-digit integer just below overflow boundary accepted",
+			h:      "9223372036",
+			now:    now,
+			wantD:  9223372036 * time.Second,
+			wantOK: true,
 		},
 	}
 	for _, c := range cases {

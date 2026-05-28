@@ -43,6 +43,7 @@ package openholidays
 import (
 	"context"
 	"errors"
+	"math"
 	"math/rand/v2"
 	"net"
 	"net/http"
@@ -186,10 +187,11 @@ func shouldRetry(resp *http.Response, err error) bool {
 // past-dated Retry-After would otherwise disable backoff and trigger a
 // run-away retry loop (threat T-04-06).
 //
-// An empty header, a non-numeric non-date string, or a negative
-// integer-seconds value all return (0, false). The boolean is the
-// caller's signal to fall back to the jitter computation in
-// computeBackoff.
+// An empty header, a non-numeric non-date string, a negative
+// integer-seconds value, or an integer-seconds value so large it
+// overflows int64 nanoseconds (IN-05) all return (0, false). The
+// boolean is the caller's signal to fall back to the jitter
+// computation in computeBackoff.
 //
 // The function is pure — no allocation beyond stdlib internals, no
 // Client dependency. Unit-tested by TestParseRetryAfter in retry_test.go.
@@ -198,6 +200,24 @@ func parseRetryAfter(h string, now time.Time) (time.Duration, bool) {
 		return 0, false
 	}
 	if s, err := strconv.Atoi(h); err == nil && s >= 0 {
+		// IN-05 overflow guard: time.Duration is int64-nanoseconds, so
+		// s * time.Second overflows once s exceeds math.MaxInt64 / 1e9
+		// (~9.2e9 seconds, ~292 years). Two's-complement wraparound can
+		// land on either positive or negative values depending on the
+		// number of full int64 revolutions, so a post-hoc `d < 0` check
+		// is insufficient — e.g. s=999999999999 produces a *positive*
+		// but absurdly-wrong duration. Check the bound BEFORE the
+		// multiplication via integer division of math.MaxInt64 by the
+		// ns-per-second factor. A 12-digit Retry-After such as
+		// "999999999999" is within RFC 7231 §7.1.1.1 (no upper bound
+		// on delta-seconds) but must be rejected with (0, false) so
+		// the caller falls back to jitter, matching the behavior for
+		// empty / garbage / past-date inputs. Defends against the
+		// extreme end of threat T-04-05.
+		const maxParsableSeconds = int64(math.MaxInt64) / int64(time.Second)
+		if int64(s) > maxParsableSeconds {
+			return 0, false
+		}
 		return time.Duration(s) * time.Second, true
 	}
 	if t, err := http.ParseTime(h); err == nil {
