@@ -105,7 +105,15 @@
   3. `FuzzParseLocalizedText` and `FuzzUnmarshalHoliday` run for ≥ 60 s without surfacing panics; benchmarks confirm `PublicHolidays(PL, 2025)` < 500 ms cold and < 5 ms cached.
   4. `pkg.go.dev` renders the package with at least one `Example_*` per public method (all examples compile under `go test -run Example`); every exported symbol has a doc comment beginning with its name; `README.md` ≤ 20-line quickstart compiles; `docs/design.md`, `CHANGELOG.md` (keep-a-changelog), and `CONTRIBUTING.md` exist; Go Report Card grade A on first scan.
   5. `v0.1.0` git tag is pushed with a confirmed module path owner committed to `go.mod`; `goreleaser` produces CLI binaries for linux/darwin/windows × amd64/arm64 attached to the GitHub Release; `release.yml` workflow ran clean on the tag; Dependabot is configured for GitHub Actions versions; coverage badge wired to Codecov or coveralls.
-**Plans**: TBD
+**Plans**: 8 plans
+  - [ ] 05-01-PLAN.md — CLI core: cmd/ohcli main + version + format renderers + subcommand handlers (CLI-01, CLI-02, CLI-03)
+  - [ ] 05-02-PLAN.md — CLI tests: httptest-driven per-subcommand TestCmdXxx + renderer tests (CLI-04)
+  - [ ] 05-03-PLAN.md — Fuzz tests + benchmarks: FuzzParseLocalizedText, FuzzUnmarshalHoliday, BenchmarkClient_PublicHolidays (cold) + BenchmarkClient_Countries (cached per CL-18) (TEST-07, TEST-11)
+  - [ ] 05-04-PLAN.md — Integration tests: build-tagged + env-gated TestIntegration_PublicHolidays_PL_2025 + TestIntegration_SchoolHolidays_PL_2025 (TEST-08)
+  - [ ] 05-05-PLAN.md — Lint + CI workflow: finalized .golangci.yml + .github/workflows/ci.yml (matrix go: [1.23.x, 1.24.x, stable] + lint + vuln + coverage gate + Codecov OIDC) (CI-01..03, CI-05, CI-07, TEST-10)
+  - [ ] 05-06-PLAN.md — Integration + release workflows: integration.yml (nightly cron) + release.yml (tag-triggered goreleaser + attest-build-provenance@v4) + .goreleaser.yaml (v2 schema, 6-binary matrix) + dependabot.yml (CI-04, CI-05, CI-06, REL-01, REL-02, REL-03)
+  - [ ] 05-07-PLAN.md — Documentation: example_test.go (15+ Example_*), README.md (badges + ≤20-line quickstart), docs/design.md, CHANGELOG.md (pointer per D-12), CONTRIBUTING.md, doc.go extension (DOC-01..07, TEST-09)
+  - [ ] 05-08-PLAN.md — Release readiness: PROJECT.md CL-18 + docs/release-runbook.md + human checkpoint for v0.1.0 tag push and post-tag external-service verification (CI-04, REL-04, DOC-07)
 
 ---
 
@@ -117,7 +125,7 @@
 | 2. Transport | 4/4 | Complete   | 2026-05-27 |
 | 3. Endpoints & Helpers | 11/11 | Complete   | 2026-05-27 |
 | 4. Resilience | 6/6 | Complete   | 2026-05-28 |
-| 5. Distribution | 0/0 | Not started | - |
+| 5. Distribution | 0/8 | Planned | - |
 
 ---
 
