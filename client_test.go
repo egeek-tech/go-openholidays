@@ -21,7 +21,6 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"runtime"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -139,10 +138,21 @@ func TestNewClient(t *testing.T) {
 	})
 }
 
-// TestClient_Close covers CLIENT-08 / D-40: idempotent (every call returns
-// nil, subsequent calls still return nil), and race-safe from any goroutine
-// (100 parallel goroutines under -race all return nil and the final flag is
-// true).
+// TestClient_Close covers CLIENT-08 / D-40 + D-96 / RESIL-08:
+//
+//   - Idempotent: every call returns nil, subsequent calls still return nil.
+//   - Race-safe from any goroutine (100 parallel goroutines under -race
+//     all return nil and the final flag is true).
+//   - Stops the cache sweeper goroutine: a constructed-then-Put MemoryCache
+//     spawns a sweeper; Close cancels its context and the goroutine exits.
+//
+// WR-02 + WR-03 follow-up: previously a separate top-level
+// TestClient_CloseStopsSweeper used runtime.NumGoroutine() + a fixed sleep
+// — process-wide and flake-prone. Demoted here as the "stops cache sweeper"
+// subtest, replaced with a deterministic observation of MemoryCache.sweepDone
+// (the sweepLoop closes that channel via `defer close(m.sweepDone)` on exit,
+// so a successful select-recv on it within a bounded wait is the load-bearing
+// invariant — no process-global goroutine counter required).
 func TestClient_Close(t *testing.T) {
 	t.Parallel()
 
@@ -187,6 +197,40 @@ func TestClient_Close(t *testing.T) {
 		wg.Wait()
 		assert.True(t, c.closed.Load(),
 			"closed must be true after all goroutines have called Close")
+	})
+
+	t.Run("stops cache sweeper goroutine (D-96 / RESIL-08)", func(t *testing.T) {
+		t.Parallel()
+		// Drive one end-to-end Countries call so cacheTransport's Put
+		// fires and MemoryCache.startOnce.Do(startSweeper) spawns the
+		// sweeper goroutine. The 1 ms TTL keeps the test cheap.
+		body := []byte(`[{"isoCode":"PL","name":[{"language":"en","text":"Poland"}]}]`)
+		srv, _ := countriesServer(t, body)
+		t.Cleanup(srv.Close)
+
+		c := NewClient(WithBaseURL(srv.URL), WithCache(1*time.Millisecond))
+		_, err := c.Countries(context.Background(), CountriesRequest{})
+		require.NoError(t, err, "Countries call must succeed against the fake server")
+
+		// Same-package access lets us reach into the concrete *MemoryCache
+		// for the deterministic sweepDone channel — the load-bearing
+		// invariant for "sweeper exited" without process-global noise.
+		mc, ok := c.cache.(*MemoryCache)
+		require.True(t, ok, "default WithCache wires a *MemoryCache")
+
+		require.NoError(t, c.Close(), "Close must return nil per CLIENT-08")
+
+		// MemoryCache.sweepLoop has `defer close(m.sweepDone)`. A
+		// successful recv on sweepDone is the deterministic signal that
+		// the goroutine actually exited (not just that the ctx was
+		// cancelled). 1 s bound is generous for CI scheduling noise but
+		// catches a real sweeper leak; the typical observation is sub-ms.
+		select {
+		case <-mc.sweepDone:
+			// Sweeper goroutine exited cleanly.
+		case <-time.After(time.Second):
+			t.Fatal("MemoryCache sweeper goroutine did not exit within 1s of Client.Close — sweeper-leak regression (D-96 / RESIL-08)")
+		}
 	})
 }
 
@@ -295,47 +339,6 @@ func countriesServer(t *testing.T, body []byte) (*httptest.Server, *atomic.Int32
 		_, _ = w.Write(body)
 	}))
 	return srv, &hits
-}
-
-// TestClient_CloseStopsSweeper locks D-96 + RESIL-08: Close stops the cache
-// sweeper goroutine. The test runs a real cache through one end-to-end
-// Countries call (forcing a Put → lazy sweeper start), calls Close, then
-// asserts runtime.NumGoroutine() delta ≤ 0 after closing the server and a
-// small grace period.
-//
-// Implementation note: D-96's documented pattern omits server bookkeeping;
-// in practice an httptest.Server + http.Transport keep-alive pool spawns
-// short-lived goroutines that persist past Client.Close until the server
-// itself closes. To isolate the sweeper-leak signal, we explicitly close
-// both the server's idle client connections AND the server itself BEFORE
-// the assertion. The sweeper-stop check is the load-bearing invariant —
-// the connection-pool noise is a documented test-harness artifact, not a
-// regression in Client.Close (Rule 1 auto-fix per the executor protocol —
-// the plan's verbatim D-96 pattern would be flaky without this).
-//
-// Not t.Parallel() because runtime.NumGoroutine() delta checks are
-// sensitive to other tests' goroutine churn (Phase 2 D-48 / D-96).
-func TestClient_CloseStopsSweeper(t *testing.T) {
-	body := []byte(`[{"isoCode":"PL","name":[{"language":"en","text":"Poland"}]}]`)
-	srv, _ := countriesServer(t, body)
-
-	before := runtime.NumGoroutine()
-
-	c := NewClient(WithBaseURL(srv.URL), WithCache(1*time.Millisecond))
-	_, err := c.Countries(context.Background(), CountriesRequest{})
-	require.NoError(t, err, "Countries call must succeed against the fake server")
-
-	require.NoError(t, c.Close())
-	// Tear down the test-harness HTTP plumbing BEFORE the assertion so
-	// http.Transport keep-alive goroutines stop and httptest.Server
-	// worker goroutines exit; only then is the runtime.NumGoroutine
-	// delta a clean signal for the sweeper-leak invariant.
-	c.http.CloseIdleConnections()
-	srv.Close()
-	time.Sleep(20 * time.Millisecond) // sweeper + conn-pool exit grace
-
-	assert.LessOrEqual(t, runtime.NumGoroutine(), before,
-		"Close must stop the sweeper goroutine (D-96 / RESIL-08 — runtime.NumGoroutine delta ≤ 0 after test-harness teardown)")
 }
 
 // TestCache_StrictDecodingComposes locks D-93: strict-decoding applies to
