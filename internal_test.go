@@ -65,6 +65,16 @@ import (
 //     sentinel errors. Listed AFTER errEmptyDate per the chronological-
 //     addition order convention (Pitfall 6 protocol — single-line append
 //     keeps phase-to-phase diffs minimal).
+//   - Version — the exported semantic-version string declared in
+//     version.go. Promoted from `const` to `var` so the documented
+//     `-ldflags '-X github.com/egeek-tech/go-openholidays.Version=...'`
+//     override actually takes effect (the Go linker's -X flag has no
+//     effect on a const). The value is read once per Client at
+//     construction time for the User-Agent header and is never mutated
+//     by library code; it remains effectively immutable after package
+//     init (only release-pipeline link-time override mutates it).
+//     Listed AFTER CacheHitContextKey per the chronological-addition
+//     order convention (Pitfall 6 protocol).
 //
 // Sentinel error values are immutable identities (built via errors.New /
 // fmt.Errorf) — they are not "mutable state" in the CLIENT-10 sense, but
@@ -79,6 +89,7 @@ var allowedVars = map[string]struct{}{
 	"ErrMalformedResponse": {},
 	"errEmptyDate":         {},
 	"CacheHitContextKey":   {},
+	"Version":              {},
 }
 
 // skipDirs are directory names anywhere in the walk that the audit skips.

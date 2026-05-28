@@ -7,4 +7,4 @@ package openholidays
 // cmd/ohcli demo CLI. The value can be overridden at link time, for example:
 //
 //	go build -ldflags '-X github.com/egeek-tech/go-openholidays.Version=0.1.1-rc1'
-const Version = "0.1.0"
+var Version = "0.1.0"
