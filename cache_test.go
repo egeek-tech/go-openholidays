@@ -51,7 +51,10 @@ func TestCacheInterface_Conformance(t *testing.T) {
 }
 
 // TestNewMemoryCache covers the constructor: returns a non-nil *MemoryCache
-// configured with the supplied TTL, no goroutines spawned yet.
+// configured with the supplied TTL. The "no goroutines spawned yet"
+// lazy-start invariant is locked separately in TestMemoryCache_SweeperLazyStart
+// (which uses runtime.NumGoroutine to assert the sweeper does not run until
+// the first Put).
 func TestNewMemoryCache(t *testing.T) {
 	t.Parallel()
 
