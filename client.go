@@ -173,13 +173,19 @@ func newClientRand() *rand.Rand {
 		binary.LittleEndian.PutUint64(tb[:], uint64(time.Now().UnixNano()))
 		var pb [8]byte
 		binary.LittleEndian.PutUint64(pb[:], uint64(os.Getpid()))
+		// hash.Hash documents Write as "never returns an error", but
+		// errcheck (mandated by the .golangci.yml lint set) flags every
+		// unchecked error return regardless of documentation. The
+		// explicit `_, _ = ...` discard is the project-wide idiom for
+		// "drop intentionally" — see client_test.go:339,
+		// countries_test.go:94/170/254/280/316/322/350/369 (IN-01).
 		h1 := fnv.New128a()
-		h1.Write(tb[:])
-		h1.Write(pb[:])
+		_, _ = h1.Write(tb[:])
+		_, _ = h1.Write(pb[:])
 		copy(seed[:16], h1.Sum(nil))
 		h2 := fnv.New128a()
-		h2.Write(pb[:])
-		h2.Write(tb[:])
+		_, _ = h2.Write(pb[:])
+		_, _ = h2.Write(tb[:])
 		copy(seed[16:], h2.Sum(nil))
 	}
 	return rand.New(rand.NewChaCha8(seed))
