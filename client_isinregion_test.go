@@ -247,6 +247,66 @@ func TestClient_IsInRegion(t *testing.T) {
 			t.Fatalf("IsInRegion failed to bound cycle — exceeded 2s (regression: len(parentIdx)+1 cap may have been removed from client_isinregion.go)")
 		}
 	})
+
+	t.Run("5-node cycle terminates via len(parentIdx)+1 cap (WR-01 regression)", func(t *testing.T) {
+		t.Parallel()
+		// Deeper cycle than the 2-node test above: A → B → C → D → E → A.
+		// buildParentIndex produces 5 entries (DE-A..DE-E); the upward-walk
+		// cap is len(parentIdx)+1 = 6 iterations. The cycle's natural length
+		// is 5 — the cap fires on the 6th iteration. A regression that
+		// tightened the cap to e.g. len(parentIdx)-1 (= 4) would terminate
+		// without traversing the full cycle, yet still return (false, nil)
+		// on the 2-node test — so this subtest is necessary to lock the
+		// "cap upper-bound is meaningfully exercised" contract from WR-01.
+		cyclic := []Subdivision{
+			{Code: "DE-A", Children: []Subdivision{
+				{Code: "DE-B", Children: []Subdivision{
+					{Code: "DE-C", Children: []Subdivision{
+						{Code: "DE-D", Children: []Subdivision{
+							{Code: "DE-E", Children: []Subdivision{{Code: "DE-A"}}},
+						}},
+					}},
+				}},
+			}},
+		}
+		body, err := json.Marshal(cyclic)
+		require.NoError(t, err)
+
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, "/Subdivisions", r.URL.Path)
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write(body)
+		}))
+		t.Cleanup(srv.Close)
+
+		c := NewClient(WithBaseURL(srv.URL))
+		// Holiday declares membership in a code that does NOT appear in the
+		// cyclic tree, so the upward walk must rely purely on the cap to
+		// terminate.
+		h := Holiday{
+			Nationwide:   false,
+			Subdivisions: []SubdivisionRef{{Code: "DE-X"}},
+		}
+
+		type result struct {
+			ok  bool
+			err error
+		}
+		done := make(chan result, 1)
+		go func() {
+			ok, err := c.IsInRegion(context.Background(), h, "DE-A")
+			done <- result{ok, err}
+		}()
+
+		select {
+		case r := <-done:
+			require.NoError(t, r.err)
+			assert.False(t, r.ok,
+				"deeper cycle must terminate via len(parentIdx)+1 cap and return (false, nil)")
+		case <-time.After(2 * time.Second):
+			t.Fatalf("IsInRegion failed to bound 5-node cycle — exceeded 2s (regression: len(parentIdx)+1 cap may have been tightened below cycle length)")
+		}
+	})
 }
 
 // TestSplitCountryFromSubdivision covers the unexported helper that derives
