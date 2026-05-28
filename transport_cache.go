@@ -123,10 +123,32 @@ func (t *cacheTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	key := cacheKey(req)
 	if cached, ok := t.cache.Get(key); ok {
 		ctxWithHit := context.WithValue(req.Context(), CacheHitContextKey, true)
+		// IN-03: populate Proto/ProtoMajor/ProtoMinor on the synthetic
+		// cache-hit response so user hooks (WithRequestHook) that key
+		// on resp.ProtoMajor / resp.Proto for metrics (e.g. "count
+		// HTTP/2 requests") do not silently misreport cache hits as
+		// HTTP/0.0. The library targets the OpenHolidays REST API
+		// which serves HTTP/1.1; populating "HTTP/1.1" / 1 / 1
+		// matches the on-wire protocol consumers would observe on
+		// cache miss.
+		//
+		// IN-04: populate Header with Content-Type: application/json
+		// so hooks introspecting resp.Header.Get("Content-Type") see
+		// the expected value on cache hits too. The library only
+		// caches /Countries, /Languages, /Subdivisions (D-83), all
+		// of which return application/json upstream. A richer header
+		// envelope (caching ETag, Cache-Control, etc.) would require
+		// changing the Cache interface contract from []byte to a
+		// richer type — deliberately out of scope for v0.x.
+		synthHeader := make(http.Header, 1)
+		synthHeader.Set("Content-Type", "application/json")
 		synth := &http.Response{
 			StatusCode:    http.StatusOK,
 			Status:        "200 OK",
-			Header:        make(http.Header),
+			Proto:         "HTTP/1.1",
+			ProtoMajor:    1,
+			ProtoMinor:    1,
+			Header:        synthHeader,
 			Body:          io.NopCloser(bytes.NewReader(cached)),
 			ContentLength: int64(len(cached)),
 			Request:       req.WithContext(ctxWithHit),

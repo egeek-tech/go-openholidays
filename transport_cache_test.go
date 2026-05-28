@@ -181,6 +181,34 @@ func TestCacheTransport_HitMissBehavior(t *testing.T) {
 			"synthetic cache-hit response must set ContentLength to len(cachedBytes) for OBS-02 bytes_in")
 	})
 
+	t.Run("cache-hit synthetic response populates Proto and Content-Type (IN-03, IN-04)", func(t *testing.T) {
+		t.Parallel()
+		tr, _ := newTestCacheTransport(t, []byte(`[{"isoCode":"PL"}]`), http.StatusOK)
+
+		req := newTestRequest(t, "/Countries", nil)
+
+		// First call — miss; primes the cache.
+		resp1, err := tr.RoundTrip(req)
+		require.NoError(t, err)
+		_, _ = io.Copy(io.Discard, resp1.Body)
+		require.NoError(t, resp1.Body.Close())
+
+		// Second call — hit; the synthetic response is what we
+		// assert on.
+		resp2, err := tr.RoundTrip(req)
+		require.NoError(t, err)
+		t.Cleanup(func() { _ = resp2.Body.Close() })
+
+		assert.Equal(t, "HTTP/1.1", resp2.Proto,
+			"IN-03: cache-hit synthetic response must set Proto to HTTP/1.1")
+		assert.Equal(t, 1, resp2.ProtoMajor,
+			"IN-03: cache-hit synthetic response must set ProtoMajor to 1")
+		assert.Equal(t, 1, resp2.ProtoMinor,
+			"IN-03: cache-hit synthetic response must set ProtoMinor to 1")
+		assert.Equal(t, "application/json", resp2.Header.Get("Content-Type"),
+			"IN-04: cache-hit synthetic response Header must include Content-Type: application/json")
+	})
+
 	t.Run("503 response is NEVER cached (Pitfall CACHE-1 / D-83)", func(t *testing.T) {
 		t.Parallel()
 		tr, hits := newTestCacheTransport(t, []byte(`{"error":"unavailable"}`), http.StatusServiceUnavailable)
