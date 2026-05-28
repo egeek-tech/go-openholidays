@@ -439,6 +439,72 @@ func TestClient_FinalAttemptRespBodyDrained(t *testing.T) {
 	})
 }
 
+// TestClient_RetryExhaustedPrefix locks WR-03: the "retry exhausted
+// (N attempts)" wrap fires only when retries ACTUALLY ran. A
+// non-retryable transport error on attempt 0 must produce the plain
+// error message, not the misleading retry-exhausted prefix, even
+// when WithRetry(N, _) is configured with N > 1.
+//
+// The httpErr branch is exercised via a custom RoundTripper that
+// returns a non-retryable error (a plain errors.New is neither a
+// net.Error.Timeout nor a syscall.ECONNRESET, so shouldRetry classifies
+// it as non-retryable). The loop breaks on attempt 0 via !shouldRetry
+// after exactly one round trip; the post-loop wrap must NOT prepend
+// "retry exhausted (5 attempts):".
+func TestClient_RetryExhaustedPrefix(t *testing.T) {
+	t.Parallel()
+
+	t.Run("non-retryable transport error on attempt 0 with WithRetry(5,_) omits retry-exhausted prefix (WR-03)", func(t *testing.T) {
+		t.Parallel()
+
+		injected := errors.New("simulated non-retryable transport error")
+		transport := roundTripperFunc(func(_ *http.Request) (*http.Response, error) {
+			return nil, injected
+		})
+		httpClient := &http.Client{Transport: transport}
+
+		c := NewClient(
+			WithBaseURL("http://example.test"),
+			WithHTTPClient(httpClient),
+			WithRetry(5, time.Millisecond),
+		)
+		t.Cleanup(func() { _ = c.Close() })
+
+		_, err := c.Countries(context.Background(), CountriesRequest{})
+		require.Error(t, err)
+		assert.ErrorIs(t, err, injected,
+			"underlying transport error must remain wrapped via %%w")
+		assert.NotContains(t, err.Error(), "retry exhausted",
+			"WR-03 contract: a single-attempt failure with WithRetry(5,_) must NOT prepend 'retry exhausted (5 attempts):' — no retries actually ran")
+		assert.Contains(t, err.Error(), "/Countries",
+			"path must appear in the plain (non-retry-exhausted) error message")
+	})
+
+	t.Run("retryable transport error exhausting all attempts retains retry-exhausted prefix", func(t *testing.T) {
+		t.Parallel()
+
+		// fakeNetErr with Timeout()==true is retryable per
+		// shouldRetry — the loop runs to full exhaustion.
+		transport := roundTripperFunc(func(_ *http.Request) (*http.Response, error) {
+			return nil, &fakeNetErr{timeout: true}
+		})
+		httpClient := &http.Client{Transport: transport}
+
+		c := NewClient(
+			WithBaseURL("http://example.test"),
+			WithHTTPClient(httpClient),
+			WithRetry(3, time.Millisecond),
+			WithMaxRetryWait(2*time.Millisecond),
+		)
+		t.Cleanup(func() { _ = c.Close() })
+
+		_, err := c.Countries(context.Background(), CountriesRequest{})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "retry exhausted (3 attempts)",
+			"WR-03 contract: when retries actually ran to exhaustion, the prefix must report the actual attempt count")
+	})
+}
+
 // TestClient_ContextCancel verifies CLIENT-09 + D-48: ctx cancellation
 // interrupts in-flight HTTP within ≤ 100 ms (asserted at the 200 ms ceiling
 // for 2x CI slack); errors.Is(err, context.Canceled) holds through

@@ -89,6 +89,14 @@ func doJSONGet[T any](ctx context.Context, c *Client, path string, q url.Values)
 	if c.retry.maxAttempts > 0 {
 		maxAttempts = c.retry.maxAttempts
 	}
+	// WR-03: track the actual number of c.http.Do invocations made by
+	// the loop so the post-loop wrap can distinguish "exhausted retries"
+	// from "single attempt failed non-retryably". Without this, a
+	// non-retryable transport error on attempt 0 (e.g. DNS resolution
+	// failure, TLS handshake error) was misreported as
+	// "retry exhausted (N attempts)" purely because c.retry.maxAttempts
+	// was > 1 — even though no retries actually ran.
+	var attemptsRan int
 	for attempt := 0; attempt < maxAttempts; attempt++ {
 		// Pitfall RETRY-3 + D-75: ctx.Err() at loop top so a caller
 		// cancellation between attempts surfaces immediately as ctx.Err()
@@ -107,6 +115,7 @@ func doJSONGet[T any](ctx context.Context, c *Client, path string, q url.Values)
 		// GETs with nil body so this is preventive.
 		attemptReq := req.Clone(ctx)
 		resp, httpErr = c.http.Do(attemptReq)
+		attemptsRan = attempt + 1
 		if !shouldRetry(resp, httpErr) {
 			break
 		}
@@ -160,15 +169,24 @@ func doJSONGet[T any](ctx context.Context, c *Client, path string, q url.Values)
 			_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, maxResponseBytes+1))
 			_ = resp.Body.Close()
 		}
-		// Retry exhaustion (maxAttempts > 1): wrap with the explicit
-		// retry-exhaustion prefix per D-77 so callers branching on
+		// WR-03: only apply the "retry exhausted (N attempts)" prefix
+		// when more than one attempt actually ran. attemptsRan tracks
+		// the actual c.http.Do invocation count inside the loop. The
+		// previous code unconditionally fired the prefix whenever
+		// c.retry.maxAttempts > 1 — but a non-retryable error on
+		// attempt 0 breaks out of the loop via !shouldRetry after
+		// exactly one round trip; reporting "retry exhausted (5
+		// attempts)" for a single-attempt failure is misleading for
+		// operators triaging logs. D-77 still applies: the underlying
+		// error is preserved via %w so callers branching on
 		// errors.Is(err, ErrEmptyResponse) / errors.As(err, &APIError)
-		// still match via %w. The path is carried in BOTH branches
-		// (WR-05) so operator log routing via strings.Contains(err.Error(),
-		// path) is consistent regardless of whether retry was enabled or
-		// the failure happened on attempt 1.
-		if maxAttempts > 1 {
-			return zero, fmt.Errorf("openholidays: GET %s: retry exhausted (%d attempts): %w", path, maxAttempts, httpErr)
+		// continue to match. The path is carried in BOTH branches
+		// (WR-05) so operator log routing via
+		// strings.Contains(err.Error(), path) is consistent regardless
+		// of whether retry was enabled or the failure happened on
+		// attempt 1.
+		if attemptsRan > 1 {
+			return zero, fmt.Errorf("openholidays: GET %s: retry exhausted (%d attempts): %w", path, attemptsRan, httpErr)
 		}
 		return zero, fmt.Errorf("openholidays: GET %s: %w", path, httpErr)
 	}
@@ -189,8 +207,18 @@ func doJSONGet[T any](ctx context.Context, c *Client, path string, q url.Values)
 		// errors.Is(err, ErrXxx) / errors.As(err, &APIError) see
 		// inconsistent prefixes depending on whether the failure was a
 		// transport error or a retryable-status response.
-		if maxAttempts > 1 && shouldRetry(resp, nil) {
-			return zero, fmt.Errorf("openholidays: GET %s: retry exhausted (%d attempts): %w", path, maxAttempts, apiErr)
+		//
+		// WR-03 follow-up: use attemptsRan (actual c.http.Do count)
+		// rather than maxAttempts so the reported number matches the
+		// number of retries that ACTUALLY ran. shouldRetry(resp, nil)
+		// already implies the loop ran to exhaustion on retryable
+		// statuses (otherwise the !shouldRetry break would have fired
+		// earlier with a non-retryable status), so attemptsRan ==
+		// maxAttempts in this branch — but using attemptsRan
+		// guarantees consistency with the httpErr branch's message
+		// shape regardless of future loop-structure changes.
+		if attemptsRan > 1 && shouldRetry(resp, nil) {
+			return zero, fmt.Errorf("openholidays: GET %s: retry exhausted (%d attempts): %w", path, attemptsRan, apiErr)
 		}
 		return zero, apiErr
 	}
