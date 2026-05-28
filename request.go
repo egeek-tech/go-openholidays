@@ -146,7 +146,18 @@ func doJSONGet[T any](ctx context.Context, c *Client, path string, q url.Values)
 		_ = resp.Body.Close()
 	}()
 	if resp.StatusCode >= 400 {
-		return zero, buildAPIError(resp, path)
+		apiErr := buildAPIError(resp, path)
+		// WR-06: when the retry loop exhausts attempts on a retryable
+		// status code (e.g. 503 after all attempts), wrap the *APIError
+		// with the same retry-exhausted prefix the httpErr branch above
+		// applies. Without this, callers branching on
+		// errors.Is(err, ErrXxx) / errors.As(err, &APIError) see
+		// inconsistent prefixes depending on whether the failure was a
+		// transport error or a retryable-status response.
+		if maxAttempts > 1 && shouldRetry(resp, nil) {
+			return zero, fmt.Errorf("openholidays: retry exhausted (%d attempts): %w", maxAttempts, apiErr)
+		}
+		return zero, apiErr
 	}
 	var out T
 	limited := &io.LimitedReader{R: resp.Body, N: maxResponseBytes}
