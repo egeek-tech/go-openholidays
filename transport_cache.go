@@ -141,11 +141,14 @@ func (t *cacheTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	// over the buffered bytes so the downstream decoder works unchanged.
 	limited := io.LimitReader(resp.Body, maxResponseBytes+1)
 	buf, readErr := io.ReadAll(limited)
-	// Pitfall HTTP-3: drain any remaining bytes past the cap so the
-	// underlying connection can return to the keep-alive pool, then
-	// close. LimitReader does not advance the underlying reader past
-	// its cap — drain defensively.
-	_, _ = io.Copy(io.Discard, resp.Body)
+	// Pitfall HTTP-3 / T-02-12: drain any remaining bytes past the cap so
+	// the underlying connection can return to the keep-alive pool, then
+	// close. LimitReader does not advance the underlying reader past its
+	// cap — drain defensively. The drain itself is bounded by
+	// io.LimitReader(maxResponseBytes+1) so a hostile upstream streaming
+	// unbounded bytes past the first 10 MiB cannot pin this goroutine
+	// (mirrors the analogous drain in request.go:116 — CR-01).
+	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, maxResponseBytes+1))
 	_ = resp.Body.Close()
 	if readErr != nil {
 		return nil, readErr
