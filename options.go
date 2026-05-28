@@ -232,6 +232,15 @@ func WithRetry(maxAttempts int, baseDelay time.Duration) Option {
 // defaultMaxRetryWait (60s) per D-74 — calling
 // WithMaxRetryWait(0) does NOT disable the cap.
 //
+// Note (IN-03 / Pitfall): this is asymmetric with WithTimeout(0) (which
+// means "no SDK-imposed timeout") and WithRetry(0, _) (which means
+// "retry disabled"). The asymmetry is intentional and documented at
+// D-74: a per-attempt sleep without an upper bound exposes the SDK to
+// hostile-upstream attacks (T-04-05 — Retry-After: 999999999 holding a
+// goroutine indefinitely), so "no cap" is not a supported configuration.
+// Consumers wanting an effectively-unbounded cap should pass a very
+// large duration (e.g. WithMaxRetryWait(24*time.Hour)) explicitly.
+//
 // The ceiling applies to each individual sleep, NOT the cumulative
 // retry budget (CONTEXT.md `<specifics>` 5). Five attempts with a 60s
 // cap can still take ~5 minutes total. Consumers wanting a cumulative
