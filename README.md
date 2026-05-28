@@ -1,7 +1,7 @@
 # go-openholidays
 
 [![CI](https://github.com/egeek-tech/go-openholidays/actions/workflows/ci.yml/badge.svg)](https://github.com/egeek-tech/go-openholidays/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/egeek-tech/go-openholidays/branch/main/graph/badge.svg)](https://codecov.io/gh/egeek-tech/go-openholidays)
+[![codecov](https://codecov.io/gh/egeek-tech/go-openholidays/branch/master/graph/badge.svg)](https://codecov.io/gh/egeek-tech/go-openholidays)
 [![Go Report Card](https://goreportcard.com/badge/github.com/egeek-tech/go-openholidays)](https://goreportcard.com/report/github.com/egeek-tech/go-openholidays)
 [![Go Reference](https://pkg.go.dev/badge/github.com/egeek-tech/go-openholidays.svg)](https://pkg.go.dev/github.com/egeek-tech/go-openholidays)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
