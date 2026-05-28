@@ -51,7 +51,15 @@ func newClientForTest(now func() time.Time, sleep func(context.Context, time.Dur
 
 // TestNewClient covers CLIENT-01: defaults applied when no Option supplied,
 // option composition (later Options override earlier ones for the same
-// field), and the combined-options happy path.
+// field), and the combined-options happy path. The four "newClientForTest
+// seam" subtests cover D-94: the same-package test seam wraps NewClient
+// and overrides Client.nowFunc / Client.sleepFunc — exercised by
+// retry_test.go (Plan 03) and cache_test.go (Plan 04) to drive
+// timing-sensitive code with the fakeClock from clock_test.go. WR-03
+// follow-up: previously a separate top-level TestNewClientForTest, demoted
+// here because newClientForTest is an unexported helper that wraps the
+// production NewClient and Gold Rule 3 requires the test of the helper to
+// live with the test of the production function it wraps.
 func TestNewClient(t *testing.T) {
 	t.Parallel()
 
@@ -91,6 +99,43 @@ func TestNewClient(t *testing.T) {
 		require.NotNil(t, c.http)
 		assert.Equal(t, 5*time.Second, c.timeout,
 			"WithTimeout must be applied even when WithHTTPClient also supplied")
+	})
+
+	// D-94 newClientForTest seam coverage (demoted from
+	// TestNewClientForTest per WR-03 — newClientForTest is the
+	// same-package _test.go helper that wraps NewClient and replaces
+	// Client.nowFunc / Client.sleepFunc when the caller supplies
+	// non-nil overrides).
+
+	t.Run("newClientForTest seam: non-nil now and sleep override defaults", func(t *testing.T) {
+		t.Parallel()
+		fc := newFakeClock(time.Unix(0, 0))
+		c := newClientForTest(fc.Now, fc.Sleep)
+		require.NotNil(t, c)
+		assert.True(t, c.nowFunc().Equal(time.Unix(0, 0)),
+			"newClientForTest must replace Client.nowFunc with the supplied function (D-94)")
+		require.NoError(t, c.sleepFunc(context.Background(), time.Second),
+			"supplied sleep must not return an error on a live ctx")
+		assert.True(t, fc.Now().Equal(time.Unix(0, 0).Add(time.Second)),
+			"calling Client.sleepFunc must advance the fakeClock by d (D-94 seam wiring)")
+	})
+
+	t.Run("newClientForTest seam: nil now and sleep leave NewClient defaults in place", func(t *testing.T) {
+		t.Parallel()
+		c := newClientForTest(nil, nil)
+		require.NotNil(t, c)
+		require.NotNil(t, c.nowFunc, "default nowFunc must be non-nil (time.Now)")
+		require.NotNil(t, c.sleepFunc, "default sleepFunc must be non-nil (ctxSleep)")
+		assert.WithinDuration(t, time.Now(), c.nowFunc(), time.Second,
+			"default Client.nowFunc must be time.Now — calling it returns ≈ now")
+	})
+
+	t.Run("newClientForTest seam: passes options through to NewClient", func(t *testing.T) {
+		t.Parallel()
+		c := newClientForTest(nil, nil, WithStrictDecoding(true))
+		require.NotNil(t, c)
+		assert.True(t, c.strict,
+			"newClientForTest must forward Options to NewClient (WithStrictDecoding(true) reached the Client)")
 	})
 }
 
@@ -235,47 +280,6 @@ func TestClient_ContextCancel(t *testing.T) {
 			"ctx cancel must interrupt in-flight HTTP within 500 ms (CLIENT-09 target 100ms; CI slack); took %v", elapsed)
 		assert.True(t, errors.Is(err, context.Canceled),
 			"expected errors.Is(err, context.Canceled) to hold; got %v", err)
-	})
-}
-
-// TestNewClientForTest covers D-94: the same-package test seam overrides
-// Client.nowFunc / Client.sleepFunc when the caller's args are non-nil,
-// otherwise leaves NewClient's defaults intact, and passes Option values
-// through to NewClient. Without this seam, retry_test.go (Plan 03) and
-// cache_test.go (Plan 04) would have to mutate Client fields directly
-// from test code — a fragile coupling the seam decouples explicitly.
-func TestNewClientForTest(t *testing.T) {
-	t.Parallel()
-
-	t.Run("non-nil now and sleep override defaults", func(t *testing.T) {
-		t.Parallel()
-		fc := newFakeClock(time.Unix(0, 0))
-		c := newClientForTest(fc.Now, fc.Sleep)
-		require.NotNil(t, c)
-		assert.True(t, c.nowFunc().Equal(time.Unix(0, 0)),
-			"newClientForTest must replace Client.nowFunc with the supplied function (D-94)")
-		require.NoError(t, c.sleepFunc(context.Background(), time.Second),
-			"supplied sleep must not return an error on a live ctx")
-		assert.True(t, fc.Now().Equal(time.Unix(0, 0).Add(time.Second)),
-			"calling Client.sleepFunc must advance the fakeClock by d (D-94 seam wiring)")
-	})
-
-	t.Run("nil now and sleep leave NewClient defaults in place", func(t *testing.T) {
-		t.Parallel()
-		c := newClientForTest(nil, nil)
-		require.NotNil(t, c)
-		require.NotNil(t, c.nowFunc, "default nowFunc must be non-nil (time.Now)")
-		require.NotNil(t, c.sleepFunc, "default sleepFunc must be non-nil (ctxSleep)")
-		assert.WithinDuration(t, time.Now(), c.nowFunc(), time.Second,
-			"default Client.nowFunc must be time.Now — calling it returns ≈ now")
-	})
-
-	t.Run("passes options through to NewClient", func(t *testing.T) {
-		t.Parallel()
-		c := newClientForTest(nil, nil, WithStrictDecoding(true))
-		require.NotNil(t, c)
-		assert.True(t, c.strict,
-			"newClientForTest must forward Options to NewClient (WithStrictDecoding(true) reached the Client)")
 	})
 }
 
