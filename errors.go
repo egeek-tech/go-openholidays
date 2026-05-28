@@ -15,51 +15,56 @@ import (
 
 // Sentinel errors. Callers should detect them via errors.Is through
 // fmt.Errorf("...: %w", ...) wrappers.
-var (
-	// ErrInvalidCountry is returned for malformed country codes
-	// (not exactly two ASCII letters after canonicalization).
-	ErrInvalidCountry = errors.New("openholidays: invalid country code")
+//
+// Sentinels are declared one-per-var (not grouped under a single var block)
+// so each godoc comment lives at column 0 — required by the DOC-07 audit
+// (Plan 05-07) and by Go's standard godoc rendering conventions, which treat
+// a comment immediately preceding `var Name = ...` as that symbol's doc only
+// when the comment begins at column 0.
 
-	// ErrInvalidLanguage is returned for malformed language codes
-	// (not exactly two ASCII letters after canonicalization).
-	ErrInvalidLanguage = errors.New("openholidays: invalid language code")
+// ErrInvalidCountry is returned for malformed country codes
+// (not exactly two ASCII letters after canonicalization).
+var ErrInvalidCountry = errors.New("openholidays: invalid country code")
 
-	// ErrDateRangeTooLarge is returned when the validFrom..validTo window
-	// spans more than 3 calendar years inclusive.
-	ErrDateRangeTooLarge = errors.New("openholidays: date range too large")
+// ErrInvalidLanguage is returned for malformed language codes
+// (not exactly two ASCII letters after canonicalization).
+var ErrInvalidLanguage = errors.New("openholidays: invalid language code")
 
-	// ErrInvalidDateRange is returned when validFrom is strictly after validTo.
-	ErrInvalidDateRange = errors.New("openholidays: invalid date range")
+// ErrDateRangeTooLarge is returned when the validFrom..validTo window
+// spans more than 3 calendar years inclusive.
+var ErrDateRangeTooLarge = errors.New("openholidays: date range too large")
 
-	// ErrEmptyResponse is returned when the upstream returns a 2xx with an
-	// empty body where a non-empty payload was required.
-	ErrEmptyResponse = errors.New("openholidays: empty response body")
+// ErrInvalidDateRange is returned when validFrom is strictly after validTo.
+var ErrInvalidDateRange = errors.New("openholidays: invalid date range")
 
-	// ErrResponseTooLarge is returned when an upstream response exceeds the
-	// 10 MiB cap. Both boundary-truncation (Decode finishes on a valid JSON
-	// boundary, sentinel-byte read detects extra bytes) and mid-truncation
-	// (Decode surfaces io.ErrUnexpectedEOF, sentinel-byte read confirms the
-	// body has more bytes) cases produce this sentinel — see RESEARCH.md
-	// Pitfall 5 and Plan 02-03 deviation 1.
-	ErrResponseTooLarge = errors.New("openholidays: response too large")
+// ErrEmptyResponse is returned when the upstream returns a 2xx with an
+// empty body where a non-empty payload was required.
+var ErrEmptyResponse = errors.New("openholidays: empty response body")
 
-	// ErrMalformedResponse is returned when the upstream returns a
-	// structurally-decodable JSON response that violates the Holiday
-	// post-decode invariants checked by validateHolidays:
-	//
-	//   - Holiday.StartDate must be non-zero.
-	//   - Holiday.EndDate must be non-zero.
-	//   - Holiday.EndDate must not be strictly before Holiday.StartDate.
-	//
-	// The sentinel is wrapped via fmt.Errorf with the %w verb from
-	// validateHolidays so errors.Is(err, ErrMalformedResponse) holds through
-	// the endpoint method's caller-facing wrap. This is the seventh exported
-	// sentinel in the package (D-65, D-66, CL-12). It closes Pitfall JSON-4
-	// (time.Time zero value masquerading as a valid Date) — callers can
-	// branch on this sentinel to differentiate upstream schema drift from
-	// transport failures, *APIError 4xx/5xx responses, or oversize bodies.
-	ErrMalformedResponse = errors.New("openholidays: malformed response")
-)
+// ErrResponseTooLarge is returned when an upstream response exceeds the
+// 10 MiB cap. Both boundary-truncation (Decode finishes on a valid JSON
+// boundary, sentinel-byte read detects extra bytes) and mid-truncation
+// (Decode surfaces io.ErrUnexpectedEOF, sentinel-byte read confirms the
+// body has more bytes) cases produce this sentinel — see RESEARCH.md
+// Pitfall 5 and Plan 02-03 deviation 1.
+var ErrResponseTooLarge = errors.New("openholidays: response too large")
+
+// ErrMalformedResponse is returned when the upstream returns a
+// structurally-decodable JSON response that violates the Holiday
+// post-decode invariants checked by validateHolidays:
+//
+//   - Holiday.StartDate must be non-zero.
+//   - Holiday.EndDate must be non-zero.
+//   - Holiday.EndDate must not be strictly before Holiday.StartDate.
+//
+// The sentinel is wrapped via fmt.Errorf with the %w verb from
+// validateHolidays so errors.Is(err, ErrMalformedResponse) holds through
+// the endpoint method's caller-facing wrap. This is the seventh exported
+// sentinel in the package (D-65, D-66, CL-12). It closes Pitfall JSON-4
+// (time.Time zero value masquerading as a valid Date) — callers can
+// branch on this sentinel to differentiate upstream schema drift from
+// transport failures, *APIError 4xx/5xx responses, or oversize bodies.
+var ErrMalformedResponse = errors.New("openholidays: malformed response")
 
 // APIError represents a non-2xx response from the upstream API.
 //
