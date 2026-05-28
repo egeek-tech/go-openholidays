@@ -51,16 +51,29 @@ func WithHTTPClient(c *http.Client) Option {
 // cleanly. Multiple trailing slashes are trimmed too.
 //
 // WithBaseURL("") is treated as "use the default" — the default base URL
-// applied by defaultConfig is left in place. Callers wanting to point the
-// SDK at a mirror should pass the mirror's URL here (D-36 explicitly
-// rejects environment-variable overrides; WithBaseURL is the supported
-// extension point).
+// applied by defaultConfig is left in place. Inputs that collapse to an
+// empty string after trailing-slash trimming (e.g. "/", "//", "///") are
+// also treated as "use the default" so callers reading base URLs from
+// environment variables that default to "/" do not silently land in an
+// unusable state where downstream HTTP calls fail with opaque
+// "unsupported protocol scheme" errors far from the misconfiguration
+// (WR-01 follow-up).
+//
+// Callers wanting to point the SDK at a mirror should pass the mirror's
+// URL here (D-36 explicitly rejects environment-variable overrides;
+// WithBaseURL is the supported extension point).
 func WithBaseURL(u string) Option {
 	return func(cfg *clientConfig) {
 		if u == "" {
 			return
 		}
-		cfg.baseURL = strings.TrimRight(u, "/")
+		trimmed := strings.TrimRight(u, "/")
+		if trimmed == "" {
+			// All-slash input collapses to empty; keep the default
+			// rather than silently assigning "" to cfg.baseURL.
+			return
+		}
+		cfg.baseURL = trimmed
 	}
 }
 
