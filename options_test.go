@@ -329,7 +329,7 @@ func TestWithMaxRetryWait(t *testing.T) {
 func TestWithCache(t *testing.T) {
 	t.Parallel()
 
-	t.Run("positive ttl populates cache and cacheTTL", func(t *testing.T) {
+	t.Run("positive ttl populates cache (MemoryCache.ttl reflects argument)", func(t *testing.T) {
 		t.Parallel()
 		c := NewClient(WithCache(2 * time.Hour))
 		require.NotNil(t, c)
@@ -337,6 +337,8 @@ func TestWithCache(t *testing.T) {
 		t.Cleanup(func() { _ = c.Close() })
 
 		// Underlying type is the default in-memory implementation.
+		// MemoryCache.ttl is the real source of truth (WR-04 follow-up
+		// removed the redundant clientConfig.cacheTTL mirror field).
 		mc, ok := c.cache.(*MemoryCache)
 		require.True(t, ok, "WithCache(ttl) must wire a *MemoryCache by default")
 		assert.Equal(t, 2*time.Hour, mc.ttl, "MemoryCache.ttl must reflect the WithCache argument")
@@ -417,36 +419,49 @@ func TestWithCacheBackend(t *testing.T) {
 	})
 }
 
-// TestWithRequestHook covers D-87: non-nil fn lands on Client.requestHook;
-// nil fn is a no-op (nil-no-op convention per WithHTTPClient analog); the
-// default Client (no WithRequestHook call) has nil requestHook. Function
-// pointer equality is not directly assertable in Go (no comparable type
-// guarantees), so the test asserts NotNil + Nil on the stored field.
+// TestWithRequestHook covers D-87: non-nil fn causes buildTransport to
+// install a hookTransport layer; nil fn is a no-op (no hookTransport
+// layer is installed; nil-no-op convention per WithHTTPClient analog);
+// the default Client (no WithRequestHook call) likewise has no
+// hookTransport layer in its chain. The hookTransport struct is
+// unexported but visible to same-package tests via type-assertion on
+// c.http.Transport — that's the load-bearing observable for "the hook
+// option had its documented effect". Hook firing behavior end-to-end is
+// covered by TestHook_FiresOnRetryAttempts, TestHook_SeesCacheHits, and
+// TestHook_DoesNotFireOnDecodeError. (WR-04 follow-up removed the
+// previously-unread Client.requestHook field; this test now asserts on
+// the chain rather than on a write-only struct field.)
 func TestWithRequestHook(t *testing.T) {
 	t.Parallel()
 
-	t.Run("non-nil fn stored on Client.requestHook", func(t *testing.T) {
+	t.Run("non-nil fn installs hookTransport at the outermost layer", func(t *testing.T) {
 		t.Parallel()
 		fn := func(_ *http.Request, _ *http.Response, _ error) {}
 		c := NewClient(WithRequestHook(fn))
 		require.NotNil(t, c)
-		require.NotNil(t, c.requestHook,
-			"WithRequestHook(non-nil) must populate Client.requestHook (D-87)")
+		require.NotNil(t, c.http, "client.http must be non-nil after NewClient")
+		_, isHookLayer := c.http.Transport.(*hookTransport)
+		assert.True(t, isHookLayer,
+			"WithRequestHook(non-nil) must install hookTransport as the outermost RoundTripper (D-87 / D-89)")
 	})
 
-	t.Run("nil fn is no-op (cfg.hook stays nil)", func(t *testing.T) {
+	t.Run("nil fn is no-op (no hookTransport layer installed)", func(t *testing.T) {
 		t.Parallel()
 		c := NewClient(WithRequestHook(nil))
 		require.NotNil(t, c)
-		assert.Nil(t, c.requestHook,
-			"WithRequestHook(nil) must NOT overwrite cfg.hook (nil-no-op convention per WithHTTPClient analog)")
+		require.NotNil(t, c.http, "client.http must be non-nil after NewClient")
+		_, isHookLayer := c.http.Transport.(*hookTransport)
+		assert.False(t, isHookLayer,
+			"WithRequestHook(nil) must NOT install hookTransport (nil-no-op convention per WithHTTPClient analog)")
 	})
 
-	t.Run("default Client has nil requestHook", func(t *testing.T) {
+	t.Run("default Client has no hookTransport layer", func(t *testing.T) {
 		t.Parallel()
 		c := NewClient()
 		require.NotNil(t, c)
-		assert.Nil(t, c.requestHook,
-			"default Client must have nil requestHook — opt-in per D-87")
+		require.NotNil(t, c.http, "client.http must be non-nil after NewClient")
+		_, isHookLayer := c.http.Transport.(*hookTransport)
+		assert.False(t, isHookLayer,
+			"default Client must have no hookTransport layer — hook is opt-in per D-87")
 	})
 }

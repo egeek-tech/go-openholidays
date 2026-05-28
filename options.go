@@ -305,7 +305,6 @@ func WithCache(ttl time.Duration) Option {
 			return // D-80: ttl <= 0 disables; leave cfg.cache nil.
 		}
 		cfg.cache = newMemoryCacheWithClock(ttl, time.Now)
-		cfg.cacheTTL = ttl
 	}
 }
 

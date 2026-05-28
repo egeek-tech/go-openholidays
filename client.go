@@ -38,27 +38,31 @@ import (
 //
 // Phase 4 additions:
 //
-//   - retry, cache, requestHook: nil/zero-value defaults; their option
-//     constructors land in Plans 03/04/05.
+//   - retry, cache: nil/zero-value defaults; their option constructors land
+//     in Plans 03/04.
 //   - strict: immutable after NewClient (D-91).
 //   - nowFunc, sleepFunc: deterministic-test seam (D-94).
 //   - rand: per-Client ChaCha8-seeded jitter source (D-78).
 //   - closeOnce: guards cache.Close inside Close (D-85).
+//
+// Note: WithRequestHook stores the hook on cfg.hook only — it is consumed
+// by hookTransport in buildTransport (config.go) and never lives on the
+// Client struct after construction (WR-04 follow-up removed the
+// previously-unread Client.requestHook field).
 type Client struct {
-	http        *http.Client                               // chain-wrapped client built by composeHTTPClient
-	baseURL     string                                     // trailing-slash-trimmed; concatenated with "/EndpointPath"
-	userAgent   string                                     // injected by headerTransport when caller request lacks UA
-	logger      *slog.Logger                               // non-nil; passed to loggingTransport
-	timeout     time.Duration                              // 0 disables the SDK-imposed timeout
-	closed      atomic.Bool                                // flipped by Close; reads are race-safe
-	retry       retryConfig                                // D-77; zero-value = disabled
-	cache       Cache                                      // D-79; nil = disabled (wired in Plan 04)
-	strict      bool                                       // D-91; immutable after NewClient
-	requestHook RequestHookFunc                            // D-87; nil = no hook (wired in Plan 05)
-	nowFunc     func() time.Time                           // D-94; defaults to time.Now
-	sleepFunc   func(context.Context, time.Duration) error // D-94; defaults to ctxSleep
-	rand        *rand.Rand                                 // D-78; per-Client ChaCha8-seeded
-	closeOnce   sync.Once                                  // D-85; guards cache.Close inside Close()
+	http      *http.Client                               // chain-wrapped client built by composeHTTPClient
+	baseURL   string                                     // trailing-slash-trimmed; concatenated with "/EndpointPath"
+	userAgent string                                     // injected by headerTransport when caller request lacks UA
+	logger    *slog.Logger                               // non-nil; passed to loggingTransport
+	timeout   time.Duration                              // 0 disables the SDK-imposed timeout
+	closed    atomic.Bool                                // flipped by Close; reads are race-safe
+	retry     retryConfig                                // D-77; zero-value = disabled
+	cache     Cache                                      // D-79; nil = disabled (wired in Plan 04)
+	strict    bool                                       // D-91; immutable after NewClient
+	nowFunc   func() time.Time                           // D-94; defaults to time.Now
+	sleepFunc func(context.Context, time.Duration) error // D-94; defaults to ctxSleep
+	rand      *rand.Rand                                 // D-78; per-Client ChaCha8-seeded
+	closeOnce sync.Once                                  // D-85; guards cache.Close inside Close()
 }
 
 // NewClient constructs an *openholidays.Client by applying the supplied
@@ -89,18 +93,17 @@ func NewClient(opts ...Option) *Client {
 		opt(cfg)
 	}
 	return &Client{
-		http:        composeHTTPClient(cfg),
-		baseURL:     cfg.baseURL,
-		userAgent:   cfg.userAgent,
-		logger:      cfg.logger,
-		timeout:     cfg.timeout,
-		retry:       cfg.retry,
-		cache:       cfg.cache,
-		strict:      cfg.strictDecoding,
-		requestHook: cfg.hook,
-		nowFunc:     time.Now,
-		sleepFunc:   ctxSleep,
-		rand:        newClientRand(),
+		http:      composeHTTPClient(cfg),
+		baseURL:   cfg.baseURL,
+		userAgent: cfg.userAgent,
+		logger:    cfg.logger,
+		timeout:   cfg.timeout,
+		retry:     cfg.retry,
+		cache:     cfg.cache,
+		strict:    cfg.strictDecoding,
+		nowFunc:   time.Now,
+		sleepFunc: ctxSleep,
+		rand:      newClientRand(),
 	}
 }
 

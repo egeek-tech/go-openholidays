@@ -10,14 +10,17 @@
 // shape (D-29: req → headerTransport → loggingTransport → underlying).
 //
 // Phase 4 additions in this file: the Cache interface (D-79), the
-// RequestHookFunc type (D-87), and five additive clientConfig fields
-// (retry / cache / cacheTTL / hook / strictDecoding). The retryConfig
-// struct itself lives in retry.go (Plan 03) so all retry types are
-// colocated in a single file. Phase 4 fills in retry/cache/hook/strict
-// config fields — buildTransport is edited in place by Plans 04 (cache)
-// and 05 (hook); this plan only declares the types and config fields,
-// leaving buildTransport untouched so the Phase 2 chain order remains
-// in effect until cache/hook actually exist.
+// RequestHookFunc type (D-87), and four additive clientConfig fields
+// (retry / cache / hook / strictDecoding). The retryConfig struct itself
+// lives in retry.go (Plan 03) so all retry types are colocated in a
+// single file. Phase 4 fills in retry/cache/hook/strict config fields —
+// buildTransport is edited in place by Plans 04 (cache) and 05 (hook);
+// this plan only declares the types and config fields, leaving
+// buildTransport untouched so the Phase 2 chain order remains in effect
+// until cache/hook actually exist. The cacheTTL field that originally
+// shipped with this plan was removed in the WR-04 follow-up — it was
+// never read by composeHTTPClient or any other production code, and
+// MemoryCache.ttl is the real source of truth.
 //
 // No init() and no package-level vars — keeps the CLIENT-10 AST audit in
 // internal_test.go green without modification to its allowlist.
@@ -42,7 +45,6 @@ type clientConfig struct {
 	// Phase 4 (D-77, D-79, D-87, D-91):
 	retry          retryConfig     // D-77; zero-value = disabled
 	cache          Cache           // D-79; nil = disabled
-	cacheTTL       time.Duration   // D-80; set by WithCache(ttl); consumed by composeHTTPClient in Plan 04
 	hook           RequestHookFunc // D-87; nil = no hook
 	strictDecoding bool            // D-91
 }
