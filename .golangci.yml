@@ -1,20 +1,33 @@
-# go-openholidays — golangci-lint v2 configuration. Single source of truth for
-# lint config. .golangci.yml_backup retired in Plan 05 (see Plan 05 SUMMARY).
+# go-openholidays — golangci-lint v2 configuration.
+#
+# 2026-05-28 — exclusions reset. Every exclusion / disabled-rule entry that
+# previously lived here was inherited from another project, not motivated
+# by a real false positive observed in go-openholidays. They are removed
+# wholesale; targeted exclusions will be re-added only when a specific
+# false positive surfaces during a real CI run with rationale captured
+# inline.
 version: "2"
 run:
   modules-download-mode: readonly
 linters:
   default: none
   enable:
-    # PROJECT.md / CLAUDE.md required (the 6 mandated linters):
+    # The six linters mandated by PROJECT.md / CLAUDE.md.
     - govet
     - errcheck
     - staticcheck
     - gosec
     - revive
     - gocritic
+    # HTTP-client SDK criticals — added 2026-05-28. Without bodyclose a
+    # missing `defer resp.Body.Close()` leaks sockets in long-lived consumer
+    # processes (the SDK is, by design, long-lived). Without noctx an
+    # `http.NewRequest` or package-level `http.Get` could land that bypasses
+    # the ctx-as-first-arg contract PROJECT.md locks in (CL-21).
+    - bodyclose
+    - noctx
     # Curated additions retained from .golangci.yml_backup that proved
-    # useful during Phases 1-4:
+    # useful during Phases 1-4.
     - asciicheck
     - copyloopvar
     - durationcheck
@@ -45,46 +58,12 @@ linters:
     # require either the wrong setting (snake) or a setting that matches
     # upstream (camel) — and the latter adds no value over "match upstream
     # verbatim." See Phase 5 RESEARCH.md Pitfall 4.
-  settings:
-    gosec:
-      excludes:
-        - G101  # hard-coded credentials false-positive on testdata fixture paths
-    revive:
-      rules:
-        - name: exported
-          disabled: true
-  exclusions:
-    generated: lax
-    presets:
-      - comments
-      - common-false-positives
-      - legacy
-      - std-error-handling
-    rules:
-      # G124: tests construct request cookies via httptest. G124 warns about
-      # missing Secure/HttpOnly/SameSite, which are response-side flags;
-      # request cookies don't carry them.
-      - linters:
-          - gosec
-        text: "G124"
-        path: _test\.go
-      # G122: integration guardrail tests walk a known repo subtree on a
-      # fresh CI checkout (no untrusted symlinks possible). The TOCTOU
-      # surface gosec warns about doesn't apply here.
-      - linters:
-          - gosec
-        text: "G122"
-        path: _test\.go
 formatters:
-  # golangci-lint v2 split formatters out of the `linters:` section. Without an
-  # explicit `enable:` here, NO formatting check runs — that gap let a
-  # gofmt-dirty file (countries_test.go trailing blank line) slip past CI
-  # while Go Report Card flagged it. Enable gofmt with the `-s` simplifications
-  # to keep CI and goreportcard in sync.
+  # golangci-lint v2 split formatters out of `linters:`. gofmt with the `-s`
+  # simplifications keeps CI parity with goreportcard.com (which runs
+  # `gofmt -s` server-side).
   enable:
     - gofmt
   settings:
     gofmt:
       simplify: true
-  exclusions:
-    generated: lax
