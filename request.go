@@ -97,7 +97,16 @@ func doJSONGet[T any](ctx context.Context, c *Client, path string, q url.Values)
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			return zero, ctxErr
 		}
-		resp, httpErr = c.http.Do(req)
+		// WR-07: clone req per attempt so a future endpoint method that
+		// adds a request body cannot accidentally send empty bodies on
+		// retries (req.Body would already be consumed). Also defends
+		// against any future RoundTripper that mutates req.URL or
+		// req.Header in-flight from leaking state into subsequent
+		// attempts. Cost: one req.Clone per attempt — negligible at
+		// retry-loop frequencies. The library currently only issues
+		// GETs with nil body so this is preventive.
+		attemptReq := req.Clone(ctx)
+		resp, httpErr = c.http.Do(attemptReq)
 		if !shouldRetry(resp, httpErr) {
 			break
 		}
