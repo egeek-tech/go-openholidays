@@ -59,6 +59,15 @@ linters:
     # upstream (camel) — and the latter adds no value over "match upstream
     # verbatim." See Phase 5 RESEARCH.md Pitfall 4.
   settings:
+    usetesting:
+      # Enable Go 1.24+ replacements. The default usetesting config is
+      # conservative — `context-background` is OFF by default. We bumped
+      # the floor to Go 1.24 (see go.mod) so `t.Context()` is universally
+      # available; turn the check on so tests get `t.Context()` instead
+      # of `context.Background()`. Auto-fixable via `golangci-lint run --fix`.
+      context-background: true
+      context-todo: true
+      # `os-setenv`, `os-create-temp`, etc. retain their defaults (true).
     errcheck:
       # Re-added 2026-05-28 after exclusion reset surfaced real signal.
       # Each excluded function has a project-specific justification:

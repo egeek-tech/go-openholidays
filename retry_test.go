@@ -371,7 +371,7 @@ func TestRetry_E2E_429Then500Then200(t *testing.T) {
 			WithRetry(5, 10*time.Millisecond),
 			WithMaxRetryWait(time.Second),
 		)
-		cs, err := c.Countries(context.Background(), CountriesRequest{})
+		cs, err := c.Countries(t.Context(), CountriesRequest{})
 		require.NoError(t, err, "after 429→500→200 sequence, final 200 must decode without error")
 		assert.Len(t, cs, 1, "decoded payload must produce exactly one Country")
 		assert.Equal(t, int32(3), hits.Load(),
@@ -408,7 +408,7 @@ func TestRetry_HonorsRetryAfterSeconds(t *testing.T) {
 			WithRetry(2, 10*time.Millisecond),
 			WithMaxRetryWait(10*time.Second),
 		)
-		_, err := c.Countries(context.Background(), CountriesRequest{})
+		_, err := c.Countries(t.Context(), CountriesRequest{})
 		require.NoError(t, err, "after Retry-After: 2 + 200, call must succeed")
 		assert.GreaterOrEqual(t, fc.Now().Sub(fcStart), 2*time.Second,
 			"Retry-After: 2 must produce at least 2s of fake-clock advance (D-76); got %v", fc.Now().Sub(fcStart))
@@ -448,7 +448,7 @@ func TestRetry_HonorsRetryAfterDate(t *testing.T) {
 			WithRetry(2, 10*time.Millisecond),
 			WithMaxRetryWait(10*time.Minute),
 		)
-		_, err := c.Countries(context.Background(), CountriesRequest{})
+		_, err := c.Countries(t.Context(), CountriesRequest{})
 		require.NoError(t, err, "after HTTP-date Retry-After + 200, call must succeed")
 		assert.GreaterOrEqual(t, fc.Now().Sub(fcStart), 30*time.Second,
 			"HTTP-date Retry-After must produce ≥ 30s of fake-clock advance (D-76 / RFC 7231 §7.1.1.1); got %v",
@@ -484,7 +484,7 @@ func TestRetry_CtxCancel(t *testing.T) {
 			WithMaxRetryWait(time.Second),
 		)
 
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := context.WithCancel(t.Context())
 		cancel() // cancel BEFORE the call so the loop-top ctx.Err() fires on attempt 0
 
 		start := time.Now()
@@ -522,7 +522,7 @@ func TestRetry_CtxCancel(t *testing.T) {
 		// first c.http.Do returned 503 and shouldRetry==true. This
 		// proves the ctx-aware sleep returns ctx.Err() per Pitfall
 		// RETRY-3.
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := context.WithCancel(t.Context())
 		var sleepCount atomic.Int32
 		wrappedSleep := func(ctxArg context.Context, d time.Duration) error {
 			if sleepCount.Add(1) == 1 {
@@ -612,7 +612,7 @@ func TestRetry_DeterministicClock(t *testing.T) {
 			WithRetry(4, 100*time.Millisecond),
 			WithMaxRetryWait(10*time.Second),
 		)
-		_, err := c.Countries(context.Background(), CountriesRequest{})
+		_, err := c.Countries(t.Context(), CountriesRequest{})
 		require.NoError(t, err, "4-attempt loop with 3×503+200 must succeed")
 		assert.Equal(t, int32(4), hits.Load(),
 			"expected exactly 4 round trips (3×503 + 1×200)")

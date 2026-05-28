@@ -1,7 +1,6 @@
 package openholidays
 
 import (
-	"context"
 	"errors"
 	"io"
 	"net/http"
@@ -56,7 +55,7 @@ func TestHeaderTransport_RoundTrip(t *testing.T) {
 			}),
 		}
 
-		req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "https://example.test/Countries", nil)
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "https://example.test/Countries", nil)
 		require.NoError(t, err)
 
 		resp, err := h.RoundTrip(req)
@@ -94,7 +93,7 @@ func TestHeaderTransport_RoundTrip(t *testing.T) {
 			}),
 		}
 
-		req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "https://example.test/Countries", nil)
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "https://example.test/Countries", nil)
 		require.NoError(t, err)
 		req.Header.Set("Accept", "application/vnd.custom+json")
 		req.Header.Set("User-Agent", "my-app/2.0")
@@ -121,7 +120,7 @@ func TestHeaderTransport_RoundTrip(t *testing.T) {
 			}),
 		}
 
-		req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "https://example.test/Countries", nil)
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "https://example.test/Countries", nil)
 		require.NoError(t, err)
 
 		resp, err := h.RoundTrip(req)

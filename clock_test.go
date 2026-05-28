@@ -122,7 +122,7 @@ func TestFakeClock_RaceFree(t *testing.T) {
 
 	t.Run("Sleep returns ctx.Err() on cancelled ctx without advancing the clock", func(t *testing.T) {
 		t.Parallel()
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := context.WithCancel(t.Context())
 		cancel()
 
 		start := time.Unix(0, 0)
@@ -140,7 +140,7 @@ func TestFakeClock_RaceFree(t *testing.T) {
 		start := time.Unix(0, 0)
 		fc := newFakeClock(start)
 
-		err := fc.Sleep(context.Background(), 5*time.Second)
+		err := fc.Sleep(t.Context(), 5*time.Second)
 		require.NoError(t, err,
 			"Sleep on a live ctx must return nil")
 		assert.Equal(t, start.Add(5*time.Second), fc.Now(),

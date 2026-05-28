@@ -32,11 +32,12 @@
 // The nightly integration.yml workflow (Plan 06) supplies both gates. Local
 // developers running the default `go test ./...` see no live calls.
 //
-// Pitfall 1 enforcement — uses context.Background() + context.WithTimeout
-// instead of the Go 1.24 testing context helper. The newer helper was
-// added in Go 1.24 and would break the project's Go 1.23 CI matrix leg.
-// See .planning/phases/05-distribution/05-RESEARCH.md §"Common Pitfalls →
-// Pitfall 1".
+// Uses t.Context() + context.WithTimeout — Pitfall 1 from
+// .planning/phases/05-distribution/05-RESEARCH.md was the original
+// motivation for pinning to context.Background(); after the Go floor
+// moved to 1.24 (2026-05-29 floor bump) t.Context() is universally
+// available across the CI matrix and provides automatic per-test
+// cancellation on teardown.
 
 package openholidays
 
@@ -70,9 +71,7 @@ func TestIntegration_PublicHolidays_PL_2025(t *testing.T) {
 	c := NewClient(WithTimeout(15 * time.Second))
 	t.Cleanup(func() { _ = c.Close() })
 
-	// context.Background() + context.WithTimeout — pinned to a non-Go-1.24
-	// API surface to keep the Go 1.23 CI leg green (Pitfall 1).
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
 	t.Cleanup(cancel)
 
 	t.Run("14 public holidays for PL 2025", func(t *testing.T) {
@@ -111,9 +110,7 @@ func TestIntegration_SchoolHolidays_PL_2025(t *testing.T) {
 	c := NewClient(WithTimeout(15 * time.Second))
 	t.Cleanup(func() { _ = c.Close() })
 
-	// context.Background() + context.WithTimeout — pinned to a non-Go-1.24
-	// API surface to keep the Go 1.23 CI leg green (Pitfall 1).
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
 	t.Cleanup(cancel)
 
 	t.Run("7 school-holiday periods for PL 2025", func(t *testing.T) {

@@ -67,7 +67,7 @@ A single, well-tested Go client that returns both **public holidays AND school h
 
 ## Constraints
 
-- **Tech stack**: Go ≥ 1.23 minimum (raised from 1.22 after research surfaced that `iter.Seq` is a Go 1.23 feature). CI matrix tests 1.23, 1.24, and `stable`. — `iter.Seq` is core to the helper API; aligning the floor avoids build tags or a separate compat shim.
+- **Tech stack**: Go ≥ 1.24 minimum (raised 2026-05-29 from 1.23 to adopt `t.Context()` in test code and unlock the `usetesting.context-background` lint check). CI matrix tests 1.24.x, 1.25.x, and `stable`. — `t.Context()` is the canonical test-context idiom in Go 1.24+; sticking with the 1.23 floor forced `context.Background()` everywhere and prevented the linter from catching regressions. Go 1.23 left mainline support in 2025-08; consumer impact at this floor bump is low. (`iter.Seq` from Go 1.23, used by `Holiday.Range()`, remains available under the 1.24 floor.)
 - **Dependency policy**: zero runtime dependencies — no non-stdlib import in any `.go` file outside `*_test.go`. Test-only deps must be vetted and may only appear in `*_test.go` imports; pre-approved set: `github.com/stretchr/testify` (assert + require — primary assertion library per Gold Rule 3), `github.com/google/go-cmp` (deep-equal diffs when testify output is insufficient). Any additional test-only dep requires a `Key Decisions` entry. — Reduces supply-chain attack surface and keeps `go get` fast for consumers.
 - **License**: MIT, single root `LICENSE`; no per-file headers required. — Standard for Go OSS libraries.
 - **Style**: `gofmt`-clean; `.golangci.yml` shipped in repo; lints required: `govet`, `errcheck`, `staticcheck`, `gosec`, `revive`, `gocritic`. — Enforces code quality without bikeshedding.

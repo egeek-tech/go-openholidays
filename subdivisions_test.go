@@ -66,7 +66,7 @@ func TestClient_Subdivisions(t *testing.T) {
 		t.Cleanup(srv.Close)
 
 		c := NewClient(WithBaseURL(srv.URL))
-		got, err := c.Subdivisions(context.Background(), SubdivisionsRequest{CountryIsoCode: "PL"})
+		got, err := c.Subdivisions(t.Context(), SubdivisionsRequest{CountryIsoCode: "PL"})
 		require.NoError(t, err)
 		// D-70 sanity floor: PL fixture must contain all 16 województwa.
 		require.Len(t, got, 16, "PL fixture must contain all 16 województwa (D-70 locked count)")
@@ -91,7 +91,7 @@ func TestClient_Subdivisions(t *testing.T) {
 		t.Cleanup(srv.Close)
 
 		c := NewClient(WithBaseURL(srv.URL))
-		got, err := c.Subdivisions(context.Background(), SubdivisionsRequest{CountryIsoCode: "DE"})
+		got, err := c.Subdivisions(t.Context(), SubdivisionsRequest{CountryIsoCode: "DE"})
 		require.NoError(t, err)
 		require.Len(t, got, 16, "DE fixture must contain all 16 Bundesländer")
 
@@ -115,7 +115,7 @@ func TestClient_Subdivisions(t *testing.T) {
 		// http://example.invalid is RFC 6761 reserved; if the validator
 		// failed to short-circuit, the HTTP dispatch would fail loudly.
 		c := NewClient(WithBaseURL("http://example.invalid"))
-		got, err := c.Subdivisions(context.Background(), SubdivisionsRequest{})
+		got, err := c.Subdivisions(t.Context(), SubdivisionsRequest{})
 		require.Error(t, err)
 		assert.Nil(t, got)
 		assert.ErrorIs(t, err, ErrInvalidCountry,
@@ -125,7 +125,7 @@ func TestClient_Subdivisions(t *testing.T) {
 	t.Run("invalid LanguageIsoCode wraps ErrInvalidLanguage without HTTP", func(t *testing.T) {
 		t.Parallel()
 		c := NewClient(WithBaseURL("http://example.invalid"))
-		_, err := c.Subdivisions(context.Background(), SubdivisionsRequest{
+		_, err := c.Subdivisions(t.Context(), SubdivisionsRequest{
 			CountryIsoCode:  "PL",
 			LanguageIsoCode: "x",
 		})
@@ -152,7 +152,7 @@ func TestClient_Subdivisions(t *testing.T) {
 		t.Cleanup(srv.Close)
 
 		c := NewClient(WithBaseURL(srv.URL))
-		_, err = c.Subdivisions(context.Background(), SubdivisionsRequest{
+		_, err = c.Subdivisions(t.Context(), SubdivisionsRequest{
 			CountryIsoCode:  "PL",
 			LanguageIsoCode: "EN",
 		})
@@ -169,7 +169,7 @@ func TestClient_Subdivisions(t *testing.T) {
 		t.Cleanup(srv.Close)
 
 		c := NewClient(WithBaseURL(srv.URL))
-		got, err := c.Subdivisions(context.Background(), SubdivisionsRequest{CountryIsoCode: "PL"})
+		got, err := c.Subdivisions(t.Context(), SubdivisionsRequest{CountryIsoCode: "PL"})
 		require.Error(t, err)
 		assert.Nil(t, got)
 
@@ -191,7 +191,7 @@ func TestClient_Subdivisions(t *testing.T) {
 		t.Cleanup(srv.Close)
 
 		c := NewClient(WithBaseURL(srv.URL))
-		_, err := c.Subdivisions(context.Background(), SubdivisionsRequest{CountryIsoCode: "PL"})
+		_, err := c.Subdivisions(t.Context(), SubdivisionsRequest{CountryIsoCode: "PL"})
 		require.Error(t, err)
 
 		var apiErr *APIError
@@ -213,7 +213,7 @@ func TestClient_Subdivisions(t *testing.T) {
 		t.Cleanup(srv.Close)
 
 		c := NewClient(WithBaseURL(srv.URL))
-		_, err := c.Subdivisions(context.Background(), SubdivisionsRequest{CountryIsoCode: "PL"})
+		_, err := c.Subdivisions(t.Context(), SubdivisionsRequest{CountryIsoCode: "PL"})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "decode /Subdivisions",
 			"decode error must carry the /Subdivisions path in its prefix")
@@ -248,7 +248,7 @@ func TestClient_Subdivisions(t *testing.T) {
 		t.Cleanup(srv.Close)
 
 		c := NewClient(WithBaseURL(srv.URL))
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := context.WithCancel(t.Context())
 		// Cancel after a small delay so the request has dispatched.
 		go func() {
 			time.Sleep(20 * time.Millisecond)

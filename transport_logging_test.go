@@ -2,7 +2,6 @@ package openholidays
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -72,7 +71,7 @@ func TestLoggingTransport_RoundTrip(t *testing.T) {
 			}),
 		}
 
-		req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "https://example.test/Countries", nil)
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "https://example.test/Countries", nil)
 		require.NoError(t, err)
 
 		resp, err := l.RoundTrip(req)
@@ -113,7 +112,7 @@ func TestLoggingTransport_RoundTrip(t *testing.T) {
 			}),
 		}
 
-		req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "https://example.test/Countries", nil)
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "https://example.test/Countries", nil)
 		require.NoError(t, err)
 
 		resp, err := l.RoundTrip(req)
@@ -143,7 +142,7 @@ func TestLoggingTransport_RoundTrip(t *testing.T) {
 			}),
 		}
 
-		req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "https://example.test/Countries", nil)
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "https://example.test/Countries", nil)
 		require.NoError(t, err)
 
 		resp, err := l.RoundTrip(req)
@@ -182,7 +181,7 @@ func TestLoggingTransport_RoundTrip(t *testing.T) {
 			}),
 		}
 
-		req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "https://example.test/Countries", nil)
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "https://example.test/Countries", nil)
 		require.NoError(t, err)
 
 		resp, err := l.RoundTrip(req)

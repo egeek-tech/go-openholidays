@@ -24,7 +24,6 @@
 package openholidays
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -75,7 +74,7 @@ func TestClient_IsInRegion(t *testing.T) {
 		// dispatch would fail loudly with a DNS error.
 		c := NewClient(WithBaseURL("http://example.invalid"))
 		h := Holiday{Subdivisions: []SubdivisionRef{{Code: "PL-SL"}}}
-		ok, err := c.IsInRegion(context.Background(), h, "")
+		ok, err := c.IsInRegion(t.Context(), h, "")
 		require.NoError(t, err)
 		assert.False(t, ok)
 	})
@@ -84,7 +83,7 @@ func TestClient_IsInRegion(t *testing.T) {
 		t.Parallel()
 		c := NewClient(WithBaseURL("http://example.invalid"))
 		h := Holiday{Nationwide: true}
-		ok, err := c.IsInRegion(context.Background(), h, "PL-SL")
+		ok, err := c.IsInRegion(t.Context(), h, "PL-SL")
 		require.NoError(t, err)
 		assert.True(t, ok)
 	})
@@ -97,7 +96,7 @@ func TestClient_IsInRegion(t *testing.T) {
 		// Holiday.IsInRegion fast path.
 		c := NewClient(WithBaseURL("http://example.invalid"))
 		h := Holiday{Nationwide: true}
-		ok, err := c.IsInRegion(context.Background(), h, "")
+		ok, err := c.IsInRegion(t.Context(), h, "")
 		require.NoError(t, err)
 		assert.True(t, ok,
 			"Nationwide holiday must report true for empty code — nationwide applies everywhere")
@@ -107,7 +106,7 @@ func TestClient_IsInRegion(t *testing.T) {
 		t.Parallel()
 		c := NewClient(WithBaseURL("http://example.invalid"))
 		h := Holiday{Subdivisions: []SubdivisionRef{{Code: "PL-SL"}}}
-		ok, err := c.IsInRegion(context.Background(), h, "PL-SL")
+		ok, err := c.IsInRegion(t.Context(), h, "PL-SL")
 		require.NoError(t, err)
 		assert.True(t, ok)
 	})
@@ -116,7 +115,7 @@ func TestClient_IsInRegion(t *testing.T) {
 		t.Parallel()
 		c := NewClient(WithBaseURL("http://example.invalid"))
 		h := Holiday{Subdivisions: []SubdivisionRef{{Code: "PL-SL"}}}
-		ok, err := c.IsInRegion(context.Background(), h, "pl-sl")
+		ok, err := c.IsInRegion(t.Context(), h, "pl-sl")
 		require.NoError(t, err)
 		assert.True(t, ok)
 	})
@@ -125,7 +124,7 @@ func TestClient_IsInRegion(t *testing.T) {
 		t.Parallel()
 		c := NewClient(WithBaseURL("http://example.invalid"))
 		h := Holiday{Nationwide: false, Subdivisions: nil}
-		ok, err := c.IsInRegion(context.Background(), h, "PL-SL")
+		ok, err := c.IsInRegion(t.Context(), h, "PL-SL")
 		require.NoError(t, err)
 		assert.False(t, ok)
 	})
@@ -157,7 +156,7 @@ func TestClient_IsInRegion(t *testing.T) {
 		// child code (e.g. DE-BY-AU). The upward walk must climb from
 		// childCode through the parent-index and hit parentCode.
 		h := Holiday{Subdivisions: []SubdivisionRef{{Code: parentCode}}}
-		ok, err := c.IsInRegion(context.Background(), h, childCode)
+		ok, err := c.IsInRegion(t.Context(), h, childCode)
 		require.NoError(t, err)
 		assert.True(t, ok,
 			"Client.IsInRegion must walk DE-BY's Children and return true for %q under parent %q",
@@ -183,7 +182,7 @@ func TestClient_IsInRegion(t *testing.T) {
 
 		c := NewClient(WithBaseURL(srv.URL))
 		h := Holiday{Subdivisions: []SubdivisionRef{{Code: parentCode}}}
-		ok, err := c.IsInRegion(context.Background(), h, "ZZ-XX-NEVER")
+		ok, err := c.IsInRegion(t.Context(), h, "ZZ-XX-NEVER")
 		require.NoError(t, err)
 		assert.False(t, ok,
 			"a code that does not exist in the parent-index must return (false, nil)")
@@ -200,7 +199,7 @@ func TestClient_IsInRegion(t *testing.T) {
 
 		c := NewClient(WithBaseURL(srv.URL))
 		h := Holiday{Subdivisions: []SubdivisionRef{{Code: "DE-BY"}}}
-		ok, err := c.IsInRegion(context.Background(), h, "DE-BY-AU")
+		ok, err := c.IsInRegion(t.Context(), h, "DE-BY-AU")
 		require.Error(t, err)
 		assert.False(t, ok)
 
@@ -257,7 +256,7 @@ func TestClient_IsInRegion(t *testing.T) {
 		}
 		done := make(chan result, 1)
 		go func() {
-			ok, err := c.IsInRegion(context.Background(), h, "DE-A")
+			ok, err := c.IsInRegion(t.Context(), h, "DE-A")
 			done <- result{ok, err}
 		}()
 
@@ -317,7 +316,7 @@ func TestClient_IsInRegion(t *testing.T) {
 		}
 		done := make(chan result, 1)
 		go func() {
-			ok, err := c.IsInRegion(context.Background(), h, "DE-A")
+			ok, err := c.IsInRegion(t.Context(), h, "DE-A")
 			done <- result{ok, err}
 		}()
 

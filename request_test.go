@@ -18,7 +18,6 @@ package openholidays
 
 import (
 	"bytes"
-	"context"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -55,7 +54,7 @@ func TestDoJSONGet(t *testing.T) {
 		t.Cleanup(srv.Close)
 
 		c := NewClient(WithBaseURL(srv.URL))
-		got, err := doJSONGet[[]int](context.Background(), c, "/anything", nil)
+		got, err := doJSONGet[[]int](t.Context(), c, "/anything", nil)
 		require.NoError(t, err)
 		assert.Equal(t, []int{1, 2, 3}, got)
 	})
@@ -73,7 +72,7 @@ func TestDoJSONGet(t *testing.T) {
 		t.Cleanup(srv.Close)
 
 		c := NewClient(WithBaseURL(srv.URL))
-		got, err := doJSONGet[[]Country](context.Background(), c, "/Countries", nil)
+		got, err := doJSONGet[[]Country](t.Context(), c, "/Countries", nil)
 		require.NoError(t, err)
 		require.Len(t, got, 2)
 		isoCodes := []string{got[0].IsoCode, got[1].IsoCode}
@@ -104,7 +103,7 @@ func TestDoJSONGet(t *testing.T) {
 		t.Cleanup(srv.Close)
 
 		c := NewClient(WithBaseURL(srv.URL))
-		got, err := doJSONGet[[]Country](context.Background(), c, "/Whatever", nil)
+		got, err := doJSONGet[[]Country](t.Context(), c, "/Whatever", nil)
 		require.Error(t, err)
 		assert.Nil(t, got, "doJSONGet must return the zero value of T on error")
 
@@ -126,7 +125,7 @@ func TestDoJSONGet(t *testing.T) {
 		t.Cleanup(srv.Close)
 
 		c := NewClient(WithBaseURL(srv.URL))
-		_, err := doJSONGet[[]Country](context.Background(), c, "/EmptyEndpoint", nil)
+		_, err := doJSONGet[[]Country](t.Context(), c, "/EmptyEndpoint", nil)
 		require.Error(t, err)
 		assert.ErrorIs(t, err, ErrEmptyResponse,
 			"expected ErrEmptyResponse via errors.Is, got %v", err)
@@ -147,7 +146,7 @@ func TestDoJSONGet(t *testing.T) {
 		c := NewClient(WithBaseURL(srv.URL))
 		q := url.Values{}
 		q.Set("k", "v")
-		_, err := doJSONGet[[]int](context.Background(), c, "/q", q)
+		_, err := doJSONGet[[]int](t.Context(), c, "/q", q)
 		require.NoError(t, err)
 		assert.Equal(t, "v", observedKey,
 			"expected query key k=v, got RawQuery=%q", observedRawQuery)
@@ -166,13 +165,13 @@ func TestDoJSONGet(t *testing.T) {
 		t.Cleanup(srv.Close)
 
 		c := NewClient(WithBaseURL(srv.URL))
-		_, err := doJSONGet[[]int](context.Background(), c, "/q", url.Values{})
+		_, err := doJSONGet[[]int](t.Context(), c, "/q", url.Values{})
 		require.NoError(t, err)
 		assert.Empty(t, observedRawQuery,
 			"empty url.Values must NOT set RawQuery (got %q)", observedRawQuery)
 
 		// Repeat with a literal nil — same expectation.
-		_, err = doJSONGet[[]int](context.Background(), c, "/q", nil)
+		_, err = doJSONGet[[]int](t.Context(), c, "/q", nil)
 		require.NoError(t, err)
 		assert.Empty(t, observedRawQuery,
 			"nil url.Values must NOT set RawQuery (got %q)", observedRawQuery)
@@ -219,7 +218,7 @@ func TestDoJSONGet(t *testing.T) {
 		t.Cleanup(srv.Close)
 
 		c := NewClient(WithBaseURL(srv.URL))
-		_, err := doJSONGet[[]Country](context.Background(), c, "/Countries", nil)
+		_, err := doJSONGet[[]Country](t.Context(), c, "/Countries", nil)
 		require.Error(t, err)
 		assert.ErrorIs(t, err, ErrResponseTooLarge,
 			"expected ErrResponseTooLarge via errors.Is, got %v", err)
@@ -235,7 +234,7 @@ func TestDoJSONGet(t *testing.T) {
 		t.Cleanup(srv.Close)
 
 		c := NewClient(WithBaseURL(srv.URL))
-		_, err := doJSONGet[[]Country](context.Background(), c, "/Countries", nil)
+		_, err := doJSONGet[[]Country](t.Context(), c, "/Countries", nil)
 		require.Error(t, err)
 		var apiErr *APIError
 		require.ErrorAs(t, err, &apiErr,

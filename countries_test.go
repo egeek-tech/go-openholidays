@@ -10,7 +10,6 @@ package openholidays
 
 import (
 	"bytes"
-	"context"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -95,7 +94,7 @@ func TestClient_Countries(t *testing.T) {
 		t.Cleanup(srv.Close)
 
 		c := NewClient(WithBaseURL(srv.URL))
-		countries, err := c.Countries(context.Background(), CountriesRequest{})
+		countries, err := c.Countries(t.Context(), CountriesRequest{})
 		require.NoError(t, err)
 		require.Len(t, countries, 2)
 
@@ -126,7 +125,7 @@ func TestClient_Countries(t *testing.T) {
 		t.Cleanup(srv.Close)
 
 		c := NewClient(WithBaseURL(srv.URL))
-		countries, err := c.Countries(context.Background(), CountriesRequest{})
+		countries, err := c.Countries(t.Context(), CountriesRequest{})
 		require.Error(t, err)
 		assert.Nil(t, countries)
 
@@ -150,7 +149,7 @@ func TestClient_Countries(t *testing.T) {
 		t.Cleanup(srv.Close)
 
 		c := NewClient(WithBaseURL(srv.URL))
-		_, err := c.Countries(context.Background(), CountriesRequest{})
+		_, err := c.Countries(t.Context(), CountriesRequest{})
 		require.Error(t, err)
 
 		var apiErr *APIError
@@ -171,7 +170,7 @@ func TestClient_Countries(t *testing.T) {
 		t.Cleanup(srv.Close)
 
 		c := NewClient(WithBaseURL(srv.URL))
-		_, err := c.Countries(context.Background(), CountriesRequest{})
+		_, err := c.Countries(t.Context(), CountriesRequest{})
 		require.Error(t, err)
 
 		var apiErr *APIError
@@ -192,7 +191,7 @@ func TestClient_Countries(t *testing.T) {
 		t.Cleanup(srv.Close)
 
 		c := NewClient(WithBaseURL(srv.URL))
-		_, err := c.Countries(context.Background(), CountriesRequest{})
+		_, err := c.Countries(t.Context(), CountriesRequest{})
 		require.Error(t, err)
 
 		var apiErr *APIError
@@ -212,7 +211,7 @@ func TestClient_Countries(t *testing.T) {
 		t.Cleanup(srv.Close)
 
 		c := NewClient(WithBaseURL(srv.URL))
-		_, err := c.Countries(context.Background(), CountriesRequest{})
+		_, err := c.Countries(t.Context(), CountriesRequest{})
 		require.Error(t, err)
 		assert.ErrorIs(t, err, ErrEmptyResponse,
 			"expected ErrEmptyResponse via errors.Is, got %v", err)
@@ -284,7 +283,7 @@ func TestClient_Countries(t *testing.T) {
 		httpClient := &http.Client{Transport: countingRT}
 		c := NewClient(WithBaseURL(srv.URL), WithHTTPClient(httpClient))
 
-		_, err := c.Countries(context.Background(), CountriesRequest{})
+		_, err := c.Countries(t.Context(), CountriesRequest{})
 		require.Error(t, err)
 		require.ErrorIs(t, err, ErrResponseTooLarge,
 			"expected ErrResponseTooLarge via errors.Is, got %v", err)
@@ -325,7 +324,7 @@ func TestClient_Countries(t *testing.T) {
 		t.Cleanup(srv.Close)
 
 		c := NewClient(WithBaseURL(srv.URL))
-		countries, err := c.Countries(context.Background(), CountriesRequest{})
+		countries, err := c.Countries(t.Context(), CountriesRequest{})
 		require.NoError(t, err, "trailing whitespace in a separate chunk must NOT be reported as ErrResponseTooLarge (CR-01)")
 		require.NotErrorIs(t, err, ErrResponseTooLarge,
 			"CR-01 regression: small body + trailing whitespace must not match ErrResponseTooLarge")
@@ -351,7 +350,7 @@ func TestClient_Countries(t *testing.T) {
 		t.Cleanup(srv.Close)
 
 		c := NewClient(WithBaseURL(srv.URL))
-		countries, err := c.Countries(context.Background(), CountriesRequest{LanguageIsoCode: "PL"})
+		countries, err := c.Countries(t.Context(), CountriesRequest{LanguageIsoCode: "PL"})
 		require.NoError(t, err)
 		assert.NotEmpty(t, countries)
 	})
@@ -370,7 +369,7 @@ func TestClient_Countries(t *testing.T) {
 		t.Cleanup(srv.Close)
 
 		c := NewClient(WithBaseURL(srv.URL))
-		_, err = c.Countries(context.Background(), CountriesRequest{})
+		_, err = c.Countries(t.Context(), CountriesRequest{})
 		require.NoError(t, err)
 	})
 
@@ -379,7 +378,7 @@ func TestClient_Countries(t *testing.T) {
 		// http://example.invalid is RFC 6761 reserved; if the validator
 		// failed to short-circuit, the HTTP dispatch would fail loudly.
 		c := NewClient(WithBaseURL("http://example.invalid"))
-		_, err := c.Countries(context.Background(), CountriesRequest{LanguageIsoCode: "X"})
+		_, err := c.Countries(t.Context(), CountriesRequest{LanguageIsoCode: "X"})
 		require.Error(t, err)
 		assert.ErrorIs(t, err, ErrInvalidLanguage,
 			"expected ErrInvalidLanguage via errors.Is, got %v", err)

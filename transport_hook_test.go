@@ -27,7 +27,6 @@
 package openholidays
 
 import (
-	"context"
 	"errors"
 	"io"
 	"net/http"
@@ -73,7 +72,7 @@ func TestHookTransport_RoundTrip(t *testing.T) {
 		})
 		tr := &hookTransport{hook: hook, next: next}
 
-		req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "https://example.test/Countries", nil)
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "https://example.test/Countries", nil)
 		require.NoError(t, err)
 
 		resp, err := tr.RoundTrip(req)
@@ -107,7 +106,7 @@ func TestHookTransport_RoundTrip(t *testing.T) {
 		})
 		tr := &hookTransport{hook: hook, next: next}
 
-		req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "https://example.test/Countries", nil)
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "https://example.test/Countries", nil)
 		require.NoError(t, err)
 
 		resp, err := tr.RoundTrip(req)
@@ -139,7 +138,7 @@ func TestHookTransport_RoundTrip(t *testing.T) {
 		})
 		tr := &hookTransport{hook: nil, next: next}
 
-		req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "https://example.test/Countries", nil)
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "https://example.test/Countries", nil)
 		require.NoError(t, err)
 
 		require.NotPanics(t, func() {
@@ -196,7 +195,7 @@ func TestHookTransport_FiresPerAttempt(t *testing.T) {
 		}
 		tr := &hookTransport{hook: hook, next: next}
 
-		req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "https://example.test/Countries", nil)
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "https://example.test/Countries", nil)
 		require.NoError(t, err)
 
 		// Manually invoke RoundTrip three times — simulates the retry loop
@@ -241,7 +240,7 @@ func TestHookTransport_PanicPropagates(t *testing.T) {
 		})
 		tr := &hookTransport{hook: panickyHook, next: next}
 
-		req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "https://example.test/Countries", nil)
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "https://example.test/Countries", nil)
 		require.NoError(t, err)
 
 		assert.PanicsWithValue(t, "oops", func() {
@@ -283,7 +282,7 @@ func TestHookTransport_NilSafeOnTransportError(t *testing.T) {
 		}
 		tr := &hookTransport{hook: hook, next: next}
 
-		req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "https://example.test/Countries", nil)
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "https://example.test/Countries", nil)
 		require.NoError(t, err)
 
 		resp, err := tr.RoundTrip(req)
