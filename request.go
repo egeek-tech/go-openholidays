@@ -139,10 +139,12 @@ func doJSONGet[T any](ctx context.Context, c *Client, path string, q url.Values)
 		// Retry exhaustion (maxAttempts > 1): wrap with the explicit
 		// retry-exhaustion prefix per D-77 so callers branching on
 		// errors.Is(err, ErrEmptyResponse) / errors.As(err, &APIError)
-		// still match via %w. When retry was disabled (maxAttempts == 1),
-		// preserve the existing Phase 2 error-wrap shape verbatim.
+		// still match via %w. The path is carried in BOTH branches
+		// (WR-05) so operator log routing via strings.Contains(err.Error(),
+		// path) is consistent regardless of whether retry was enabled or
+		// the failure happened on attempt 1.
 		if maxAttempts > 1 {
-			return zero, fmt.Errorf("openholidays: retry exhausted (%d attempts): %w", maxAttempts, httpErr)
+			return zero, fmt.Errorf("openholidays: GET %s: retry exhausted (%d attempts): %w", path, maxAttempts, httpErr)
 		}
 		return zero, fmt.Errorf("openholidays: GET %s: %w", path, httpErr)
 	}
@@ -164,7 +166,7 @@ func doJSONGet[T any](ctx context.Context, c *Client, path string, q url.Values)
 		// inconsistent prefixes depending on whether the failure was a
 		// transport error or a retryable-status response.
 		if maxAttempts > 1 && shouldRetry(resp, nil) {
-			return zero, fmt.Errorf("openholidays: retry exhausted (%d attempts): %w", maxAttempts, apiErr)
+			return zero, fmt.Errorf("openholidays: GET %s: retry exhausted (%d attempts): %w", path, maxAttempts, apiErr)
 		}
 		return zero, apiErr
 	}
