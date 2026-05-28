@@ -95,7 +95,6 @@ func TestCacheTransport_PathAllowlist(t *testing.T) {
 	}
 
 	for _, c := range cases {
-		c := c
 		t.Run(c.name, func(t *testing.T) {
 			t.Parallel()
 			tr, hits := newTestCacheTransport(t, []byte("{}"), http.StatusOK)
@@ -127,7 +126,6 @@ func TestCacheTransport_HolidayPathsBypass(t *testing.T) {
 	t.Parallel()
 
 	for _, path := range []string{"/PublicHolidays", "/SchoolHolidays"} {
-		path := path
 		t.Run(path+" two calls produce two next-handler hits", func(t *testing.T) {
 			t.Parallel()
 			tr, hits := newTestCacheTransport(t, []byte("[]"), http.StatusOK)
