@@ -316,3 +316,96 @@ func TestWithMaxRetryWait(t *testing.T) {
 			"negative d must fall back to defaultMaxRetryWait per D-74 (treat non-positive uniformly)")
 	})
 }
+
+// TestWithCache covers D-79 / D-80: positive ttl populates cfg.cache (a
+// real *MemoryCache); ttl <= 0 disables (cfg.cache stays nil).
+func TestWithCache(t *testing.T) {
+	t.Parallel()
+
+	t.Run("positive ttl populates cache and cacheTTL", func(t *testing.T) {
+		t.Parallel()
+		c := NewClient(WithCache(2 * time.Hour))
+		require.NotNil(t, c)
+		require.NotNil(t, c.cache, "positive ttl must populate the cache field")
+		t.Cleanup(func() { _ = c.Close() })
+
+		// Underlying type is the default in-memory implementation.
+		mc, ok := c.cache.(*MemoryCache)
+		require.True(t, ok, "WithCache(ttl) must wire a *MemoryCache by default")
+		assert.Equal(t, 2*time.Hour, mc.ttl, "MemoryCache.ttl must reflect the WithCache argument")
+	})
+
+	t.Run("ttl == 0 disables (cfg.cache stays nil)", func(t *testing.T) {
+		t.Parallel()
+		c := NewClient(WithCache(0))
+		require.NotNil(t, c)
+		assert.Nil(t, c.cache,
+			"WithCache(0) must NOT populate the cache field (D-80 ttl <= 0 disables)")
+	})
+
+	t.Run("negative ttl disables (cfg.cache stays nil)", func(t *testing.T) {
+		t.Parallel()
+		c := NewClient(WithCache(-time.Hour))
+		require.NotNil(t, c)
+		assert.Nil(t, c.cache,
+			"WithCache(<0) must NOT populate the cache field (D-80 defensive symmetry)")
+	})
+}
+
+// TestWithCache_NonPositiveTTLDisables is the explicit RESIL-07/D-80 lock
+// — duplication intentional (named test documenting the requirement).
+func TestWithCache_NonPositiveTTLDisables(t *testing.T) {
+	t.Parallel()
+
+	t.Run("zero ttl is treated as disabled", func(t *testing.T) {
+		t.Parallel()
+		c := NewClient(WithCache(0))
+		require.NotNil(t, c)
+		assert.Nil(t, c.cache, "WithCache(0) must NOT enable caching")
+	})
+
+	t.Run("negative ttl is treated as disabled", func(t *testing.T) {
+		t.Parallel()
+		c := NewClient(WithCache(-5 * time.Minute))
+		require.NotNil(t, c)
+		assert.Nil(t, c.cache, "WithCache(<0) must NOT enable caching")
+	})
+}
+
+// TestWithCacheBackend covers D-80 last-wins + nil-no-op convention.
+func TestWithCacheBackend(t *testing.T) {
+	t.Parallel()
+
+	t.Run("non-nil backend stored verbatim", func(t *testing.T) {
+		t.Parallel()
+		custom := NewMemoryCache(time.Hour)
+		c := NewClient(WithCacheBackend(custom))
+		require.NotNil(t, c)
+		t.Cleanup(func() { _ = c.Close() })
+
+		assert.Same(t, custom, c.cache,
+			"WithCacheBackend must store the supplied backend verbatim (identity-equal)")
+	})
+
+	t.Run("nil backend is a no-op (cfg.cache stays nil)", func(t *testing.T) {
+		t.Parallel()
+		c := NewClient(WithCacheBackend(nil))
+		require.NotNil(t, c)
+		assert.Nil(t, c.cache,
+			"WithCacheBackend(nil) must NOT overwrite cfg.cache (nil-no-op convention per WithHTTPClient analog)")
+	})
+
+	t.Run("WithCacheBackend supersedes prior WithCache(ttl) (D-80 last-wins)", func(t *testing.T) {
+		t.Parallel()
+		custom := NewMemoryCache(time.Hour)
+		c := NewClient(WithCache(2*time.Hour), WithCacheBackend(custom))
+		require.NotNil(t, c)
+		t.Cleanup(func() {
+			_ = c.Close()
+			_ = custom.Close() // the WithCache-built MemoryCache was overridden; close defensively
+		})
+
+		assert.Same(t, custom, c.cache,
+			"WithCacheBackend after WithCache must overwrite cfg.cache (D-80 last-wins)")
+	})
+}
