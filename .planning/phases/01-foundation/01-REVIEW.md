@@ -1,150 +1,171 @@
 ---
 phase: 01-foundation
-created: 2026-05-27
-status: issues
+reviewed: 2026-05-28T00:00:00Z
 depth: standard
-findings_total: 11
-critical_count: 0
-warning_count: 4
-info_count: 7
+files_reviewed: 14
+files_reviewed_list:
+  - LICENSE
+  - date.go
+  - date_test.go
+  - doc.go
+  - errors.go
+  - errors_test.go
+  - go.mod
+  - go.sum
+  - internal_test.go
+  - types.go
+  - types_test.go
+  - validate.go
+  - validate_test.go
+  - version.go
+findings:
+  critical: 0
+  warning: 2
+  info: 5
+  total: 7
+status: issues_found
 ---
 
-# Phase 01 — Code Review
+# Phase 01 — Code Review (re-review)
 
 ## Summary
 
-Phase 1 ships six production files (`doc.go`, `version.go`, `errors.go`, `date.go`, `types.go`, `validate.go`) plus five test files implementing domain types, the `Date` wrapper, the sentinel surface, and client-side validators. Overall quality is high: every exported symbol carries a godoc string starting with its name, the test suite follows the testify + `t.Run` + one-test-per-prod-function convention, and the AST audit (`internal_test.go`) correctly enforces CLIENT-10 invariants for files at the repo root. The headline finding is a **client-side validation bypass via Unicode case-folding**: `strings.ToLower("KK")` (two Kelvin signs) produces ASCII `"kk"` that then passes `isTwoASCIILowers`, so `validateLanguage` accepts non-ASCII input that its godoc explicitly rejects. The same shape affects `validateCountry` via `strings.ToUpper`. Three additional warning-tier issues round out the issues_found status: a documentation example in `version.go` that does not work as written, the CLIENT-10 AST audit silently skipping the `internal/` subtree (defeating the very invariant for the directory PROJECT.md says is in scope), and the `func TestValidators_NoSensitiveData` cross-cutting test that quietly violates Gold Rule 3's one-test-per-prod-function shape.
+Re-review of the 14 Phase 01 foundation files against the prior 2026-05-27 review (0 Critical + 4 Warning + 7 Info). Subsequent phases (02 transport, 03 endpoints, 04 resilience) have touched two of these files: `errors.go` gained `ErrResponseTooLarge` (Phase 02) and `ErrMalformedResponse` (Phase 03), and `internal_test.go` gained the `CacheHitContextKey` allowlist entry (Phase 04) while also removing the `"internal"` skipDir per the IN-05 follow-up. `validate.go` was rewritten in Phase 02 around `isTwoASCIILetters` (the W-01 fix), collapsing the previous `isTwoASCIIUppers` / `isTwoASCIILowers` pair into a single helper.
 
-## Findings
+**Prior-finding status (11 items):** Four are REMEDIATED — W-01 (Unicode case-fold bypass), W-03 (CLIENT-10 audit skipping `internal/`), I-06 (`isTwoASCIIUppers`/`Lowers` duplication), and the four W-01 regression cases are explicitly locked in `validate_test.go` lines 74-77 and 153-156. Seven remain OPEN — W-02 (`Version const` vs ldflags doc claim), W-04 (cross-cutting `TestValidators_NoSensitiveData`), I-01 (`errEmptyDate` uses `fmt.Errorf`), I-02 (em-dashes), I-03 (unknown `HolidayType`), I-05 (`require.Equal` where `assert.Equal` applies), and I-07 (`Date.UnmarshalJSON` echoes raw `b` without length cap). I-04 (`Subdivision.Children` unbounded recursion) was correctly deferred and the stdlib's implicit 10000-level cap remains in force — no action needed for Phase 01.
 
-### Critical (0)
+**No new BLOCKER-tier defects surfaced.** The two remaining warnings (W-02, W-04) and five remaining info items track verbatim from the prior review with no new context that would change their severity.
 
-None.
+## Prior-Finding Re-Verification
 
-### Warning (4)
+| Prior ID | Status | Evidence |
+|----------|--------|----------|
+| W-01 (Unicode case-fold bypass) | REMEDIATED | `validate.go:34, 58` call `isTwoASCIILetters(code)` on ORIGINAL bytes BEFORE `strings.ToUpper`/`ToLower`; regression cases `"ıA"`, `"ſA"`, `"ıı"`, `"ſſ"`, `"KK"`, `"İa"`, `"İİ"`, `"Ka"` locked in `validate_test.go:74-77, 153-156`. |
+| W-02 (Version `const` + ldflags doc) | OPEN | `version.go:10` still `const Version = "0.1.0"`; godoc lines 7-10 still document the `-ldflags '-X ...Version=...'` override that cannot work on `const`. See W-02 below. |
+| W-03 (`internal/` skipDir) | REMEDIATED | `internal_test.go:97-102` skipDirs is now `{".planning", ".git", ".claude", "testdata"}` — `"internal"` removed; the IN-05 rationale comment on lines 90-96 is consistent with the prior recommendation. |
+| W-04 (cross-cutting validator test) | OPEN | `validate_test.go:286-333` still present; no `Key Decisions` entry was added to PROJECT.md. See W-04 below. |
+| I-01 (`fmt.Errorf` w/o verbs) | OPEN | `date.go:24` still `var errEmptyDate = fmt.Errorf("openholidays: empty date string")`. See I-01 below. |
+| I-02 (em-dashes in docs) | OPEN | em-dashes still throughout `doc.go`, `errors.go`, `types.go`, `validate.go`, etc.; deliberately deferred — see I-02. |
+| I-03 (unknown `HolidayType`) | OPEN | `types.go:103` Type field doc still does not warn callers about non-allowlisted upstream values; no `IsKnown()` helper added. See I-03 below. |
+| I-04 (`Subdivision.Children` unbounded) | DEFERRED (no action required) | stdlib `encoding/json` 10000-level cap still applies; no Phase 01 helper added that walks `Children`. Re-flag when Phase 03 traversal helpers land. |
+| I-05 (`require.Equal` misuse) | OPEN | `errors_test.go:152` still `require.Equal(t, c.want, c.err.Error())` where `assert.Equal` is the right choice (verification, not precondition). See I-05 below. |
+| I-06 (`isTwoASCIIUppers`/`Lowers` dup) | REMEDIATED | `validate.go:110-121` declares a single `isTwoASCIILetters`; the dual `isTwoASCIIUppers`/`isTwoASCIILowers` helpers are gone. |
+| I-07 (`UnmarshalJSON` echoes `b`) | OPEN | `date.go:93` still `fmt.Errorf("openholidays: date must be a JSON string, got %s", b)` with no length cap. See I-07 below. |
 
-#### W-01: Validators bypass ASCII check via Unicode case-folding to ASCII (correctness/security)
+## Warnings (2)
 
-- **File:** `validate.go:28-34, 49-55, 102-116`
-- **Issue:** `validateCountry` calls `strings.ToUpper(code)` *before* the ASCII-shape check, and `validateLanguage` calls `strings.ToLower(code)` first. Both functions then ask `isTwoASCIIUppers`/`isTwoASCIILowers` of the canonicalized form. Four Unicode code points fold to ASCII via Go's `strings.To{Upper,Lower}`:
-  - U+0130 LATIN CAPITAL LETTER I WITH DOT ABOVE → ToLower → `"i"` (ASCII)
-  - U+0131 LATIN SMALL LETTER DOTLESS I → ToUpper → `"I"` (ASCII)
-  - U+017F LATIN SMALL LETTER LONG S → ToUpper → `"S"` (ASCII)
-  - U+212A KELVIN SIGN → ToLower → `"k"` (ASCII)
+### WR-01: `version.go` documents an ldflags override that cannot work — `Version` is `const`, not `var`
 
-  Empirically verified with `go run`: input `"KK"` (two Kelvin signs, 6 UTF-8 bytes) → `strings.ToLower` → `"kk"` → `isTwoASCIILowers("kk")` → true. The validator returns `("kk", nil)`, accepting non-ASCII input that the godoc on line 23-24 explicitly promises to reject: *"not exactly two ASCII letters"*.
-- **Why it matters:** The validators are positioned as the ASVS V5.1.3 input-validation control (their package comment names that control). The promise documented in godoc — *"non-ASCII bytes ... are rejected"* — is not actually delivered. While the upstream API would likely return 4xx for these malformed codes, the client-side guarantee is broken, and the test suite at `validate_test.go:59-61` and `validate_test.go:120-122` claims to lock the non-ASCII rejection path but only exercises characters that do *not* fold to ASCII (`Ż`, `ż`).
-- **Fix:** Reorder the operation: ASCII-shape-check first, then canonicalize. The simplest fix is to add an ASCII pre-check before `ToUpper`/`ToLower`, or to scan the raw input byte-by-byte:
-  ```go
-  func validateCountry(code string) (string, error) {
-      if !isTwoASCIILettersAnyCase(code) {
-          return "", fmt.Errorf("%w: %q", ErrInvalidCountry, code)
-      }
-      return strings.ToUpper(code), nil
-  }
+**File:** `version.go:7-10`
+**Issue:** The godoc on `Version` claims the constant "can be overridden at link time, for example: `go build -ldflags '-X github.com/egeek-tech/go-openholidays.Version=0.1.1-rc1'`". The Go linker's `-X` flag only applies to package-level `string` `var`s; on a `const` it silently has no effect. The declaration on line 10 is `const Version = "0.1.0"`, so any release pipeline that follows the documented command will build a binary that reports the compiled-in default while the operator believes the override took.
 
-  func isTwoASCIILettersAnyCase(s string) bool {
-      if len(s) != 2 {
-          return false
-      }
-      isLetter := func(b byte) bool {
-          return (b >= 'A' && b <= 'Z') || (b >= 'a' && b <= 'z')
-      }
-      return isLetter(s[0]) && isLetter(s[1])
-  }
-  ```
-  Mirror for `validateLanguage`. Add regression tests using the four code points above (`"KK"`, `"İI"`, `"ıı"`, `"ſſ"`) to lock the fix.
+This is verifiable from the Go documentation (`cmd/link` docs) and was empirically confirmed in the prior review. It violates Gold Rule 2 ("never guess; verify or ask") inside committed documentation — a consumer who follows the example gets exactly the failure mode the rule is written to prevent. Phase 05 (`cmd/ohcli`) is planned to read this value for `--version`, so the documented release pipeline produces binaries that lie about their version.
 
-#### W-02: `version.go` godoc shows an ldflags override example that cannot work — `Version` is `const`, not `var`
+**Fix:** Either (a) drop the ldflags paragraph from the godoc if the contract is "compiled-in only", or (b) change the declaration to `var Version = "0.1.0"` so the documented override actually works. Option (b) preserves the documented capability at negligible cost (the value is read once per `Client` for the User-Agent string). The important property is that committed docs match committed behavior.
 
-- **File:** `version.go:7-10`
-- **Issue:** The godoc claims `Version` "can be overridden at link time, for example: `go build -ldflags '-X github.com/egeek-tech/go-openholidays.Version=0.1.1-rc1'`". The `-X` ldflag only works on package-level `var`s of type `string`; it silently has no effect on `const`. Verified locally: a small program with `const Version = "0.0.0"` built with `-ldflags '-X main.Version=1.2.3'` still prints `"0.0.0"`.
-- **Why it matters:** This violates Gold Rule 2 ("never guess; verify or ask") in committed documentation. A consumer who follows the example will silently get the compiled-in default — exactly the failure mode the rule was written to prevent. The CLI in `cmd/ohcli` (Phase 5) is also planned to read this value for `--version`, so any release pipeline that tries to inject the version string via the documented command will produce a binary that lies about its version.
-- **Fix:** Either (a) drop the ldflags paragraph from the godoc entirely if Phase 1's contract is "Version is compiled in", or (b) change the declaration to `var Version = "0.1.0"` so the example actually works. Option (b) preserves the documented capability and keeps the constant-folding benefit minor (Version appears only in a User-Agent string built once per Client). Either fix is a one-line change; the *important* part is that committed docs match committed behavior.
+```go
+// Option (b) — one-line change:
+var Version = "0.1.0"
+```
 
-#### W-03: CLIENT-10 AST audit silently skips the `internal/` subtree, defeating its purpose there
+If (b) is chosen, also add `"Version": {}` to `allowedVars` in `internal_test.go:72-82` so the CLIENT-10 AST audit accepts the new package-level `var`.
 
-- **File:** `internal_test.go:64-70`
-- **Issue:** `skipDirs` contains `"internal": {}`, and `filepath.WalkDir` returns `filepath.SkipDir` for any directory whose `d.Name()` matches. The header comment on lines 67-70 justifies this as "Phase 1 has none of these subdirectories, but later phases will add internal/, cmd/, testdata/" — but for `internal/` this is incorrect: PROJECT.md says *"Internal helpers live under internal/"*, meaning `internal/` is library code subject to the same CLIENT-10 invariant ("no init() side effects, no global mutable state"). Skipping it from the audit means a future contributor can introduce `func init()` or an unauthorized package-level `var` inside `internal/foo/` and the audit will not catch it.
-- **Why it matters:** The whole point of the `internal_test.go` AST audit is that it is the *mechanical* CI guard for CLIENT-10. Excluding the directory where most of the library's code will live in later phases is a self-inflicted blind spot. The comment claims this is intentional but conflates `internal/` (library private code, CLIENT-10 applies) with `testdata/` (fixtures, no Go code) and `cmd/` (external CLI, separately argued).
-- **Fix:** Remove `"internal": {}` from `skipDirs`. Add a comment explaining that `internal/` is library code subject to CLIENT-10. If a specific `internal/` package needs an exception in a future phase, add the symbol to `allowedVars` with a justification — the closed-allowlist design of `allowedVars` already gives that escape hatch the deliberate-review property the rest of the audit relies on.
+### WR-02: `TestValidators_NoSensitiveData` is a cross-cutting test that Gold Rule 3 does not authorize
 
-#### W-04: `TestValidators_NoSensitiveData` is a cross-cutting test that the project's stated convention does not authorize
+**File:** `validate_test.go:286-333`
+**Issue:** Gold Rule 3 (CLAUDE.md): *"Exactly one TestXxx function per exported production function."* `validate.go` declares three unexported validators (`validateCountry`, `validateLanguage`, `validateDateRange`) and `validate_test.go` already ships three direct one-to-one tests (`TestValidateCountry`, `TestValidateLanguage`, `TestValidateDateRange`) for each. `TestValidators_NoSensitiveData` then adds a fourth test that probes the ERR-04 transport-leak invariant across all three validators — its body re-invokes each validator and asserts only the absence of forbidden substrings. The one-test-per-prod-function shape is broken without a `Key Decisions` entry authorizing the exception.
 
-- **File:** `validate_test.go:241-299`
-- **Issue:** Gold Rule 3 (Project Rules in `CLAUDE.md`): *"Exactly one TestXxx function per exported production function."* The Rule does not explicitly cover unexported functions, but `validate.go` already has three direct one-to-one tests (`TestValidateCountry`, `TestValidateLanguage`, `TestValidateDateRange`) for its three unexported validators, so the convention is being honored for that file. `TestValidators_NoSensitiveData` then adds a fourth test that probes a *cross-cutting invariant* (ERR-04 transport-leak guard) across all three validators. The body of `TestValidators_NoSensitiveData` re-invokes the validators and asserts only on error-message substrings — it is functionally a duplicate-execution of paths already covered by the per-validator tests with one extra assertion. The "one TestXxx per prod function" shape is broken.
-- **Why it matters:** Gold rules are the project's non-negotiable surface. The earlier files in the same phase (`date_test.go`, `errors_test.go`, `types_test.go`) follow the shape rigidly; this one file departs from it without an explicit `Key Decisions` entry. Future contributors will look at `validate_test.go` and reasonably believe the shape is loose, normalizing further drift.
-- **Fix:** Two reasonable paths:
-  1. **Merge:** Fold the leak-guard assertion into each per-validator test as an additional `t.Run("error_message_has_no_transport_leak", ...)` subtest. This preserves the one-test-per-prod-function shape strictly.
-  2. **Document the exception:** If the cross-cutting shape is intentional (it has merit — a single failing test surfaces a single conceptual leak), add an entry to PROJECT.md's `Key Decisions` log stating that ERR-04 regression guards are admitted as cross-cutting tests, and update Gold Rule 3 to permit this category. The current code does neither, so the file is silently inconsistent with the rule.
+The earlier files in the same phase (`date_test.go`, `errors_test.go`, `types_test.go`) follow Gold Rule 3 rigidly. Future contributors reading `validate_test.go` will reasonably believe the rule is loose and normalize further drift.
 
-  Pick one. Option 1 is the lowest-friction choice and keeps the rule's enforceability sharp.
+**Fix:** Two reasonable paths:
 
-### Info (7)
+1. **Merge (lowest-friction):** Fold the leak-guard assertion into each per-validator test as an additional `t.Run("error_message_has_no_transport_leak", ...)` subtest. Preserves the one-test-per-prod-function shape strictly.
+2. **Document the exception:** Add an entry to PROJECT.md's Key Decisions log that ERR-04 regression guards are admitted as cross-cutting tests, and update Gold Rule 3's wording to permit this category. The current code does neither, so the file is silently inconsistent with the project rule it should obey.
 
-#### I-01: `errEmptyDate` uses `fmt.Errorf` with no verbs where `errors.New` is canonical
+## Info (5)
 
-- **File:** `date.go:24`
-- **Issue:** `var errEmptyDate = fmt.Errorf("openholidays: empty date string")`. With no `%w` or other verbs, `fmt.Errorf` is functionally identical to `errors.New` but slower (it runs through `fmt`'s parser). The five sentinels in `errors.go` (lines 20, 24, 28, 31, 35) correctly use `errors.New`; `errEmptyDate` is the odd one out.
-- **Fix:** `var errEmptyDate = errors.New("openholidays: empty date string")`. One-line change; consistency with the sibling file.
+### IN-01: `errEmptyDate` uses `fmt.Errorf` with no verbs where `errors.New` is canonical
 
-#### I-02: Non-ASCII em-dashes ("—") sprinkled through doc comments
+**File:** `date.go:24`
+**Issue:** `var errEmptyDate = fmt.Errorf("openholidays: empty date string")`. With no `%w` or other format verbs, `fmt.Errorf` is functionally identical to `errors.New` but runs through `fmt`'s parser at package-init time. All seven sentinels in `errors.go` (lines 21, 25, 29, 32, 36, 44, 61) correctly use `errors.New`; `errEmptyDate` is the only odd one out.
 
-- **File:** `doc.go:7`, `date.go:46-47, 73`, `errors.go:73-74, 92-94, 39-40`, `types.go:7, 86, 105`, `validate.go:18, 75-76`, others.
-- **Issue:** Gold Rule 1 demands English-language docs. Em-dashes are not ASCII (`U+2014`). Go's stdlib style (and `gofmt`-style doc comments by convention) uses ASCII `--` or `-` for these breaks. The em-dashes don't break anything mechanical — `gofmt` and `go doc` handle them — but they are a stylistic departure from the rest of the Go ecosystem and a tiny seam that makes copy-paste from terminals awkward.
-- **Fix:** Optional, low priority. If the project wants strict ASCII-clean source files, replace `—` with ` -- ` or `-`. Otherwise document the deliberate choice in CONVENTIONS.md.
+**Fix:**
+```go
+var errEmptyDate = errors.New("openholidays: empty date string")
+```
+One-line change; brings consistency with the sibling file.
 
-#### I-03: `Holiday` permits unknown `Type` values silently (deferred to Phase 4, worth a doc pointer)
+### IN-02: Non-ASCII em-dashes ("—") sprinkled through doc comments
 
-- **File:** `types.go:103, 94-138`
-- **Issue:** `Type HolidayType` is a typed string. JSON unmarshal of `"type": "Religious"` (an upstream value not in the six allowlist constants) succeeds with `Type` populated as `"Religious"`. The Phase 4 strict decoder will surface this; Phase 1 lenient decoding tolerates it. The Holiday godoc on lines 80-93 mentions the six values but does not warn callers that other values may appear in the wild.
-- **Fix:** Add one sentence to the `Holiday.Type` field doc: *"Callers MUST be prepared for upstream to return a value outside the six HolidayType constants; the default lenient decoder accepts unknown values."* Or extract a tiny helper `(HolidayType).IsKnown() bool` so callers can branch defensively. Neither is required for Phase 1 to ship; this is a doc/affordance polish.
+**File:** `doc.go:7`, `date.go:46-47, 67, 73`, `errors.go:39-42`, `types.go:7, 86, 105`, `validate.go:30, 75-76`, others.
+**Issue:** Gold Rule 1 demands English-language docs. Em-dashes are not ASCII (U+2014). Go stdlib style by convention uses ASCII `--` or `-` for these breaks. The em-dashes do not break anything mechanical — `gofmt` and `go doc` handle them — but they are a stylistic departure from the rest of the Go ecosystem and a tiny seam that makes copy-paste from terminals awkward.
 
-#### I-04: `Subdivision.Children` is unbounded recursion with no depth limit
+**Fix:** Optional, low priority. If the project wants strict ASCII-clean source files, replace `—` with ` -- ` or `-`. Otherwise document the deliberate choice in CONVENTIONS.md so the choice is intentional rather than accidental drift.
 
-- **File:** `types.go:212`
-- **Issue:** Decoding a pathologically deep upstream payload (`{"children":[{"children":[...]}]}` nested N times) would recurse N levels in `encoding/json`. The stdlib decoder does have a built-in nesting limit (10000), so this is bounded — but the bound is implicit, not chosen by us. For a hostile / buggy upstream this is fine in practice; flagging for future phases that build helpers walking `Children` (e.g., Phase 3 traversals) to add an explicit depth cap.
-- **Fix:** No change for Phase 1. When Phase 3 adds traversal helpers, cap recursion depth (e.g., 32 levels) and return a typed error on overflow.
+### IN-03: `Holiday` permits unknown `Type` values silently (callers cannot detect schema drift in `Type`)
 
-#### I-05: `TestAPIError_Error` uses `require.Equal` where the convention asks for `assert.Equal`
+**File:** `types.go:103, 94-138`
+**Issue:** `Type HolidayType` is a typed string alias. JSON unmarshal of `"type": "Religious"` (an upstream value not in the six allowlist constants) succeeds with `Type` populated as `"Religious"`. The Holiday godoc on lines 80-93 mentions the six constants but does not warn callers that other values may appear in the wild. The Phase 4 strict decoder surfaces unknown *fields* but not unknown enum *values* — those flow through the lenient and strict decoders identically because the underlying type is `string`.
 
-- **File:** `errors_test.go:143`
-- **Issue:** Gold Rule 3 split: *"require for preconditions (aborts the case), assert for verifications (reports without aborting)."* Line 143 (`require.Equal(t, c.want, c.err.Error())`) is the *verification* of the test case's primary outcome — it should be `assert.Equal`. The preceding `require.NotNil(t, c.err, ...)` on line 142 is correctly a precondition. Same pattern is used correctly elsewhere in the file (e.g., line 216 uses `assert.Equal`).
-- **Fix:** Change line 143 to `assert.Equal`. One-character edit; aligns with the rule and the rest of the file.
+**Fix:** Add one sentence to the `Holiday.Type` field doc, or extract a tiny helper `(HolidayType).IsKnown() bool` so callers can branch defensively:
+```go
+// IsKnown reports whether t matches one of the six HolidayType constants
+// defined by this package. Callers MUST be prepared for upstream to return
+// a value outside the constants; the default lenient decoder accepts unknown
+// values, and IsKnown is the recommended check.
+func (t HolidayType) IsKnown() bool {
+    switch t {
+    case HolidayTypePublic, HolidayTypeBank, HolidayTypeOptional,
+        HolidayTypeSchool, HolidayTypeBackToSchool, HolidayTypeEndOfLessons:
+        return true
+    }
+    return false
+}
+```
+Neither is required for Phase 01 to ship; this is a doc/affordance polish.
 
-#### I-06: `isTwoASCIIUppers` / `isTwoASCIILowers` duplicate structure
+### IN-04: `TestAPIError_Error` uses `require.Equal` where the convention asks for `assert.Equal`
 
-- **File:** `validate.go:102-116`
-- **Issue:** The two functions are identical apart from the byte-range constants. Parameterization (`isTwoASCIIInRange(s string, lo, hi byte) bool`) would dedupe 14 lines into one helper. Not a bug; mild DRY temptation.
-- **Fix:** Optional. Only worth doing if the W-01 fix introduces a third variant (`isTwoASCIILettersAnyCase`), in which case a shared `isTwoASCIIByte(b byte, ...) bool` helper or a single byte-classifier becomes cleaner than three near-copies. Tie the cleanup to the W-01 refactor.
+**File:** `errors_test.go:152`
+**Issue:** Gold Rule 3 split: *"require for preconditions (aborts the case), assert for verifications (reports without aborting)."* Line 152 (`require.Equal(t, c.want, c.err.Error())`) is the *verification* of the test case's primary outcome — `assert.Equal` is the right choice. The preceding `require.NotNil(t, c.err, ...)` on line 151 is correctly a precondition. The same pattern is used correctly elsewhere in the file (e.g., `errors_test.go:225` uses `assert.Equal`).
 
-#### I-07: `Date.UnmarshalJSON` echoes raw `b` into the error message without length cap
+**Fix:** Change line 152 to `assert.Equal`. One-character edit; aligns with the rule and the rest of the file.
 
-- **File:** `date.go:93`
-- **Issue:** `return fmt.Errorf("openholidays: date must be a JSON string, got %s", b)`. If `b` is megabytes of binary garbage (extremely unlikely from a JSON parser that already pre-tokenized this value, but possible if a caller invokes `UnmarshalJSON` directly with attacker-controlled bytes), the error string is unbounded. The `FuzzDateUnmarshal` corpus does not stress this — the fuzz only checks panic-freedom, not error-string size.
-- **Fix:** Cap echoed bytes at, e.g., 64 bytes with `… (truncated)` suffix when over. The fix is one helper; the practical risk is low because callers virtually always pass `b` from `encoding/json`, which has already tokenized the value to a sane size. Defer to a future phase if a real abuse vector is identified.
+### IN-05: `Date.UnmarshalJSON` echoes raw `b` into the error message without length cap
 
-## Verified Good
+**File:** `date.go:93`
+**Issue:** `return fmt.Errorf("openholidays: date must be a JSON string, got %s", b)`. If `b` is megabytes of binary garbage (very unlikely from `encoding/json` which has already pre-tokenized the value, but possible if a caller invokes `UnmarshalJSON` directly with attacker-controlled bytes), the error string grows unbounded and may contain non-printable bytes. `FuzzDateUnmarshal` exercises panic-freedom but not error-string size.
 
-These were explicitly traced and confirmed correct:
+**Fix:** Cap echoed bytes at ~64 with a `(truncated)` suffix when over. Practical risk is low because `encoding/json` already bounds token size, but the defense is one helper and aligns with the "never echo unbounded caller input into operator-visible strings" principle that informs ERR-04:
+```go
+if len(b) < 2 || b[0] != '"' || b[len(b)-1] != '"' {
+    return fmt.Errorf("openholidays: date must be a JSON string, got %s", truncateForError(b, 64))
+}
+```
+Defer to a future phase if a real abuse vector is identified.
 
-- **Package layout & naming.** All files in `package openholidays`; file names match the file responsibility (`date.go`, `errors.go`, `types.go`, `validate.go`, `version.go`, `doc.go`). `go.mod` declares `go 1.23` matching CONTEXT.md's locked floor.
-- **Five exported sentinels, exactly.** `ErrInvalidCountry`, `ErrInvalidLanguage`, `ErrDateRangeTooLarge`, `ErrEmptyResponse`, `ErrInvalidDateRange` — D-13 honored. `errEmptyDate` is correctly unexported (D-06), and the AST audit's `allowedVars` matches.
-- **All exported symbols carry godoc starting with the symbol name.** Spot-checked `NewDate`, `ParseDate`, `Date`, `Holiday`, `HolidayType`, `LocalizedText`, `SubdivisionRef`, `GroupRef`, `Country`, `Language`, `Subdivision`, all three `NameFor` methods, `APIError`, `(*APIError).Error`, `(*APIError).Is`, every sentinel, `Version`. All conform.
-- **`APIError.Is` semantics.** Wildcard (`StatusCode == 0`) matches any `*APIError`; non-zero matches by status only; `Path`/`Body`/`Message` are ignored on the target; non-`*APIError` targets never match. Implementation (errors.go:96-105) matches the godoc (errors.go:83-95) and the test (errors_test.go:151-222) exercises every branch including the wildcard.
-- **`Date.MarshalJSON` ↔ `Date.UnmarshalJSON` round-trip symmetry.** `MarshalJSON` always emits `"YYYY-MM-DD"` with surrounding quotes (12-byte capacity hint correct); `UnmarshalJSON` rejects `null`, `""`, non-string tokens, and malformed dates with a wrapped `errEmptyDate` or `time.Parse` error. Tests cover all five branches plus a fuzz target for panic-freedom (D-12, CL-03 satisfied).
-- **`Date.DaysUntil` arithmetic.** The inclusive count semantics (same day → 1, one day later → 2, negative direction → magnitude + sign) are correct. UTC-midnight normalization defends against DST: with both operands at 00:00 UTC, `Sub().Hours()/24` is a clean integer multiple, well within `float64`'s 2^53 exact-integer range for any plausible calendar span.
-- **`validateDateRange` leap-year boundary.** The backward-anchored `to.AddDate(-3, 0, 0)` formulation correctly handles 2024-02-29 → 2027-02-28 as the exact-3-year boundary (PASS) and 2024-02-29 → 2027-03-01 as one day over (FAIL). The forward-anchored `from.AddDate(3, 0, 0)` formulation that CL-06 was decided against would mishandle this pair. Tests on validate_test.go:168-172 and 211-216 lock both polarities.
-- **No `init()` anywhere in production files.** Verified by reading each `.go` file and confirmed by the `TestNoInitOrGlobalState` AST audit (the audit's own logic is correct for the repo-root subtree it walks; W-03 concerns coverage of `internal/`, not the per-file logic).
-- **No global mutable state.** Only the six allowlisted `var`s (five sentinels + `errEmptyDate`) exist at package scope. All other package-level identifiers are `const` (`dateLayout`, `Version`, the six `HolidayType` constants).
-- **Zero runtime dependencies.** No `.go` file outside `*_test.go` imports anything outside `std`: verified that the entire production set imports only `bytes`, `errors`, `fmt`, `strings`, `time`. `go.mod`'s `require` line covers only `testify` (Gold Rule 3 approved test-only) and its indirect deps.
-- **All tests use testify (`assert` + `require`) and `t.Run` per case.** Gold Rule 3 conformance (excepting I-05 nitpick).
-- **No secrets in error messages.** Validator errors quote only the caller-supplied input and the formatted `Date.String()` form; no HTTP body, URL, or auth-header context leaks into any error string. ERR-04 / T-01-02-IL invariant honored. The defensive regression test in `validate_test.go:241-299` locks this.
-- **`Holiday` JSON tags match the verified upstream wire shape** (camelCase keys, `omitempty` on `Comment`/`Subdivisions`/`Groups`/`Tags`/`Quality`). Tested round-trip on `TestHoliday_JSON` including the schema-drift `Quality` field and unknown extra fields under the default lenient decoder.
-- **`NameFor` accessor semantics on `Country`, `Language`, `Subdivision`.** Case-insensitive exact match → first entry fallback → empty string on empty slice. Single `pickLocalized` helper backs all three; tests exercise each entry point with the same shape. CL-05 (`NameFor` rename to avoid `Name` field collision) honored.
-- **`gofmt`/`go vet` cleanliness assumed and surface-checked.** No unused imports, no shadowing of stdlib names, no `==` vs `===`-class issues (Go doesn't have these), no `interface{}` (uses concrete types throughout), no `panic` calls in production code.
+## Verified Good (re-confirmed)
+
+These were re-traced against the current files and confirmed correct (most carry over from the prior review):
+
+- **Package layout & naming.** All files in `package openholidays`; `go.mod` declares `go 1.23` matching the locked floor.
+- **Sentinel surface = 7 exported + 1 unexported.** `ErrInvalidCountry`, `ErrInvalidLanguage`, `ErrDateRangeTooLarge`, `ErrInvalidDateRange`, `ErrEmptyResponse`, `ErrResponseTooLarge` (Phase 02), `ErrMalformedResponse` (Phase 03), plus unexported `errEmptyDate`. The CLIENT-10 `allowedVars` map (internal_test.go:72-82) exactly matches plus `CacheHitContextKey` (Phase 04). `TestSentinelErrors` and `TestSentinels_ErrorsIs` (errors_test.go) exhaustively lock identity uniqueness and `errors.Is` recoverability for all seven.
+- **Every exported symbol carries a godoc comment starting with its name.** Spot-checked `NewDate`, `ParseDate`, `Date`, all six Date helpers (`MarshalJSON`, `UnmarshalJSON`, `String`, `Equal`, `Before`, `After`, `Compare`, `DaysUntil`), `Holiday`, `HolidayType`, the six type constants, `LocalizedText`, `SubdivisionRef`, `GroupRef`, `Country`, `Language`, `Subdivision`, all three `NameFor` methods, `APIError`, `(*APIError).Error`, `(*APIError).Is`, every sentinel, `Version`. All conform.
+- **`APIError.Is` semantics.** Wildcard (`StatusCode == 0`) matches any `*APIError`; non-zero matches by status only; `Path`/`Body`/`Message` ignored on target; non-`*APIError` targets never match. Implementation (errors.go:122-131) matches the godoc (errors.go:109-121) and `TestAPIError_Is` (errors_test.go:160-231) exercises every branch.
+- **`Date.MarshalJSON` ↔ `Date.UnmarshalJSON` round-trip.** `MarshalJSON` always emits `"YYYY-MM-DD"` with quotes (12-byte capacity hint correct); `UnmarshalJSON` rejects `null`, `""`, non-string tokens, and malformed dates with wrapped `errEmptyDate` or `time.Parse` errors. `FuzzDateUnmarshal` corpus locks panic-freedom.
+- **`Date.DaysUntil` arithmetic.** Re-traced for same-day (=1), one-day-forward (=2), one-day-backward (=-2), 14-day forward Śląskie ferie span, and the 14-day negative case. Inclusive count semantics are correct; UTC-midnight normalization eliminates DST perturbation because both operands are at 00:00 UTC and `Sub().Hours()/24` is a clean integer multiple well within `float64`'s 2^53 exact-integer range.
+- **`validateDateRange` backward-anchored boundary.** `to.AddDate(-3, 0, 0)` correctly handles 2024-02-29 → 2027-02-28 as exact-3-year PASS and 2024-02-29 → 2027-03-01 as one-day-over FAIL; tests `validate_test.go:201-205, 244-250` lock both polarities. The decision to anchor at `to` rather than `from` avoids `time.AddDate`'s forward-overflow asymmetry that would mishandle leap-day `from` values.
+- **No `init()` anywhere in production files.** Confirmed by reading each `.go` file and by `TestNoInitOrGlobalState`'s AST walk. With the W-03 fix (removing `"internal"` from skipDirs), the audit now covers any future `internal/*` package as well.
+- **No global mutable state.** Only the eight allowlisted package-level `var`s exist: seven sentinels + `errEmptyDate` + `CacheHitContextKey`. All other package-level identifiers are `const` (`dateLayout`, `Version`, the six `HolidayType` constants).
+- **Zero runtime dependencies.** Production files import only stdlib: `bytes`, `errors`, `fmt`, `strings`, `time`. `go.mod`'s `require` line covers only `testify` (Gold Rule 3 approved test-only) and its indirect deps (`go-spew`, `go-difflib`, `yaml.v3`).
+- **All tests use testify (`assert` + `require`) and `t.Run` per case.** Gold Rule 3 conformance modulo IN-04 nitpick and WR-02.
+- **No secrets in error messages.** Validator errors quote only caller-supplied input and `Date.String()`. `TestValidators_NoSensitiveData` locks this (its existence is the shape WR-02 questions, but the assertion itself is correct).
+- **`Holiday` JSON tags match verified upstream wire shape** (camelCase keys, `omitempty` on `Comment`/`Subdivisions`/`Groups`/`Tags`/`Quality`). `TestHoliday_JSON` (types_test.go:125-274) covers single-day, multi-day, schema-drift `Quality`, and unknown-extra-field lenient decoding.
+- **`NameFor` accessors on `Country`, `Language`, `Subdivision`.** Case-insensitive exact match → first-entry fallback → empty string on empty slice. Single `pickLocalized` helper backs all three; per-type tests exercise the same shape.
+- **W-01 regression locks.** `validate_test.go:74-77` and `153-156` exhaustively cover the four Unicode characters (U+0131, U+017F, U+0130, U+212A) whose ToUpper/ToLower folds bypassed the prior post-canonicalization check.
+- **LICENSE** is MIT (`LICENSE:1`), copyright 2026 go-openholidays contributors, no per-file headers required per CLAUDE.md.
 
 ---
 
-_Reviewed: 2026-05-27_
-_Reviewer: gsd-code-reviewer (standard depth)_
+_Reviewed: 2026-05-28_
+_Reviewer: gsd-code-reviewer (standard depth, re-review)_
