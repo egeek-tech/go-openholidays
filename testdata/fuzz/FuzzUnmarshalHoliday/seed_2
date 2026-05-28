@@ -1,0 +1,2 @@
+go test fuzz v1
+[]byte("[{\"id\":\"x\",\"startDate\":null,\"endDate\":\"2025-01-01\",\"type\":\"\",\"name\":null}]")
