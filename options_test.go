@@ -170,3 +170,36 @@ func TestWithTimeout(t *testing.T) {
 			"negative duration must be stored verbatim per D-28 (endpoint methods treat non-positive as no-timeout)")
 	})
 }
+
+// TestWithStrictDecoding covers D-91 / Pitfall JSON-1: strict-decoding is
+// OFF by default; WithStrictDecoding(true) flips the immutable c.strict
+// flag; WithStrictDecoding(false) stores false verbatim. The flag is
+// immutable after NewClient by design (no runtime toggle exists — see
+// D-91 + CL-15).
+func TestWithStrictDecoding(t *testing.T) {
+	t.Parallel()
+
+	t.Run("stores true verbatim", func(t *testing.T) {
+		t.Parallel()
+		c := NewClient(WithStrictDecoding(true))
+		require.NotNil(t, c)
+		assert.True(t, c.strict,
+			"WithStrictDecoding(true) must set Client.strict to true (D-91)")
+	})
+
+	t.Run("stores false verbatim (default behavior)", func(t *testing.T) {
+		t.Parallel()
+		c := NewClient(WithStrictDecoding(false))
+		require.NotNil(t, c)
+		assert.False(t, c.strict,
+			"WithStrictDecoding(false) must store false verbatim (no defensive special-case per D-91)")
+	})
+
+	t.Run("default Client has strict == false (off by default per D-91 / JSON-1)", func(t *testing.T) {
+		t.Parallel()
+		c := NewClient()
+		require.NotNil(t, c)
+		assert.False(t, c.strict,
+			"strict-decoding must be OFF by default — upstream schema drifts and silent rejection would break consumers (Pitfall JSON-1)")
+	})
+}

@@ -29,6 +29,24 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// newClientForTest is the D-94 test seam: same-package _test.go helper that
+// wraps NewClient and replaces Client.nowFunc / Client.sleepFunc when the
+// caller supplies non-nil overrides. Plans 03 (retry) and 04 (cache TTL)
+// use this to drive timing-sensitive code with the fakeClock from
+// clock_test.go. The seam is test-only (same-package visibility; not
+// exported) — production callers MUST go through NewClient + the public
+// option set.
+func newClientForTest(now func() time.Time, sleep func(context.Context, time.Duration) error, opts ...Option) *Client {
+	c := NewClient(opts...)
+	if now != nil {
+		c.nowFunc = now
+	}
+	if sleep != nil {
+		c.sleepFunc = sleep
+	}
+	return c
+}
+
 // TestNewClient covers CLIENT-01: defaults applied when no Option supplied,
 // option composition (later Options override earlier ones for the same
 // field), and the combined-options happy path.
@@ -210,5 +228,100 @@ func TestClient_ContextCancel(t *testing.T) {
 			"ctx cancel must interrupt in-flight HTTP within 200 ms; took %v", elapsed)
 		assert.True(t, errors.Is(err, context.Canceled),
 			"expected errors.Is(err, context.Canceled) to hold; got %v", err)
+	})
+}
+
+// TestNewClientForTest covers D-94: the same-package test seam overrides
+// Client.nowFunc / Client.sleepFunc when the caller's args are non-nil,
+// otherwise leaves NewClient's defaults intact, and passes Option values
+// through to NewClient. Without this seam, retry_test.go (Plan 03) and
+// cache_test.go (Plan 04) would have to mutate Client fields directly
+// from test code — a fragile coupling the seam decouples explicitly.
+func TestNewClientForTest(t *testing.T) {
+	t.Parallel()
+
+	t.Run("non-nil now and sleep override defaults", func(t *testing.T) {
+		t.Parallel()
+		fc := newFakeClock(time.Unix(0, 0))
+		c := newClientForTest(fc.Now, fc.Sleep)
+		require.NotNil(t, c)
+		assert.True(t, c.nowFunc().Equal(time.Unix(0, 0)),
+			"newClientForTest must replace Client.nowFunc with the supplied function (D-94)")
+		require.NoError(t, c.sleepFunc(context.Background(), time.Second),
+			"supplied sleep must not return an error on a live ctx")
+		assert.True(t, fc.Now().Equal(time.Unix(0, 0).Add(time.Second)),
+			"calling Client.sleepFunc must advance the fakeClock by d (D-94 seam wiring)")
+	})
+
+	t.Run("nil now and sleep leave NewClient defaults in place", func(t *testing.T) {
+		t.Parallel()
+		c := newClientForTest(nil, nil)
+		require.NotNil(t, c)
+		require.NotNil(t, c.nowFunc, "default nowFunc must be non-nil (time.Now)")
+		require.NotNil(t, c.sleepFunc, "default sleepFunc must be non-nil (ctxSleep)")
+		assert.WithinDuration(t, time.Now(), c.nowFunc(), time.Second,
+			"default Client.nowFunc must be time.Now — calling it returns ≈ now")
+	})
+
+	t.Run("passes options through to NewClient", func(t *testing.T) {
+		t.Parallel()
+		c := newClientForTest(nil, nil, WithStrictDecoding(true))
+		require.NotNil(t, c)
+		assert.True(t, c.strict,
+			"newClientForTest must forward Options to NewClient (WithStrictDecoding(true) reached the Client)")
+	})
+}
+
+// TestWithStrictDecoding_RejectsUnknown covers OBS-03 wire-level behavior
+// (D-91 + D-92): the WithStrictDecoding(true) Client sends every JSON
+// response through json.Decoder.DisallowUnknownFields, so an upstream
+// payload with a field absent from the destination Go struct surfaces a
+// decode error containing the offending field name. The error path also
+// confirms the existing request.go error-wrap ("openholidays: decode")
+// stays intact.
+func TestWithStrictDecoding_RejectsUnknown(t *testing.T) {
+	t.Parallel()
+
+	t.Run("strict mode rejects unknown JSON fields", func(t *testing.T) {
+		t.Parallel()
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`[{"isoCode":"PL","extra_unknown_field":42,"name":[{"language":"en","text":"Poland"}]}]`))
+		}))
+		t.Cleanup(srv.Close)
+
+		c := NewClient(WithBaseURL(srv.URL), WithStrictDecoding(true))
+		_, err := c.Countries(context.Background(), CountriesRequest{})
+		require.Error(t, err, "strict mode must surface a decode error on unknown field")
+		assert.Contains(t, err.Error(), "extra_unknown_field",
+			"error message must name the offending field (json.Decoder.DisallowUnknownFields convention)")
+		assert.Contains(t, err.Error(), "openholidays: decode",
+			"existing request.go error-wrap prefix must be preserved (Phase 1 D-23 / Phase 3 D-62)")
+	})
+}
+
+// TestWithStrictDecoding_DefaultLenient covers Pitfall JSON-1 / D-91:
+// strict-decoding is OFF by default. A default-constructed Client MUST
+// accept upstream JSON containing fields absent from the destination Go
+// struct without error — the only reason this test exists is to lock the
+// "OFF by default" invariant against accidental future flips.
+func TestWithStrictDecoding_DefaultLenient(t *testing.T) {
+	t.Parallel()
+
+	t.Run("default Client accepts unknown JSON fields", func(t *testing.T) {
+		t.Parallel()
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`[{"isoCode":"PL","extra_unknown_field":42,"name":[{"language":"en","text":"Poland"}]}]`))
+		}))
+		t.Cleanup(srv.Close)
+
+		c := NewClient(WithBaseURL(srv.URL)) // NO WithStrictDecoding
+		cs, err := c.Countries(context.Background(), CountriesRequest{})
+		require.NoError(t, err,
+			"default Client must accept unknown JSON fields (Pitfall JSON-1 — upstream adds fields routinely)")
+		require.Len(t, cs, 1, "decoded payload must produce exactly one Country")
+		assert.Equal(t, "PL", cs[0].IsoCode,
+			"known fields must decode normally even with an unknown sibling present")
 	})
 }

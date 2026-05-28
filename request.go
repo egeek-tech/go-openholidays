@@ -90,6 +90,9 @@ func doJSONGet[T any](ctx context.Context, c *Client, path string, q url.Values)
 	var out T
 	limited := &io.LimitedReader{R: resp.Body, N: maxResponseBytes}
 	decoder := json.NewDecoder(limited)
+	if c.strict {
+		decoder.DisallowUnknownFields()
+	} // D-92: applied BEFORE Decode; runs on every call including cache hits (D-93).
 	if decodeErr := decoder.Decode(&out); decodeErr != nil {
 		if errors.Is(decodeErr, io.EOF) {
 			return zero, fmt.Errorf("openholidays: empty %s response: %w", path, ErrEmptyResponse)

@@ -115,3 +115,29 @@ func WithTimeout(d time.Duration) Option {
 		cfg.timeout = d
 	}
 }
+
+// WithStrictDecoding enables strict JSON decoding via
+// json.Decoder.DisallowUnknownFields (D-91 / D-92 / CL-15). When strict is
+// true, every JSON response decoded by the SDK rejects payloads
+// containing fields absent from the destination Go struct — useful for
+// surfacing upstream schema drift loudly during integration tests or in
+// canary deployments.
+//
+// Strict-decoding is OFF by default (Pitfall JSON-1): the upstream
+// OpenHolidays API adds fields routinely, and silent rejection would
+// break consumers on every benign schema bump. Opt in only when the
+// consumer wants the loud-fail behavior.
+//
+// The flag is immutable after NewClient. No per-call override and no
+// runtime toggle exist by design — toggling at runtime would let cached
+// bytes decoded under one mode surface as a strict-failure after the
+// toggle (D-93). Consumers wanting "cache lenient + fresh strict" must
+// instantiate two Clients.
+//
+// false is stored verbatim (no defensive special-case) — matches the
+// WithTimeout verbatim convention.
+func WithStrictDecoding(strict bool) Option {
+	return func(cfg *clientConfig) {
+		cfg.strictDecoding = strict
+	}
+}
