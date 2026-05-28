@@ -12,18 +12,55 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"runtime"
 	"sort"
+	"sync/atomic"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// countingBody wraps an http.Response body and increments an atomic counter
+// on construction; the counter decrements on Close (single-decrement guarded
+// by a sync.Once-style boolean). This lets WR-02 prove drain-then-close
+// hygiene deterministically — far more reliable than runtime.NumGoroutine()
+// which is process-global and races sibling tests' transport pools.
+type countingBody struct {
+	io.ReadCloser
+	open   *atomic.Int32
+	closed atomic.Bool
+}
+
+func (b *countingBody) Close() error {
+	if b.closed.CompareAndSwap(false, true) {
+		b.open.Add(-1)
+	}
+	return b.ReadCloser.Close()
+}
+
+// drainCountingTransport wraps an http.RoundTripper so every returned
+// resp.Body is a countingBody tied to a shared atomic counter. The counter
+// is the post-call invariant the test asserts: 0 means every body the
+// pipeline opened was also closed.
+type drainCountingTransport struct {
+	base      http.RoundTripper
+	openCount atomic.Int32
+}
+
+func (t *drainCountingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	resp, err := t.base.RoundTrip(req)
+	if err != nil {
+		return nil, err
+	}
+	t.openCount.Add(1)
+	resp.Body = &countingBody{ReadCloser: resp.Body, open: &t.openCount}
+	return resp, nil
+}
 
 // countriesFixtureCapturedAt records the date testdata/countries.json was
 // captured from the live API. Re-capture when the upstream schema is
@@ -197,10 +234,17 @@ func TestClient_Countries(t *testing.T) {
 			"nil-ctx error must NOT match any sentinel (D-42 defensive guard)")
 	})
 
-	t.Run("oversize triggers ErrResponseTooLarge with no goroutine leak (D-49)", func(t *testing.T) {
-		// DO NOT call t.Parallel here — this subtest reads
-		// runtime.NumGoroutine() and must not race with sibling
-		// subtest goroutine churn.
+	t.Run("oversize triggers ErrResponseTooLarge with no body leak (D-49)", func(t *testing.T) {
+		t.Parallel()
+		// WR-02 fix: replaced the process-global runtime.NumGoroutine()
+		// sample with a deterministic per-test counter on resp.Body
+		// open/close. The wrapping drainCountingTransport increments
+		// openCount on every RoundTrip return and decrements on every
+		// countingBody.Close(); the assertion that openCount == 0 after
+		// the call proves the doJSONGet drain-then-close defer ran on
+		// the oversize-error path. This removes flake risk from sibling
+		// t.Parallel tests' goroutine churn and removes the need for a
+		// time.Sleep settle pause.
 
 		// Streaming handler: writes a valid JSON Country array, looping
 		// until total bytes written exceeds 11 MiB, then closes the
@@ -237,29 +281,21 @@ func TestClient_Countries(t *testing.T) {
 		}))
 		t.Cleanup(srv.Close)
 
-		c := NewClient(WithBaseURL(srv.URL))
+		countingRT := &drainCountingTransport{base: http.DefaultTransport}
+		httpClient := &http.Client{Transport: countingRT}
+		c := NewClient(WithBaseURL(srv.URL), WithHTTPClient(httpClient))
 
-		baseGoroutines := runtime.NumGoroutine()
 		_, err := c.Countries(context.Background(), CountriesRequest{})
 		require.Error(t, err)
 		assert.True(t, errors.Is(err, ErrResponseTooLarge),
 			"expected ErrResponseTooLarge via errors.Is, got %v", err)
 
-		// Settle pause: the deferred drain-then-close runs after
-		// Countries returns; the streaming handler goroutine on the
-		// httptest server side also needs time to exit its Write loop
-		// after the client closed the connection. RESEARCH assumption
-		// A1 explicitly allows empirical loosening; +5 detects any
-		// leak of 6+ goroutines (a real drain failure would leak the
-		// transport's body-reader plus its parent and would show ≥ +10
-		// in observed runs). 200 ms settle is generous for the
-		// streaming server's Write-loop unwind on a closed connection.
-		time.Sleep(200 * time.Millisecond)
-		afterGoroutines := runtime.NumGoroutine()
-		const goroutineSlack = 5
-		assert.LessOrEqual(t, afterGoroutines, baseGoroutines+goroutineSlack,
-			"goroutine leak suspected: baseline=%d after=%d (drain failed?)",
-			baseGoroutines, afterGoroutines)
+		// Deterministic post-condition: every resp.Body the transport
+		// returned must have been closed by the doJSONGet drain-then-close
+		// defer. A leak would manifest as openCount > 0.
+		assert.Equal(t, int32(0), countingRT.openCount.Load(),
+			"response body leaked: %d open bodies after Countries returned (drain failed?)",
+			countingRT.openCount.Load())
 	})
 
 	t.Run("CR-01 regression: trailing whitespace in separate chunk is NOT oversize", func(t *testing.T) {
