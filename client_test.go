@@ -439,6 +439,74 @@ func TestClient_FinalAttemptRespBodyDrained(t *testing.T) {
 	})
 }
 
+// TestCtxSleep locks WR-04: ctxSleep checks ctx.Err() BEFORE the
+// d <= 0 short-circuit so its semantics match fakeClock.Sleep
+// (clock_test.go). Previously ctxSleep returned nil immediately when
+// d <= 0 without consulting ctx, so tests using fakeClock observed
+// ctx-cancelled behavior that production code silently swallowed.
+// The tightened contract is "Sleep returns ctx.Err() if ctx is
+// already cancelled; otherwise sleeps for d (or returns immediately
+// if d<=0) and returns ctx.Err() at the end (or nil)."
+//
+// ctxSleep is unexported but locally testable in the same package;
+// the dedicated TestXxx is justified because ctxSleep IS the
+// production sleepFunc default — its contract is consumed by
+// doJSONGet via Client.sleepFunc.
+func TestCtxSleep(t *testing.T) {
+	t.Parallel()
+
+	t.Run("returns ctx.Err() when ctx already cancelled and d > 0", func(t *testing.T) {
+		t.Parallel()
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+		err := ctxSleep(ctx, time.Hour)
+		assert.ErrorIs(t, err, context.Canceled,
+			"cancelled ctx must produce context.Canceled even with positive d")
+	})
+
+	t.Run("returns ctx.Err() when ctx already cancelled and d == 0 (WR-04 parity with fakeClock.Sleep)", func(t *testing.T) {
+		t.Parallel()
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+		err := ctxSleep(ctx, 0)
+		assert.ErrorIs(t, err, context.Canceled,
+			"WR-04: cancelled ctx must produce context.Canceled even when d == 0 — required for parity with fakeClock.Sleep")
+	})
+
+	t.Run("returns ctx.Err() when ctx already cancelled and d < 0 (WR-04 parity)", func(t *testing.T) {
+		t.Parallel()
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+		err := ctxSleep(ctx, -1*time.Second)
+		assert.ErrorIs(t, err, context.Canceled,
+			"WR-04: cancelled ctx must produce context.Canceled even when d < 0")
+	})
+
+	t.Run("returns nil when ctx live and d <= 0", func(t *testing.T) {
+		t.Parallel()
+		assert.NoError(t, ctxSleep(context.Background(), 0))
+		assert.NoError(t, ctxSleep(context.Background(), -1*time.Millisecond))
+	})
+
+	t.Run("returns nil after the timer fires on live ctx with d > 0", func(t *testing.T) {
+		t.Parallel()
+		start := time.Now()
+		err := ctxSleep(context.Background(), 5*time.Millisecond)
+		assert.NoError(t, err)
+		assert.GreaterOrEqual(t, time.Since(start), 5*time.Millisecond,
+			"the sleep must actually elapse the requested duration on a live ctx")
+	})
+
+	t.Run("returns ctx.Err() when ctx cancels during the sleep", func(t *testing.T) {
+		t.Parallel()
+		ctx, cancel := context.WithCancel(context.Background())
+		time.AfterFunc(5*time.Millisecond, cancel)
+		err := ctxSleep(ctx, time.Hour)
+		assert.ErrorIs(t, err, context.Canceled,
+			"mid-sleep ctx cancellation must interrupt and return context.Canceled")
+	})
+}
+
 // TestClient_RetryExhaustedPrefix locks WR-03: the "retry exhausted
 // (N attempts)" wrap fires only when retries ACTUALLY ran. A
 // non-retryable transport error on attempt 0 must produce the plain

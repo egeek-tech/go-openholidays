@@ -140,8 +140,18 @@ func (c *Client) Close() error {
 // cancellation contract (CLIENT-09). The select on ctx.Done and the timer
 // channel is the standard Go pattern for an interruptible sleep.
 //
-// A non-positive d returns nil immediately without arming the timer.
+// Contract: ctxSleep returns ctx.Err() if ctx is already cancelled at
+// entry — regardless of d. Otherwise it sleeps for d (or returns nil
+// immediately if d <= 0) and returns ctx.Err() if the context cancels
+// during the sleep, else nil. WR-04: the entry-time ctx.Err() check
+// is required for parity with fakeClock.Sleep (clock_test.go) which
+// always checks ctx first; without this short-circuit, tests using
+// the fake clock observed ctx-cancelled behavior on zero/negative
+// durations that production code silently swallowed.
 func ctxSleep(ctx context.Context, d time.Duration) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	if d <= 0 {
 		return nil
 	}
