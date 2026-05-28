@@ -262,7 +262,14 @@ func TestClient_Subdivisions(t *testing.T) {
 		require.Error(t, err)
 		assert.True(t, errors.Is(err, context.Canceled),
 			"expected context.Canceled via errors.Is, got %v", err)
-		assert.LessOrEqual(t, elapsed, 200*time.Millisecond,
-			"cancellation must interrupt in-flight HTTP within ≤ 100 ms (CLIENT-09); slack budget 200 ms to absorb scheduler jitter; elapsed=%s", elapsed)
+		// IN-03: this is the contract-locking ctx-cancel test for the
+		// CLIENT-09 ≤ 100 ms interruption bound. The ceiling is
+		// 20 ms (cancel-after delay) + 100 ms (CLIENT-09 budget) + 30 ms
+		// (scheduler slack) = 150 ms. Sibling tests in countries/languages
+		// have intentionally looser ceilings to absorb broader CI flake
+		// (see countries_test.go WR-09 comment); this one stays tight so
+		// the headline 100 ms contract has a regression detector.
+		assert.LessOrEqual(t, elapsed, 150*time.Millisecond,
+			"cancellation must interrupt in-flight HTTP within ≤ 100 ms (CLIENT-09); ceiling 150 ms = 20 ms cancel-delay + 100 ms target + 30 ms scheduler slack; elapsed=%s", elapsed)
 	})
 }
