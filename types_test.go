@@ -48,6 +48,42 @@ func TestHolidayType_constants(t *testing.T) {
 	})
 }
 
+// TestHolidayType_IsKnown locks IN-03 follow-up: IsKnown returns true for
+// each of the six documented constants and false for any other value
+// (empty string, an upstream-drift value not in the constant set, mixed
+// case, and a UUID-shaped string that proves the helper does not silently
+// accept arbitrary strings).
+func TestHolidayType_IsKnown(t *testing.T) {
+	t.Parallel()
+
+	type tc struct {
+		name  string
+		input HolidayType
+		want  bool
+	}
+	cases := []tc{
+		{name: "HolidayTypePublic", input: HolidayTypePublic, want: true},
+		{name: "HolidayTypeBank", input: HolidayTypeBank, want: true},
+		{name: "HolidayTypeOptional", input: HolidayTypeOptional, want: true},
+		{name: "HolidayTypeSchool", input: HolidayTypeSchool, want: true},
+		{name: "HolidayTypeBackToSchool", input: HolidayTypeBackToSchool, want: true},
+		{name: "HolidayTypeEndOfLessons", input: HolidayTypeEndOfLessons, want: true},
+		{name: "empty string is not known", input: HolidayType(""), want: false},
+		{name: "upstream-drift Religious is not known", input: HolidayType("Religious"), want: false},
+		{name: "case-sensitive: lowercase public is not known", input: HolidayType("public"), want: false},
+		{name: "free-form value is not known", input: HolidayType("Whatever"), want: false},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			got := c.input.IsKnown()
+			assert.Equal(t, c.want, got,
+				"HolidayType(%q).IsKnown() mismatch", string(c.input))
+		})
+	}
+}
+
 // TestLocalizedText_JSON verifies LocalizedText round-trips against the
 // verified upstream wire shape (TYPES-03).
 func TestLocalizedText_JSON(t *testing.T) {

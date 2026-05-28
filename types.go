@@ -39,6 +39,37 @@ const (
 	HolidayTypeEndOfLessons HolidayType = "EndOfLessons"
 )
 
+// IsKnown reports whether t matches one of the six HolidayType constants
+// declared by this package.
+//
+// HolidayType is a typed-string alias, so upstream is free to return values
+// outside the documented set (schema drift, new enum values added without
+// spec update). The default lenient decoder accepts unknown values and the
+// opt-in strict decoder surfaces unknown *fields* but not unknown enum
+// *values* — both decoders flow unknown HolidayType values through
+// unchanged. Callers that branch on Holiday.Type SHOULD gate the branch
+// on IsKnown to make the unknown-value path explicit:
+//
+//	if h.Type.IsKnown() {
+//	    switch h.Type { ... }
+//	} else {
+//	    // log / warn / treat as opaque
+//	}
+//
+// The check is O(1) (closed switch over six constants); no map allocation.
+func (t HolidayType) IsKnown() bool {
+	switch t {
+	case HolidayTypePublic,
+		HolidayTypeBank,
+		HolidayTypeOptional,
+		HolidayTypeSchool,
+		HolidayTypeBackToSchool,
+		HolidayTypeEndOfLessons:
+		return true
+	}
+	return false
+}
+
 // LocalizedText is a (language, text) pair returned by the upstream API in
 // every localized-string field (Holiday.Name, Holiday.Comment, Country.Name,
 // Language.Name, Subdivision.Name, Subdivision.Category, Subdivision.Comment).
@@ -99,7 +130,18 @@ type Holiday struct {
 	// EndDate is the last calendar day of the holiday (UTC midnight).
 	// For single-day holidays EndDate equals StartDate.
 	EndDate Date `json:"endDate"`
-	// Type is the upstream HolidayType enum (one of six PascalCase values).
+	// Type is the upstream HolidayType enum.
+	//
+	// The six PascalCase values verified against the upstream OpenAPI spec
+	// on 2026-05-27 are HolidayTypePublic, HolidayTypeBank,
+	// HolidayTypeOptional, HolidayTypeSchool, HolidayTypeBackToSchool, and
+	// HolidayTypeEndOfLessons. Callers MUST be prepared for upstream to
+	// return values outside this set: HolidayType is a typed-string alias,
+	// so any string the server emits unmarshal-decodes into Type as-is
+	// (the default lenient decoder accepts it; the opt-in strict decoder
+	// surfaces unknown *fields* but not unknown enum *values*). Use
+	// HolidayType.IsKnown to test for membership in the documented set
+	// before branching on the value.
 	Type HolidayType `json:"type"`
 	// Name is the per-language localized name of the holiday (array shape,
 	// not a map — Pitfall OH-3).
