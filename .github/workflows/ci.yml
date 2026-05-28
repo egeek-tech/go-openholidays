@@ -1,9 +1,15 @@
 # go-openholidays — CI matrix workflow.
 # Plan 05-05 (CI-01/CI-02/CI-03/CI-05/CI-07/TEST-10), restructured per PR #7
-# review feedback into per-component jobs.
+# review feedback into per-component jobs and the terapia-si prep pattern.
 #
-# Job topology (parallelism + cache locality):
+# Job topology:
 #
+#   prep          → matrix Go 1.23/1.24/stable. Runs FIRST and is the ONLY
+#                   job that pays the cold-cache cost of downloading the
+#                   Go SDK toolchain and priming the Go module cache for
+#                   each matrix variant. Every downstream job `needs: prep`
+#                   and restores the relevant cache instead of re-paying
+#                   ~100MB of SDK download.
 #   library-test  → matrix Go 1.23/1.24/stable, scope `.` (root package).
 #                   vet + race-test + coverage gate + Codecov upload on
 #                   the stable leg. Library is the v0.1.0 deliverable.
@@ -18,24 +24,38 @@
 #                   advisory data is module-wide so per-component split
 #                   would duplicate work.
 #
-# Cache strategy (from terapia-si lessons learned, applied to our scale):
+# Cache strategy (from terapia-si lessons learned):
 #
 #   * SDK toolchain cache at /opt/hostedtoolcache/go keyed on runner.os +
 #     go-version. setup-go's built-in `cache: true` does NOT cover the
-#     SDK itself — without this we re-pay the ~100MB Go tarball download
-#     on every matrix leg the runner image doesn't pre-install.
+#     SDK itself — without an explicit actions/cache step we re-pay the
+#     ~100MB Go tarball download on every matrix leg.
+#   * `prep` primes the module cache via `go mod download` so setup-go's
+#     post-step saves a non-empty cache under the canonical go.sum key.
+#     Downstream jobs would otherwise restore a cache that only contains
+#     whatever modules `prep` happened to pull, then redownload everything
+#     and skip the save (setup-go skips save on cache-restore hit).
 #   * `check-latest: true` is INTENTIONALLY DROPPED. It forces setup-go
 #     to consult the version manifest even on a warm cache hit, often
 #     pulling a fresh point release. We pin to "1.23.x" etc. and accept
 #     whatever the runner has cached.
-#   * setup-go's default `cache: true` continues to manage
-#     ~/go/pkg/mod + ~/.cache/go-build keyed on go.sum — small surface
-#     for a zero-dep library (testify is the only test-only dep) but
-#     still saves a few seconds per job.
 #
-# Codecov: uses CODECOV_TOKEN from repo secrets. Token-based upload is
-# preferred over OIDC here because id-token: write elevates the attack
-# surface beyond what the library job needs.
+# Security:
+#
+#   * All third-party actions pinned to a 40-char commit SHA (the
+#     trailing `# vN.M.P` comment is a documentation hint for humans
+#     and Dependabot, NOT consulted by the runner). SHA pins defend
+#     against tag-rewrite supply-chain attacks. The egeek-tech org
+#     policy rejects tag-only pins; SHA pins are mandatory.
+#   * No untrusted event-payload values reach a `run:` step. Every
+#     `${{ ... }}` reference resolves to matrix entries, first-party
+#     action outputs, or the repo-scoped CODECOV_TOKEN. None of the
+#     risky inputs from the GitHub Actions workflow-injection guide
+#     (https://github.blog/security/vulnerability-research/how-to-catch-github-actions-workflow-injections-before-attackers-do/)
+#     are interpolated into a shell.
+#   * Codecov upload uses CODECOV_TOKEN from repo secrets. Token-based
+#     upload is preferred over OIDC here because `id-token: write`
+#     elevates the attack surface beyond what the library job needs.
 name: CI
 
 on:
@@ -48,8 +68,8 @@ permissions:
   contents: read
 
 jobs:
-  library-test:
-    name: "library — tests (matrix)"
+  prep:
+    name: "Prep (Go SDK toolchain + module cache, populates cache)"
     strategy:
       fail-fast: false
       matrix:
@@ -58,15 +78,47 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v6
+      - name: Check out source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
 
       - name: Cache Go SDK toolchain
-        uses: actions/cache@v4
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae  # v5.0.5
         with:
           path: /opt/hostedtoolcache/go
           key: ${{ runner.os }}-go-sdk-${{ matrix.go-version }}
 
-      - uses: actions/setup-go@v6
+      - name: Set up Go
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c  # v6.4.0
+        with:
+          go-version: ${{ matrix.go-version }}
+          cache: true
+
+      - name: Prime Go module cache
+        run: go mod download
+
+  library-test:
+    name: "library — tests (matrix)"
+    needs: prep
+    strategy:
+      fail-fast: false
+      matrix:
+        go-version: ["1.23.x", "1.24.x", "stable"]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Check out source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+
+      - name: Restore Go SDK toolchain cache
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae  # v5.0.5
+        with:
+          path: /opt/hostedtoolcache/go
+          key: ${{ runner.os }}-go-sdk-${{ matrix.go-version }}
+          fail-on-cache-miss: true
+
+      - name: Set up Go
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c  # v6.4.0
         with:
           go-version: ${{ matrix.go-version }}
           cache: true
@@ -92,7 +144,7 @@ jobs:
 
       - name: Upload to Codecov
         if: matrix.go-version == 'stable'
-        uses: codecov/codecov-action@v6
+        uses: codecov/codecov-action@e79a6962e0d4c0c17b229090214935d2e33f8354  # v6.0.1
         with:
           files: ./coverage.out
           token: ${{ secrets.CODECOV_TOKEN }}
@@ -102,30 +154,36 @@ jobs:
 
   library-lint:
     name: "library — lint"
+    needs: prep
     runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v6
+      - name: Check out source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
 
-      - name: Cache Go SDK toolchain
-        uses: actions/cache@v4
+      - name: Restore Go SDK toolchain cache
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae  # v5.0.5
         with:
           path: /opt/hostedtoolcache/go
           key: ${{ runner.os }}-go-sdk-stable
+          fail-on-cache-miss: true
 
-      - uses: actions/setup-go@v6
+      - name: Set up Go
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c  # v6.4.0
         with:
           go-version: stable
           cache: true
 
-      - uses: golangci/golangci-lint-action@v9
+      - name: Run golangci-lint (library scope)
+        uses: golangci/golangci-lint-action@db582008a42febd596419635a5abc9d9815daa9c  # v9.2.1
         with:
           version: v2.12.2
           args: --timeout=5m .
 
   ohcli-test:
     name: "ohcli — tests (matrix)"
+    needs: prep
     strategy:
       fail-fast: false
       matrix:
@@ -134,15 +192,18 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v6
+      - name: Check out source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
 
-      - name: Cache Go SDK toolchain
-        uses: actions/cache@v4
+      - name: Restore Go SDK toolchain cache
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae  # v5.0.5
         with:
           path: /opt/hostedtoolcache/go
           key: ${{ runner.os }}-go-sdk-${{ matrix.go-version }}
+          fail-on-cache-miss: true
 
-      - uses: actions/setup-go@v6
+      - name: Set up Go
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c  # v6.4.0
         with:
           go-version: ${{ matrix.go-version }}
           cache: true
@@ -155,43 +216,52 @@ jobs:
 
   ohcli-lint:
     name: "ohcli — lint"
+    needs: prep
     runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v6
+      - name: Check out source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
 
-      - name: Cache Go SDK toolchain
-        uses: actions/cache@v4
+      - name: Restore Go SDK toolchain cache
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae  # v5.0.5
         with:
           path: /opt/hostedtoolcache/go
           key: ${{ runner.os }}-go-sdk-stable
+          fail-on-cache-miss: true
 
-      - uses: actions/setup-go@v6
+      - name: Set up Go
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c  # v6.4.0
         with:
           go-version: stable
           cache: true
 
-      - uses: golangci/golangci-lint-action@v9
+      - name: Run golangci-lint (ohcli scope)
+        uses: golangci/golangci-lint-action@db582008a42febd596419635a5abc9d9815daa9c  # v9.2.1
         with:
           version: v2.12.2
           args: --timeout=5m ./cmd/ohcli/...
 
   ohcli-build:
     name: "ohcli — build + smoke"
+    needs: prep
     runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v6
+      - name: Check out source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
 
-      - name: Cache Go SDK toolchain
-        uses: actions/cache@v4
+      - name: Restore Go SDK toolchain cache
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae  # v5.0.5
         with:
           path: /opt/hostedtoolcache/go
           key: ${{ runner.os }}-go-sdk-stable
+          fail-on-cache-miss: true
 
-      - uses: actions/setup-go@v6
+      - name: Set up Go
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c  # v6.4.0
         with:
           go-version: stable
           cache: true
@@ -204,23 +274,28 @@ jobs:
 
   vuln:
     name: "vulnerabilities (govulncheck)"
+    needs: prep
     runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v6
+      - name: Check out source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
 
-      - name: Cache Go SDK toolchain
-        uses: actions/cache@v4
+      - name: Restore Go SDK toolchain cache
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae  # v5.0.5
         with:
           path: /opt/hostedtoolcache/go
           key: ${{ runner.os }}-go-sdk-stable
+          fail-on-cache-miss: true
 
-      - uses: actions/setup-go@v6
+      - name: Set up Go
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c  # v6.4.0
         with:
           go-version: stable
           cache: true
 
-      - uses: golang/govulncheck-action@v1
+      - name: Run govulncheck
+        uses: golang/govulncheck-action@b625fbe08f3bccbe446d94fbf87fcc875a4f50ee  # v1.0.4
         with:
           go-package: ./...

@@ -30,10 +30,13 @@
 # default GITHUB_TOKEN scoped by the top-level permissions: block. No
 # `github.event.*` references, no head_ref, no author-controlled values.
 #
-# Action versions in this file are kept fresh by Dependabot
-# (see .github/dependabot.yml). Current pins:
-#   actions/checkout@v6, actions/setup-go@v6,
-#   goreleaser/goreleaser-action@v7, actions/attest-build-provenance@v4.
+# Action pinning policy:
+#   * All third-party actions pinned to a 40-char commit SHA (the
+#     trailing `# vN.M.P` comment is a documentation hint for humans
+#     and Dependabot, NOT consulted by the runner). The egeek-tech org
+#     policy rejects tag-only pins; SHA pins are mandatory.
+#   * Dependabot keeps the SHA pins fresh — see .github/dependabot.yml
+#     (github-actions ecosystem).
 name: Release
 
 on:
@@ -50,16 +53,16 @@ jobs:
   goreleaser:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
           fetch-depth: 0 # required for goreleaser changelog generation
 
-      - uses: actions/setup-go@v6
+      - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c  # v6.4.0
         with:
           go-version: stable
 
       - name: Run goreleaser
-        uses: goreleaser/goreleaser-action@v7
+        uses: goreleaser/goreleaser-action@5daf1e915a5f0af01ddbcd89a43b8061ff4f1a89  # v7.2.2
         with:
           distribution: goreleaser
           version: "~> v2"
@@ -68,6 +71,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Attest binaries via subject-checksums
-        uses: actions/attest-build-provenance@v4
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32  # v4.1.0
         with:
           subject-checksums: ./dist/checksums.txt
