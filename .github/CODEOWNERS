@@ -3,11 +3,11 @@
 # GitHub auto-requests review from the listed owner(s) for every PR that
 # touches files matching the pattern. Patterns follow .gitignore syntax.
 #
-# Caveat: a bare handle (`@egeek-tech`) only auto-requests reviews when it
-# resolves to a GitHub *user* account. For *organization* accounts the entry
-# must be `@egeek-tech/<team-slug>` and that team must have write access to
-# this repo. If review requests do not fire after a PR is opened, switch the
-# entry to a team form.
+# The repository sits under the `egeek-tech` organization, but a bare org
+# handle is rejected by GitHub's CODEOWNERS validator ("Unknown owner"). The
+# entry below names the maintainer user account directly. If maintainership
+# expands, create a team (e.g. `@egeek-tech/maintainers`) and replace this
+# line with `* @egeek-tech/<team-slug>`.
 
 # Catch-all — owns every path in the repo.
-* @egeek-tech
+* @richie-tt
