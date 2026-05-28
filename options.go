@@ -241,12 +241,21 @@ func WithRetry(maxAttempts int, baseDelay time.Duration) Option {
 // Consumers wanting an effectively-unbounded cap should pass a very
 // large duration (e.g. WithMaxRetryWait(24*time.Hour)) explicitly.
 //
-// The ceiling applies to each individual sleep, NOT the cumulative
-// retry budget (CONTEXT.md `<specifics>` 5). Five attempts with a 60s
-// cap can still take ~5 minutes total. Consumers wanting a cumulative
-// cap supply ctx.WithTimeout(ctx, totalBudget) themselves — the SDK
-// does not enforce a cumulative budget because it would conflict with
-// the per-attempt semantics (deferred per CONTEXT.md `<deferred>`).
+// The ceiling applies to each individual sleep, NOT a separate
+// cumulative retry budget (CONTEXT.md `<specifics>` 5). However, this
+// does NOT mean the SDK is unbounded across retries by default:
+// WithTimeout supplies the cumulative ceiling. Under the default
+// WithTimeout(15*time.Second), the per-request context.WithTimeout
+// applied in doJSONGet bounds the whole request — every c.http.Do
+// attempt AND every inter-attempt sleep — to 15s total, so the retry
+// sequence is in practice capped by WithTimeout. Callers who want
+// truly unbounded retries must opt out explicitly with
+// WithTimeout(0); with both WithTimeout(0) and (e.g.) five attempts
+// at a 60s cap, the worst case is ~5 minutes total. Consumers wanting
+// a different cumulative cap can supply ctx.WithTimeout(ctx,
+// totalBudget) themselves or pass WithTimeout(totalBudget) — the SDK
+// does not expose a SEPARATE cumulative-retry-budget knob beyond
+// these (deferred per CONTEXT.md `<deferred>`).
 //
 // The cap also bounds Retry-After promotion: a hostile upstream
 // returning Retry-After: 999999999 cannot hold the request for the
