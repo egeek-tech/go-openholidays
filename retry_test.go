@@ -241,6 +241,36 @@ func TestComputeBackoff(t *testing.T) {
 		assert.Less(t, got, time.Second,
 			"attempt 10: jitter must be capped at maxWait (1s) — exponential ceiling clamped")
 	})
+
+	t.Run("attempt 40 stays bounded by maxWait (WR-01 shift-overflow guard)", func(t *testing.T) {
+		t.Parallel()
+		rnd := newTestRand()
+		// baseDelay=100ms; baseDelay << 40 overflows int64 to a negative
+		// value, which before the WR-01 guard silently collapsed `capped`
+		// to time.Millisecond and produced jitter in [0, 1ms). The guard
+		// rejects the overflow case, leaving capped = maxWait. Assert
+		// jitter remains uniformly distributed across [0, maxWait), not
+		// pinned to sub-millisecond bursts.
+		got := computeBackoff(40, 0, cfg, rnd)
+		assert.GreaterOrEqual(t, got, time.Duration(0),
+			"jitter must be non-negative even at overflow attempt counts")
+		assert.Less(t, got, time.Second,
+			"attempt 40: jitter must remain capped at maxWait (1s) — shift overflow must NOT collapse cap to 1ms")
+	})
+
+	t.Run("attempt 63 stays bounded by maxWait (defense-in-depth ceiling)", func(t *testing.T) {
+		t.Parallel()
+		rnd := newTestRand()
+		// At attempt == 63 the shift would shift the sign bit out entirely
+		// (Go spec: behaviour is well-defined but produces 0 or a large
+		// negative depending on baseDelay). The guard's attempt < 63
+		// ceiling is the belt to the exp > 0 braces.
+		got := computeBackoff(63, 0, cfg, rnd)
+		assert.GreaterOrEqual(t, got, time.Duration(0),
+			"jitter must be non-negative at the attempt-63 ceiling")
+		assert.Less(t, got, time.Second,
+			"attempt 63: jitter must remain capped at maxWait (1s)")
+	})
 }
 
 // TestComputeBackoff_HonorsRetryAfter locks the Retry-After promotion

@@ -245,8 +245,17 @@ func parseRetryAfter(h string, now time.Time) (time.Duration, bool) {
 // promotion + cap) in retry_test.go.
 func computeBackoff(attempt int, retryAfter time.Duration, cfg retryConfig, rnd *rand.Rand) time.Duration {
 	capped := cfg.maxWait
-	if exp := cfg.baseDelay << attempt; exp < capped {
-		capped = exp
+	// WR-01: time.Duration is int64; baseDelay << attempt overflows the
+	// sign bit at large attempt counts (e.g. baseDelay=100ms shifted by 33
+	// becomes negative). The exp > 0 predicate rejects the overflow case;
+	// attempt < 63 is a defense-in-depth ceiling against the shift itself
+	// producing platform-undefined behavior. Without these guards, the
+	// "cap at maxWait" guarantee documented on WithRetry / WithMaxRetryWait
+	// silently collapses to ~0 ms sleeps under stress.
+	if attempt >= 0 && attempt < 63 && cfg.baseDelay > 0 {
+		if exp := cfg.baseDelay << attempt; exp > 0 && exp < capped {
+			capped = exp
+		}
 	}
 	if capped <= 0 {
 		capped = time.Millisecond
