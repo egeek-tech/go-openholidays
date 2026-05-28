@@ -195,6 +195,16 @@ func TestClient_IsInRegion(t *testing.T) {
 		require.True(t, errors.As(err, &apiErr),
 			"expected *APIError via errors.As, got %T: %v", err, err)
 		assert.Equal(t, http.StatusInternalServerError, apiErr.StatusCode)
+		// WR-04: lock the title-fallback parseAPIMessage path symmetric
+		// with sibling endpoint 5xx tests (countries_test.go,
+		// languages_test.go, public_holidays_test.go, school_holidays_test.go,
+		// subdivisions_test.go). Without these assertions an
+		// IsInRegion-mediated regression that lost title-fallback or
+		// rewrote the inner path would slip past this subtest alone.
+		assert.Equal(t, "/Subdivisions", apiErr.Path,
+			"Path must be /Subdivisions (the inner Subdivisions call) — IsInRegion does not rewrite the path")
+		assert.Equal(t, "Internal Server Error", apiErr.Message,
+			"title must win when detail is absent (parseAPIMessage fallback)")
 	})
 
 	t.Run("cycle in upstream tree is bounded by IsInRegion iteration cap (enforcement)", func(t *testing.T) {
