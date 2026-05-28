@@ -250,3 +250,72 @@ func WithMaxRetryWait(d time.Duration) Option {
 		}
 	}
 }
+
+// WithCache enables the default in-memory TTL cache with the supplied TTL
+// (D-79 / D-80 / D-83 / RESIL-06..09). When ttl > 0, the option constructs
+// a *MemoryCache via newMemoryCacheWithClock(ttl, time.Now) and stores it
+// on the internal Cache field; the Client's RoundTripper chain inserts a
+// cacheTransport layer that consults this cache for the three reference
+// endpoints (/Countries, /Languages, /Subdivisions). Holiday endpoints
+// (/PublicHolidays, /SchoolHolidays) bypass the cache by default —
+// RESIL-07 / temporal-data trap.
+//
+// Cache-hit semantics:
+//
+//   - Hit: cacheTransport returns a synthetic 200 OK response with the
+//     cached bytes; the downstream decoder runs against those bytes,
+//     including strict-mode (D-93). The req.Context() of the synthetic
+//     response carries CacheHitContextKey == true so consumers can
+//     detect cache hits in WithRequestHook.
+//   - Miss: cacheTransport forwards to the next RoundTripper; on
+//     success (err == nil && status == 200) the response bytes are
+//     cached for the configured TTL (Pitfall CACHE-1).
+//
+// ttl <= 0 is treated as DISABLED (defensive symmetry with WithTimeout(0)
+// per D-80). The default Client has NO cache — opt in via WithCache or
+// WithCacheBackend.
+//
+// Clock seam (D-86): WithCache uses time.Now literally because options
+// run BEFORE Client construction; the Client's internal nowFunc cannot
+// be picked up retroactively by the cache. Tests that need a fake clock
+// route through WithCacheBackend(newMemoryCacheWithClock(ttl, fc.Now))
+// instead.
+//
+// Lifecycle: Client.Close calls cache.Close (D-85), which stops the
+// sweeper goroutine. Consumers MUST defer client.Close() to avoid
+// leaking the sweeper (Pitfall CONC-2). For a constructed-but-never-used
+// cache, Close is still safe and returns nil (no sweeper was ever
+// started — D-84 lazy).
+func WithCache(ttl time.Duration) Option {
+	return func(cfg *clientConfig) {
+		if ttl <= 0 {
+			return // D-80: ttl <= 0 disables; leave cfg.cache nil.
+		}
+		cfg.cache = newMemoryCacheWithClock(ttl, time.Now)
+		cfg.cacheTTL = ttl
+	}
+}
+
+// WithCacheBackend supplies a custom Cache implementation; supersedes any
+// prior WithCache(ttl) per the D-80 last-wins functional-options
+// convention. A nil argument is a no-op (mirrors WithHTTPClient(nil)).
+//
+// When the caller supplies a backend, the Client does NOT own the
+// backend's goroutines or resources — Client.Close still calls
+// c.Close() per the interface contract, but the backend is responsible
+// for its own lifecycle. Pitfall CACHE-4 (read-during-evict race) only
+// applies to the default MemoryCache; custom backends MUST implement
+// their own thread-safety because cacheTransport does NOT serialize
+// access to Get/Put/Close (the RoundTripper is a pure pass-through).
+//
+// Use case: integration tests can swap in a deterministic clock-driven
+// MemoryCache via newMemoryCacheWithClock(ttl, fc.Now) (TEST-06); future
+// consumers can implement Redis-backed or LRU-backed caches without a
+// library change.
+func WithCacheBackend(c Cache) Option {
+	return func(cfg *clientConfig) {
+		if c != nil {
+			cfg.cache = c // D-80: last-wins; overrides prior WithCache(ttl).
+		}
+	}
+}

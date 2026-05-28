@@ -21,7 +21,9 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -323,5 +325,158 @@ func TestWithStrictDecoding_DefaultLenient(t *testing.T) {
 		require.Len(t, cs, 1, "decoded payload must produce exactly one Country")
 		assert.Equal(t, "PL", cs[0].IsoCode,
 			"known fields must decode normally even with an unknown sibling present")
+	})
+}
+
+// countriesServer returns an httptest.Server that responds 200 with the
+// supplied body and increments hits on every request. Shared helper for
+// the Plan 04 cache composition tests below.
+func countriesServer(t *testing.T, body []byte) (*httptest.Server, *atomic.Int32) {
+	t.Helper()
+	var hits atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		hits.Add(1)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write(body)
+	}))
+	return srv, &hits
+}
+
+// TestClient_CloseStopsSweeper locks D-96 + RESIL-08: Close stops the cache
+// sweeper goroutine. The test runs a real cache through one end-to-end
+// Countries call (forcing a Put → lazy sweeper start), calls Close, then
+// asserts runtime.NumGoroutine() delta ≤ 0 after closing the server and a
+// small grace period.
+//
+// Implementation note: D-96's documented pattern omits server bookkeeping;
+// in practice an httptest.Server + http.Transport keep-alive pool spawns
+// short-lived goroutines that persist past Client.Close until the server
+// itself closes. To isolate the sweeper-leak signal, we explicitly close
+// both the server's idle client connections AND the server itself BEFORE
+// the assertion. The sweeper-stop check is the load-bearing invariant —
+// the connection-pool noise is a documented test-harness artifact, not a
+// regression in Client.Close (Rule 1 auto-fix per the executor protocol —
+// the plan's verbatim D-96 pattern would be flaky without this).
+//
+// Not t.Parallel() because runtime.NumGoroutine() delta checks are
+// sensitive to other tests' goroutine churn (Phase 2 D-48 / D-96).
+func TestClient_CloseStopsSweeper(t *testing.T) {
+	body := []byte(`[{"isoCode":"PL","name":[{"language":"en","text":"Poland"}]}]`)
+	srv, _ := countriesServer(t, body)
+
+	before := runtime.NumGoroutine()
+
+	c := NewClient(WithBaseURL(srv.URL), WithCache(1*time.Millisecond))
+	_, err := c.Countries(context.Background(), CountriesRequest{})
+	require.NoError(t, err, "Countries call must succeed against the fake server")
+
+	require.NoError(t, c.Close())
+	// Tear down the test-harness HTTP plumbing BEFORE the assertion so
+	// http.Transport keep-alive goroutines stop and httptest.Server
+	// worker goroutines exit; only then is the runtime.NumGoroutine
+	// delta a clean signal for the sweeper-leak invariant.
+	c.http.CloseIdleConnections()
+	srv.Close()
+	time.Sleep(20 * time.Millisecond) // sweeper + conn-pool exit grace
+
+	assert.LessOrEqual(t, runtime.NumGoroutine(), before,
+		"Close must stop the sweeper goroutine (D-96 / RESIL-08 — runtime.NumGoroutine delta ≤ 0 after test-harness teardown)")
+}
+
+// TestCache_StrictDecodingComposes locks D-93: strict-decoding applies to
+// cached bytes on every read. The first call caches the bytes (cache
+// transport sees err==nil && status==200, caches happily) and surfaces the
+// decode error to the caller. The second call hits the cache (server is
+// NOT contacted) and STILL surfaces the decode error because the strict
+// gate runs in doJSONGet AFTER cacheTransport returns.
+func TestCache_StrictDecodingComposes(t *testing.T) {
+	t.Parallel()
+
+	t.Run("strict mode rejects unknown field on both fresh AND cached reads", func(t *testing.T) {
+		t.Parallel()
+		body := []byte(`[{"isoCode":"PL","name":[{"language":"en","text":"Poland"}],"extra_unknown_field":42}]`)
+		srv, hits := countriesServer(t, body)
+		t.Cleanup(srv.Close)
+
+		c := NewClient(
+			WithBaseURL(srv.URL),
+			WithCache(time.Hour),
+			WithStrictDecoding(true),
+		)
+		t.Cleanup(func() { _ = c.Close() })
+
+		// First call: server hit, bytes cached (cacheTransport's gate is
+		// status==200 && err==nil — decode error fires AFTER), decoder
+		// fires.
+		_, err := c.Countries(context.Background(), CountriesRequest{})
+		require.Error(t, err, "first call: strict mode must surface a decode error on unknown field")
+		assert.Contains(t, err.Error(), "extra_unknown_field",
+			"first call: error message must name the offending field")
+
+		// Second call: cache hit (server should NOT be contacted again);
+		// decoder STILL fires because cached bytes flow through the same
+		// strict gate (D-93).
+		_, err = c.Countries(context.Background(), CountriesRequest{})
+		require.Error(t, err, "second call: strict mode must still reject the cached bytes (D-93)")
+		assert.Contains(t, err.Error(), "extra_unknown_field",
+			"second call: error message must name the offending field on the cache-hit path")
+
+		assert.Equal(t, int32(1), hits.Load(),
+			"second call must be served from cache, not server (only one server hit total)")
+	})
+}
+
+// TestClient_NoCache_AllCallsHitNetwork locks the default-off invariant:
+// a Client constructed WITHOUT WithCache hits the server on every call.
+func TestClient_NoCache_AllCallsHitNetwork(t *testing.T) {
+	t.Parallel()
+
+	t.Run("3 calls without WithCache produce 3 server hits", func(t *testing.T) {
+		t.Parallel()
+		body := []byte(`[{"isoCode":"PL","name":[{"language":"en","text":"Poland"}]}]`)
+		srv, hits := countriesServer(t, body)
+		t.Cleanup(srv.Close)
+
+		c := NewClient(WithBaseURL(srv.URL)) // NO WithCache
+		t.Cleanup(func() { _ = c.Close() })
+
+		for i := 0; i < 3; i++ {
+			_, err := c.Countries(context.Background(), CountriesRequest{})
+			require.NoError(t, err)
+		}
+
+		assert.Equal(t, int32(3), hits.Load(),
+			"default Client (no WithCache) must hit the network on every call (TEST-06 default-off)")
+	})
+}
+
+// TestCache_PerClientIsolation locks D-82 / Pitfall CACHE-2: two Clients
+// with their own caches and different baseURLs do not share cache. Each
+// server sees exactly one hit even though both Clients call Countries.
+func TestCache_PerClientIsolation(t *testing.T) {
+	t.Parallel()
+
+	t.Run("two Clients hit their own server exactly once", func(t *testing.T) {
+		t.Parallel()
+		body := []byte(`[{"isoCode":"PL","name":[{"language":"en","text":"Poland"}]}]`)
+		srvA, hitsA := countriesServer(t, body)
+		srvB, hitsB := countriesServer(t, body)
+		t.Cleanup(srvA.Close)
+		t.Cleanup(srvB.Close)
+
+		cA := NewClient(WithBaseURL(srvA.URL), WithCache(time.Hour))
+		cB := NewClient(WithBaseURL(srvB.URL), WithCache(time.Hour))
+		t.Cleanup(func() { _ = cA.Close() })
+		t.Cleanup(func() { _ = cB.Close() })
+
+		_, err := cA.Countries(context.Background(), CountriesRequest{})
+		require.NoError(t, err)
+		_, err = cB.Countries(context.Background(), CountriesRequest{})
+		require.NoError(t, err)
+
+		assert.Equal(t, int32(1), hitsA.Load(),
+			"Client A must have hit its own server exactly once (per-Client cache isolation)")
+		assert.Equal(t, int32(1), hitsB.Load(),
+			"Client B must have hit its own server exactly once (per-Client cache isolation)")
 	})
 }

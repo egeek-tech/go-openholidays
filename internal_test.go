@@ -54,6 +54,17 @@ import (
 //   - errEmptyDate — the unexported sentinel declared in date.go for
 //     UnmarshalJSON's null/empty rejection (D-06). Kept unexported so the
 //     public sentinel surface stays small.
+//   - CacheHitContextKey — the exported context-key var declared in
+//     transport_cache.go (Phase 4 Plan 04). The unexported type
+//     cacheHitKeyType backs it (Go's context-key idiom — private type,
+//     exported var). The var is read-only after package init; consumers
+//     detect cache hits via req.Context().Value(openholidays.CacheHitContextKey).
+//     Cited as a DEVIATION from CONTEXT.md D-97 step 6 ("allowlist needs
+//     NO updates") because the Pattern Mapper finding clarified that the
+//     CLIENT-10 AST audit gates ALL exported package-level vars, not just
+//     sentinel errors. Listed AFTER errEmptyDate per the chronological-
+//     addition order convention (Pitfall 6 protocol — single-line append
+//     keeps phase-to-phase diffs minimal).
 //
 // Sentinel error values are immutable identities (built via errors.New /
 // fmt.Errorf) — they are not "mutable state" in the CLIENT-10 sense, but
@@ -67,6 +78,7 @@ var allowedVars = map[string]struct{}{
 	"ErrResponseTooLarge":  {},
 	"ErrMalformedResponse": {},
 	"errEmptyDate":         {},
+	"CacheHitContextKey":   {},
 }
 
 // skipDirs are directory names anywhere in the walk that the audit skips.
