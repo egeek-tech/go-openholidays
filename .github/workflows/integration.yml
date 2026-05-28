@@ -1,0 +1,48 @@
+# go-openholidays — nightly integration workflow (CI-04).
+#
+# Runs the live-API integration suite (integration_test.go, gated by
+# //go:build integration + the OPENHOLIDAYS_LIVE=1 env var) against the
+# real OpenHolidays endpoint on a daily cadence so upstream schema drift
+# surfaces between releases instead of at release time.
+#
+# Two triggers:
+#   - schedule: 03:00 UTC daily — light, off-peak for the volunteer-run
+#     upstream and well outside busy CI hours.
+#   - workflow_dispatch: manual one-shot for ad-hoc verification (e.g.
+#     after a goreleaser dry-run or before tagging v0.1.0).
+#
+# Both gates required by integration_test.go are supplied here:
+#   - -tags=integration enables compile of integration_test.go.
+#   - OPENHOLIDAYS_LIVE=1 satisfies its runtime t.Skip gate.
+#
+# Security note — no `github.event.*` or other untrusted input is
+# interpolated into any run: step. The only env var supplied to the test
+# step is the literal OPENHOLIDAYS_LIVE: "1" gate. No command-injection
+# surface present per the GitHub Actions security guide.
+#
+# Action versions pinned per Phase 5 RESEARCH Source-current notes:
+# actions/checkout@v4, actions/setup-go@v5.
+name: Integration (nightly)
+
+on:
+  schedule:
+    - cron: "0 3 * * *" # 03:00 UTC daily
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+
+      - name: Run integration tests
+        env:
+          OPENHOLIDAYS_LIVE: "1"
+        run: go test -tags=integration -count=1 -timeout=5m ./...
