@@ -12,4 +12,18 @@
 //   - Zero runtime dependencies (no non-stdlib import outside *_test.go).
 //   - Full context.Context propagation on every exported call.
 //   - Typed errors inspectable via errors.Is / errors.As.
+//
+// Quickstart:
+//
+//	c := openholidays.NewClient()
+//	defer c.Close()
+//	hs, err := c.PublicHolidays(ctx, openholidays.PublicHolidaysRequest{
+//	    CountryIsoCode: "PL",
+//	    ValidFrom:      openholidays.NewDate(2025, time.January, 1),
+//	    ValidTo:        openholidays.NewDate(2025, time.December, 31),
+//	})
+//
+// See package examples on pkg.go.dev for every exported method — the
+// runnable form lives in example_test.go as Example_quickstart and the
+// per-method Example_<Symbol> functions.
 package openholidays
