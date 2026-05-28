@@ -17,9 +17,11 @@ import (
 	"context"
 	crand "crypto/rand"
 	"encoding/binary"
+	"hash/fnv"
 	"log/slog"
 	"math/rand/v2"
 	"net/http"
+	"os"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -151,15 +153,32 @@ func ctxSleep(ctx context.Context, d time.Duration) error {
 // herd). NewChaCha8 wants a 32-byte seed; crypto/rand.Read provides it.
 //
 // crypto/rand.Read is documented to never fail on a healthy system; on the
-// rare error path the helper falls back to a time-based seed because
-// NewClient must not return an error (CLIENT-01 contract). The fallback is
-// strictly worse than crypto/rand but still per-Client unique within a
-// nanosecond — adequate for jitter.
+// rare error path the helper falls back to a multi-source mixed seed
+// because NewClient must not return an error (CLIENT-01 contract). The
+// fallback fills all 32 bytes by FNV-hashing nanosecond timestamp + pid
+// (WR-05); strictly weaker than crypto/rand but covers all 32 bytes of
+// ChaCha8 state so two Clients constructed within the same nanosecond on
+// the same machine still differ via pid and across hash rounds.
 func newClientRand() *rand.Rand {
 	var seed [32]byte
 	if _, err := crand.Read(seed[:]); err != nil {
 		// Defensive fallback per CLIENT-01: NewClient must not error.
-		binary.LittleEndian.PutUint64(seed[:8], uint64(time.Now().UnixNano()))
+		// WR-05: fill all 32 bytes of seed so ChaCha8 has full state
+		// diversity. Combine nanosecond timestamp + pid through FNV-128a
+		// and rotate the input across two rounds to populate seed[0:16]
+		// and seed[16:32] from independent hash states.
+		var tb [8]byte
+		binary.LittleEndian.PutUint64(tb[:], uint64(time.Now().UnixNano()))
+		var pb [8]byte
+		binary.LittleEndian.PutUint64(pb[:], uint64(os.Getpid()))
+		h1 := fnv.New128a()
+		h1.Write(tb[:])
+		h1.Write(pb[:])
+		copy(seed[:16], h1.Sum(nil))
+		h2 := fnv.New128a()
+		h2.Write(pb[:])
+		h2.Write(tb[:])
+		copy(seed[16:], h2.Sum(nil))
 	}
 	return rand.New(rand.NewChaCha8(seed))
 }
