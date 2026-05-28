@@ -22,7 +22,6 @@ import (
 	"net/http"
 	"os"
 	"sync"
-	"sync/atomic"
 	"time"
 )
 
@@ -30,10 +29,14 @@ import (
 // one via NewClient and reuse it across goroutines for the lifetime of the
 // program; Client carries no per-call mutable state.
 //
-// The closed flag declared below is the only mutable state on the struct;
-// it is flipped exactly once by Close (idempotent, guarded by closeOnce),
-// and goroutines that call Client methods concurrently with Close observe
-// consistent reads without locking (CLIENT-07).
+// The only post-construction state mutation is the sync.Once-guarded
+// cache.Close inside Client.Close. Endpoint methods do not read any
+// post-Close flag; the documented Close contract is "idempotent shutdown
+// hook that returns nil and stops the cache sweeper", NOT "fail every
+// subsequent endpoint call". A previously-declared atomic.Bool `closed`
+// flag was removed by the IN-02 follow-up because no production code path
+// ever read it — sync.Once already enforces the cache-cleanup idempotency
+// invariant on its own.
 //
 // Phase 4 additions:
 //
@@ -56,7 +59,6 @@ type Client struct {
 	http      *http.Client                               // chain-wrapped client built by composeHTTPClient
 	baseURL   string                                     // trailing-slash-trimmed; concatenated with "/EndpointPath"
 	timeout   time.Duration                              // 0 disables the SDK-imposed timeout
-	closed    atomic.Bool                                // flipped by Close; reads are race-safe
 	retry     retryConfig                                // D-77; zero-value = disabled
 	cache     Cache                                      // D-79; nil = disabled (wired in Plan 04)
 	strict    bool                                       // D-91; immutable after NewClient
@@ -87,7 +89,8 @@ type Client struct {
 // The returned Client is safe for concurrent use from any goroutine
 // (verified by TestClient_ConcurrentAccess under the race detector in a
 // later plan; this plan ships TestClient_Close which mechanically
-// asserts the closed-flag invariant under 100 parallel goroutines).
+// asserts the sync.Once-guarded idempotency invariant under 100
+// parallel goroutines).
 func NewClient(opts ...Option) *Client {
 	cfg := defaultConfig()
 	for _, opt := range opts {
@@ -106,21 +109,23 @@ func NewClient(opts ...Option) *Client {
 	}
 }
 
-// Close is the idempotent shutdown hook. It flips the closed atomic flag
-// and best-effort calls cache.Close when a cache backend was wired via
-// WithCache or WithCacheBackend (D-85). Safe to call from any goroutine;
-// subsequent calls return nil unchanged. Cache.Close errors are
-// intentionally swallowed — the cache's contract is best-effort cleanup
-// and a Close failure on the cache should not surface to a caller draining
-// their Client in defer client.Close() (CLIENT-08).
+// Close is the idempotent shutdown hook. It best-effort calls cache.Close
+// when a cache backend was wired via WithCache or WithCacheBackend
+// (D-85). Safe to call from any goroutine; subsequent calls return nil
+// unchanged. Cache.Close errors are intentionally swallowed — the
+// cache's contract is best-effort cleanup and a Close failure on the
+// cache should not surface to a caller draining their Client in
+// defer client.Close() (CLIENT-08).
 //
-// Mechanical guarantee (D-40 / D-85 / CLIENT-08): the underlying closed
-// field is an atomic.Bool and the cache.Close call is guarded by
-// sync.Once, so concurrent calls from multiple goroutines under the race
-// detector neither race nor produce a non-nil error.
+// Mechanical guarantee (D-40 / D-85 / CLIENT-08): the cache.Close call
+// is guarded by sync.Once, so concurrent calls from multiple goroutines
+// under the race detector neither race nor produce a non-nil error. The
+// "subsequent calls return nil unchanged" sentence refers to subsequent
+// Close calls — Close does NOT gate post-Close endpoint dispatch; that
+// is by design (an atomic.Bool `closed` flag was removed by the IN-02
+// follow-up after the re-review confirmed no production reader).
 func (c *Client) Close() error {
 	c.closeOnce.Do(func() {
-		c.closed.Store(true)
 		if c.cache != nil {
 			_ = c.cache.Close()
 		}

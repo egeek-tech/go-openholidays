@@ -9,7 +9,9 @@
 // ships only the construction-time contract; those two tests land in Plan
 // 02-03 alongside the Countries endpoint. The Close-under-100-goroutines
 // subtest below is the Phase 2 Plan 02 mechanical race-safety check for the
-// `closed` atomic flag specifically.
+// sync.Once-guarded cache.Close path inside Client.Close (the previously-
+// referenced atomic.Bool `closed` flag was removed by the IN-02 re-review
+// follow-up — no production code ever read it).
 
 package openholidays
 
@@ -153,7 +155,7 @@ func TestNewClient(t *testing.T) {
 //
 //   - Idempotent: every call returns nil, subsequent calls still return nil.
 //   - Race-safe from any goroutine (100 parallel goroutines under -race
-//     all return nil and the final flag is true).
+//     all return nil).
 //   - Stops the cache sweeper goroutine: a constructed-then-Put MemoryCache
 //     spawns a sweeper; Close cancels its context and the goroutine exits.
 //
@@ -164,19 +166,20 @@ func TestNewClient(t *testing.T) {
 // (the sweepLoop closes that channel via `defer close(m.sweepDone)` on exit,
 // so a successful select-recv on it within a bounded wait is the load-bearing
 // invariant — no process-global goroutine counter required).
+//
+// IN-02 (re-review) follow-up: the previously-asserted `closed atomic.Bool`
+// flag was removed from Client. The race-safety invariant is now carried
+// exclusively by the sync.Once-guarded cache.Close call inside Client.Close
+// (no production endpoint reader ever consulted the flag).
 func TestClient_Close(t *testing.T) {
 	t.Parallel()
 
-	t.Run("first call returns nil and flips closed flag", func(t *testing.T) {
+	t.Run("first call returns nil", func(t *testing.T) {
 		t.Parallel()
 		c := NewClient()
 		require.NotNil(t, c)
-		require.False(t, c.closed.Load(),
-			"closed should be false immediately after NewClient")
 		err := c.Close()
 		assert.NoError(t, err, "Close must return nil")
-		assert.True(t, c.closed.Load(),
-			"closed flag must be true after the first Close call")
 	})
 
 	t.Run("subsequent calls also return nil (idempotent)", func(t *testing.T) {
@@ -187,8 +190,6 @@ func TestClient_Close(t *testing.T) {
 			assert.NoError(t, c.Close(),
 				"Close call %d must return nil (idempotent per CLIENT-08)", i+1)
 		}
-		assert.True(t, c.closed.Load(),
-			"closed must remain true after multiple Close calls")
 	})
 
 	t.Run("concurrent close is race-safe (100 goroutines)", func(t *testing.T) {
@@ -206,8 +207,6 @@ func TestClient_Close(t *testing.T) {
 			}()
 		}
 		wg.Wait()
-		assert.True(t, c.closed.Load(),
-			"closed must be true after all goroutines have called Close")
 	})
 
 	t.Run("stops cache sweeper goroutine (D-96 / RESIL-08)", func(t *testing.T) {
@@ -247,9 +246,11 @@ func TestClient_Close(t *testing.T) {
 
 // TestClient_ConcurrentAccess verifies CLIENT-07 + TEST-04: 50 parallel
 // Countries calls under -race must complete with identical payloads and
-// no data-race reports. Client is immutable after NewClient (only c.closed
-// is mutable, and Close is not exercised here), so concurrent reads of
-// every field are race-safe by definition.
+// no data-race reports. Client is immutable after NewClient (Close is
+// not exercised here, and the sync.Once that previously guarded the
+// atomic.Bool `closed` flag now guards only cache.Close — no field on
+// the Client struct is mutated by endpoint dispatch), so concurrent
+// reads of every field are race-safe by definition.
 func TestClient_ConcurrentAccess(t *testing.T) {
 	t.Parallel()
 
