@@ -17,7 +17,6 @@ package openholidays
 
 import (
 	"context"
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -108,7 +107,7 @@ func TestClient_PublicHolidays(t *testing.T) {
 		})
 		require.Error(t, err)
 		assert.Nil(t, holidays)
-		assert.True(t, errors.Is(err, ErrInvalidCountry),
+		assert.ErrorIs(t, err, ErrInvalidCountry,
 			"expected ErrInvalidCountry via errors.Is, got %v", err)
 	})
 
@@ -122,7 +121,7 @@ func TestClient_PublicHolidays(t *testing.T) {
 		})
 		require.Error(t, err)
 		assert.Nil(t, holidays)
-		assert.True(t, errors.Is(err, ErrInvalidDateRange),
+		assert.ErrorIs(t, err, ErrInvalidDateRange,
 			"expected ErrInvalidDateRange via errors.Is, got %v", err)
 	})
 
@@ -136,7 +135,7 @@ func TestClient_PublicHolidays(t *testing.T) {
 		})
 		require.Error(t, err)
 		assert.Nil(t, holidays)
-		assert.True(t, errors.Is(err, ErrDateRangeTooLarge),
+		assert.ErrorIs(t, err, ErrDateRangeTooLarge,
 			"expected ErrDateRangeTooLarge via errors.Is, got %v", err)
 	})
 
@@ -151,7 +150,7 @@ func TestClient_PublicHolidays(t *testing.T) {
 		})
 		require.Error(t, err)
 		assert.Nil(t, holidays)
-		assert.True(t, errors.Is(err, ErrInvalidLanguage),
+		assert.ErrorIs(t, err, ErrInvalidLanguage,
 			"expected ErrInvalidLanguage via errors.Is, got %v", err)
 	})
 
@@ -174,7 +173,7 @@ func TestClient_PublicHolidays(t *testing.T) {
 		assert.Nil(t, holidays)
 
 		var apiErr *APIError
-		require.True(t, errors.As(err, &apiErr),
+		require.ErrorAs(t, err, &apiErr,
 			"expected *APIError, got %T: %v", err, err)
 		assert.Equal(t, 404, apiErr.StatusCode)
 		assert.Equal(t, "/PublicHolidays", apiErr.Path)
@@ -199,7 +198,7 @@ func TestClient_PublicHolidays(t *testing.T) {
 		require.Error(t, err)
 
 		var apiErr *APIError
-		require.True(t, errors.As(err, &apiErr),
+		require.ErrorAs(t, err, &apiErr,
 			"expected *APIError, got %T: %v", err, err)
 		assert.Equal(t, 500, apiErr.StatusCode)
 		assert.Equal(t, "/PublicHolidays", apiErr.Path)
@@ -226,10 +225,10 @@ func TestClient_PublicHolidays(t *testing.T) {
 		// callers detect "decode failure" via the absence of every
 		// sentinel match plus the underlying *json.SyntaxError /
 		// *json.UnmarshalTypeError surfacing through errors.As.
-		assert.False(t, errors.Is(err, ErrEmptyResponse))
-		assert.False(t, errors.Is(err, ErrResponseTooLarge))
-		assert.False(t, errors.Is(err, ErrMalformedResponse))
-		assert.False(t, errors.Is(err, ErrInvalidCountry))
+		require.NotErrorIs(t, err, ErrEmptyResponse)
+		require.NotErrorIs(t, err, ErrResponseTooLarge)
+		require.NotErrorIs(t, err, ErrMalformedResponse)
+		assert.NotErrorIs(t, err, ErrInvalidCountry)
 	})
 
 	t.Run("ctx cancel returns context.Canceled", func(t *testing.T) {
@@ -255,7 +254,7 @@ func TestClient_PublicHolidays(t *testing.T) {
 			ValidTo:        NewDate(2025, time.December, 31),
 		})
 		require.Error(t, err)
-		assert.True(t, errors.Is(err, context.Canceled),
+		assert.ErrorIs(t, err, context.Canceled,
 			"expected context.Canceled via errors.Is, got %v", err)
 	})
 
@@ -286,7 +285,7 @@ func TestClient_PublicHolidays(t *testing.T) {
 		})
 		require.Error(t, err)
 		assert.Nil(t, holidays, "endpoint must return nil holidays on validateHolidays failure")
-		assert.True(t, errors.Is(err, ErrMalformedResponse),
+		assert.ErrorIs(t, err, ErrMalformedResponse,
 			"expected ErrMalformedResponse via errors.Is, got %v", err)
 	})
 
@@ -414,7 +413,7 @@ func TestValidateHolidays(t *testing.T) {
 		}
 		err := validateHolidays(hs, "/PublicHolidays")
 		require.Error(t, err)
-		assert.True(t, errors.Is(err, ErrMalformedResponse),
+		require.ErrorIs(t, err, ErrMalformedResponse,
 			"expected ErrMalformedResponse via errors.Is, got %v", err)
 		assert.Contains(t, err.Error(), "deadbeef-zero-start",
 			"error message must include the offending holiday's ID")
@@ -433,7 +432,7 @@ func TestValidateHolidays(t *testing.T) {
 		}
 		err := validateHolidays(hs, "/PublicHolidays")
 		require.Error(t, err)
-		assert.True(t, errors.Is(err, ErrMalformedResponse),
+		require.ErrorIs(t, err, ErrMalformedResponse,
 			"expected ErrMalformedResponse via errors.Is, got %v", err)
 		assert.Contains(t, err.Error(), "deadbeef-zero-end")
 		assert.Contains(t, err.Error(), "zero EndDate")
@@ -450,7 +449,7 @@ func TestValidateHolidays(t *testing.T) {
 		}
 		err := validateHolidays(hs, "/PublicHolidays")
 		require.Error(t, err)
-		assert.True(t, errors.Is(err, ErrMalformedResponse),
+		require.ErrorIs(t, err, ErrMalformedResponse,
 			"expected ErrMalformedResponse via errors.Is, got %v", err)
 		assert.Contains(t, err.Error(), "deadbeef-out-of-order")
 		assert.Contains(t, err.Error(), "2025-12-25",

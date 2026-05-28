@@ -1,0 +1,80 @@
+# go-openholidays — golangci-lint v2 configuration. Single source of truth for
+# lint config. .golangci.yml_backup retired in Plan 05 (see Plan 05 SUMMARY).
+version: "2"
+run:
+  modules-download-mode: readonly
+linters:
+  default: none
+  enable:
+    # PROJECT.md / CLAUDE.md required (the 6 mandated linters):
+    - govet
+    - errcheck
+    - staticcheck
+    - gosec
+    - revive
+    - gocritic
+    # Curated additions retained from .golangci.yml_backup that proved
+    # useful during Phases 1-4:
+    - asciicheck
+    - copyloopvar
+    - durationcheck
+    - contextcheck
+    - errchkjson
+    - errname
+    - fatcontext
+    - gomoddirectives
+    - ineffassign
+    - intrange
+    - mirror
+    - musttag
+    - nilerr
+    - sloglint
+    - testifylint
+    - thelper
+    - unconvert
+    # unparam: disabled 2026-05-11. 13 findings split between real code
+    # smells (dead returns / dead params / a stub `buildLazyModal` whose
+    # every branch returns nil) and test-helper future-flex parameters.
+    # Needs case-by-case judgment, not a blanket fix.
+    - unused
+    - usestdlibvars
+    - usetesting
+    - wastedassign
+    # tagliatelle: NOT enabled. Upstream OpenHolidays wire format is camelCase
+    # (isoCode, startDate, etc.); enforcing a case scheme on JSON tags would
+    # require either the wrong setting (snake) or a setting that matches
+    # upstream (camel) — and the latter adds no value over "match upstream
+    # verbatim." See Phase 5 RESEARCH.md Pitfall 4.
+  settings:
+    gosec:
+      excludes:
+        - G101  # hard-coded credentials false-positive on testdata fixture paths
+    revive:
+      rules:
+        - name: exported
+          disabled: true
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      # G124: tests construct request cookies via httptest. G124 warns about
+      # missing Secure/HttpOnly/SameSite, which are response-side flags;
+      # request cookies don't carry them.
+      - linters:
+          - gosec
+        text: "G124"
+        path: _test\.go
+      # G122: integration guardrail tests walk a known repo subtree on a
+      # fresh CI checkout (no untrusted symlinks possible). The TOCTOU
+      # surface gosec warns about doesn't apply here.
+      - linters:
+          - gosec
+        text: "G122"
+        path: _test\.go
+formatters:
+  exclusions:
+    generated: lax

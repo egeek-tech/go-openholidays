@@ -169,7 +169,7 @@ func buildTransport(cfg *clientConfig) http.RoundTripper {
 	if underlying == nil {
 		underlying = http.DefaultTransport
 	}
-	var rt http.RoundTripper = underlying
+	rt := underlying
 	// Innermost first (request flows outermost → innermost):
 	rt = &headerTransport{userAgent: cfg.userAgent, next: rt}
 	rt = &loggingTransport{logger: cfg.logger, next: rt}

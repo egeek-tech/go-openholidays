@@ -11,7 +11,6 @@ package openholidays
 import (
 	"bytes"
 	"context"
-	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -132,7 +131,7 @@ func TestClient_Countries(t *testing.T) {
 		assert.Nil(t, countries)
 
 		var apiErr *APIError
-		require.True(t, errors.As(err, &apiErr),
+		require.ErrorAs(t, err, &apiErr,
 			"expected *APIError, got %T: %v", err, err)
 		assert.Equal(t, 404, apiErr.StatusCode)
 		assert.Equal(t, "/Countries", apiErr.Path)
@@ -155,7 +154,7 @@ func TestClient_Countries(t *testing.T) {
 		require.Error(t, err)
 
 		var apiErr *APIError
-		require.True(t, errors.As(err, &apiErr),
+		require.ErrorAs(t, err, &apiErr,
 			"expected *APIError, got %T: %v", err, err)
 		assert.Equal(t, 500, apiErr.StatusCode)
 		assert.Equal(t, "Internal Server Error", apiErr.Message,
@@ -176,7 +175,7 @@ func TestClient_Countries(t *testing.T) {
 		require.Error(t, err)
 
 		var apiErr *APIError
-		require.True(t, errors.As(err, &apiErr),
+		require.ErrorAs(t, err, &apiErr,
 			"expected *APIError, got %T: %v", err, err)
 		assert.Equal(t, 503, apiErr.StatusCode)
 		assert.Equal(t, "Service Unavailable", apiErr.Message,
@@ -197,9 +196,9 @@ func TestClient_Countries(t *testing.T) {
 		require.Error(t, err)
 
 		var apiErr *APIError
-		require.True(t, errors.As(err, &apiErr),
+		require.ErrorAs(t, err, &apiErr,
 			"expected *APIError, got %T: %v", err, err)
-		assert.Equal(t, 4096, len(apiErr.Body),
+		assert.Len(t, apiErr.Body, 4096,
 			"APIError.Body length must equal the 4 KiB cap (D-17), got %d", len(apiErr.Body))
 	})
 
@@ -215,7 +214,7 @@ func TestClient_Countries(t *testing.T) {
 		c := NewClient(WithBaseURL(srv.URL))
 		_, err := c.Countries(context.Background(), CountriesRequest{})
 		require.Error(t, err)
-		assert.True(t, errors.Is(err, ErrEmptyResponse),
+		assert.ErrorIs(t, err, ErrEmptyResponse,
 			"expected ErrEmptyResponse via errors.Is, got %v", err)
 	})
 
@@ -228,9 +227,9 @@ func TestClient_Countries(t *testing.T) {
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "openholidays: nil context",
 			"defensive guard must return the documented error string")
-		assert.False(t, errors.Is(err, ErrEmptyResponse),
+		require.NotErrorIs(t, err, ErrEmptyResponse,
 			"nil-ctx error must NOT match any sentinel (D-42 defensive guard)")
-		assert.False(t, errors.Is(err, ErrResponseTooLarge),
+		assert.NotErrorIs(t, err, ErrResponseTooLarge,
 			"nil-ctx error must NOT match any sentinel (D-42 defensive guard)")
 	})
 
@@ -287,7 +286,7 @@ func TestClient_Countries(t *testing.T) {
 
 		_, err := c.Countries(context.Background(), CountriesRequest{})
 		require.Error(t, err)
-		assert.True(t, errors.Is(err, ErrResponseTooLarge),
+		require.ErrorIs(t, err, ErrResponseTooLarge,
 			"expected ErrResponseTooLarge via errors.Is, got %v", err)
 
 		// Deterministic post-condition: every resp.Body the transport
@@ -328,7 +327,7 @@ func TestClient_Countries(t *testing.T) {
 		c := NewClient(WithBaseURL(srv.URL))
 		countries, err := c.Countries(context.Background(), CountriesRequest{})
 		require.NoError(t, err, "trailing whitespace in a separate chunk must NOT be reported as ErrResponseTooLarge (CR-01)")
-		assert.False(t, errors.Is(err, ErrResponseTooLarge),
+		require.NotErrorIs(t, err, ErrResponseTooLarge,
 			"CR-01 regression: small body + trailing whitespace must not match ErrResponseTooLarge")
 		require.Len(t, countries, 1)
 		assert.Equal(t, "PL", countries[0].IsoCode)
@@ -382,7 +381,7 @@ func TestClient_Countries(t *testing.T) {
 		c := NewClient(WithBaseURL("http://example.invalid"))
 		_, err := c.Countries(context.Background(), CountriesRequest{LanguageIsoCode: "X"})
 		require.Error(t, err)
-		assert.True(t, errors.Is(err, ErrInvalidLanguage),
+		assert.ErrorIs(t, err, ErrInvalidLanguage,
 			"expected ErrInvalidLanguage via errors.Is, got %v", err)
 	})
 }

@@ -10,7 +10,6 @@ package openholidays
 
 import (
 	"context"
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -108,7 +107,7 @@ func TestClient_Languages(t *testing.T) {
 		c := NewClient(WithBaseURL("http://example.invalid"))
 		_, err := c.Languages(context.Background(), LanguagesRequest{LanguageIsoCode: "x"})
 		require.Error(t, err)
-		assert.True(t, errors.Is(err, ErrInvalidLanguage),
+		assert.ErrorIs(t, err, ErrInvalidLanguage,
 			"expected ErrInvalidLanguage via errors.Is, got %v", err)
 	})
 
@@ -127,7 +126,7 @@ func TestClient_Languages(t *testing.T) {
 		assert.Nil(t, langs)
 
 		var apiErr *APIError
-		require.True(t, errors.As(err, &apiErr),
+		require.ErrorAs(t, err, &apiErr,
 			"expected *APIError, got %T: %v", err, err)
 		assert.Equal(t, 404, apiErr.StatusCode)
 		assert.Equal(t, "/Languages", apiErr.Path)
@@ -148,7 +147,7 @@ func TestClient_Languages(t *testing.T) {
 		require.Error(t, err)
 
 		var apiErr *APIError
-		require.True(t, errors.As(err, &apiErr),
+		require.ErrorAs(t, err, &apiErr,
 			"expected *APIError, got %T: %v", err, err)
 		assert.Equal(t, 500, apiErr.StatusCode)
 		assert.Equal(t, "Internal Server Error", apiErr.Message,
@@ -171,11 +170,11 @@ func TestClient_Languages(t *testing.T) {
 		require.Error(t, err)
 
 		var apiErr *APIError
-		assert.False(t, errors.As(err, &apiErr),
+		require.NotErrorAs(t, err, &apiErr,
 			"malformed JSON must not be reported as *APIError")
-		assert.False(t, errors.Is(err, ErrEmptyResponse),
+		require.NotErrorIs(t, err, ErrEmptyResponse,
 			"malformed JSON must not match ErrEmptyResponse — it is a decode error")
-		assert.False(t, errors.Is(err, ErrResponseTooLarge),
+		require.NotErrorIs(t, err, ErrResponseTooLarge,
 			"malformed JSON must not match ErrResponseTooLarge")
 		assert.Contains(t, err.Error(), "decode /Languages",
 			"decode-error wrap must reference the /Languages path")
@@ -204,7 +203,7 @@ func TestClient_Languages(t *testing.T) {
 		elapsed := time.Since(start)
 
 		require.Error(t, err)
-		assert.True(t, errors.Is(err, context.Canceled),
+		require.ErrorIs(t, err, context.Canceled,
 			"expected context.Canceled via errors.Is, got %v", err)
 		// CLIENT-09: cancellation must interrupt within ≤ 100 ms.
 		// A generous 1 s ceiling here still catches any pathological

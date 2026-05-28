@@ -131,7 +131,7 @@ func TestMemoryCache_GetPut(t *testing.T) {
 
 		v, ok := nc.Get("k")
 		require.True(t, ok)
-		assert.Equal(t, []byte(`{"isoCode":"PL"}`), v,
+		assert.JSONEq(t, `{"isoCode":"PL"}`, string(v),
 			"IN-05: Put must copy the supplied slice — caller mutation after Put must NOT corrupt the cached entry")
 	})
 }
@@ -246,7 +246,7 @@ func TestMemoryCache_CloseIdempotent(t *testing.T) {
 	t.Run("sequential Close returns nil twice", func(t *testing.T) {
 		nc := NewMemoryCache(time.Hour)
 		nc.Put("k", []byte("v")) // forces sweeper start
-		for i := 0; i < 2; i++ {
+		for i := range 2 {
 			assert.NoError(t, nc.Close(), "Close iteration %d must return nil (idempotent per D-85)", i+1)
 		}
 	})
@@ -261,7 +261,7 @@ func TestMemoryCache_CloseIdempotent(t *testing.T) {
 		var wg sync.WaitGroup
 		const n = 100
 		wg.Add(n)
-		for i := 0; i < n; i++ {
+		for range n {
 			go func() {
 				defer wg.Done()
 				assert.NoError(t, nc.Close(),

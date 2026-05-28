@@ -10,7 +10,6 @@ package openholidays
 
 import (
 	"context"
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -119,7 +118,7 @@ func TestClient_Subdivisions(t *testing.T) {
 		got, err := c.Subdivisions(context.Background(), SubdivisionsRequest{})
 		require.Error(t, err)
 		assert.Nil(t, got)
-		assert.True(t, errors.Is(err, ErrInvalidCountry),
+		assert.ErrorIs(t, err, ErrInvalidCountry,
 			"expected ErrInvalidCountry via errors.Is, got %v", err)
 	})
 
@@ -131,7 +130,7 @@ func TestClient_Subdivisions(t *testing.T) {
 			LanguageIsoCode: "x",
 		})
 		require.Error(t, err)
-		assert.True(t, errors.Is(err, ErrInvalidLanguage),
+		assert.ErrorIs(t, err, ErrInvalidLanguage,
 			"expected ErrInvalidLanguage via errors.Is, got %v", err)
 	})
 
@@ -175,7 +174,7 @@ func TestClient_Subdivisions(t *testing.T) {
 		assert.Nil(t, got)
 
 		var apiErr *APIError
-		require.True(t, errors.As(err, &apiErr),
+		require.ErrorAs(t, err, &apiErr,
 			"expected *APIError, got %T: %v", err, err)
 		assert.Equal(t, 404, apiErr.StatusCode)
 		assert.Equal(t, "/Subdivisions", apiErr.Path)
@@ -196,7 +195,7 @@ func TestClient_Subdivisions(t *testing.T) {
 		require.Error(t, err)
 
 		var apiErr *APIError
-		require.True(t, errors.As(err, &apiErr),
+		require.ErrorAs(t, err, &apiErr,
 			"expected *APIError, got %T: %v", err, err)
 		assert.Equal(t, 500, apiErr.StatusCode)
 		assert.Equal(t, "/Subdivisions", apiErr.Path)
@@ -222,13 +221,13 @@ func TestClient_Subdivisions(t *testing.T) {
 		// generic JSON decode failure (Phase 3 D-65's ErrMalformedResponse is
 		// reserved for *post*-decode Holiday-content checks, not for syntax
 		// errors).
-		assert.False(t, errors.Is(err, ErrEmptyResponse),
+		require.NotErrorIs(t, err, ErrEmptyResponse,
 			"malformed JSON must not match ErrEmptyResponse")
-		assert.False(t, errors.Is(err, ErrResponseTooLarge),
+		require.NotErrorIs(t, err, ErrResponseTooLarge,
 			"malformed JSON must not match ErrResponseTooLarge")
-		assert.False(t, errors.Is(err, ErrInvalidCountry),
+		require.NotErrorIs(t, err, ErrInvalidCountry,
 			"malformed JSON must not match ErrInvalidCountry")
-		assert.False(t, errors.Is(err, ErrInvalidLanguage),
+		assert.NotErrorIs(t, err, ErrInvalidLanguage,
 			"malformed JSON must not match ErrInvalidLanguage")
 	})
 
@@ -260,7 +259,7 @@ func TestClient_Subdivisions(t *testing.T) {
 		_, err := c.Subdivisions(ctx, SubdivisionsRequest{CountryIsoCode: "PL"})
 		elapsed := time.Since(start)
 		require.Error(t, err)
-		assert.True(t, errors.Is(err, context.Canceled),
+		require.ErrorIs(t, err, context.Canceled,
 			"expected context.Canceled via errors.Is, got %v", err)
 		// IN-03: this is the contract-locking ctx-cancel test for the
 		// CLIENT-09 ≤ 100 ms interruption bound. The ceiling is

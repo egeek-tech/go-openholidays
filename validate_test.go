@@ -8,8 +8,6 @@
 package openholidays
 
 import (
-	"errors"
-	"strings"
 	"testing"
 	"time"
 
@@ -81,8 +79,8 @@ func TestValidateCountry(t *testing.T) {
 			t.Parallel()
 			canon, err := validateCountry(tc.input)
 			require.Error(t, err)
-			assert.Equal(t, "", canon, "rejected input must return empty canonical form")
-			assert.True(t, errors.Is(err, ErrInvalidCountry),
+			assert.Empty(t, canon, "rejected input must return empty canonical form")
+			require.ErrorIs(t, err, ErrInvalidCountry,
 				"expected error to wrap ErrInvalidCountry, got %v", err)
 			// Verify the offending value is quoted in the error message (D-23).
 			// We assert the ORIGINAL input shows up between quotes, not the
@@ -160,8 +158,8 @@ func TestValidateLanguage(t *testing.T) {
 			t.Parallel()
 			canon, err := validateLanguage(tc.input)
 			require.Error(t, err)
-			assert.Equal(t, "", canon, "rejected input must return empty canonical form")
-			assert.True(t, errors.Is(err, ErrInvalidLanguage),
+			assert.Empty(t, canon, "rejected input must return empty canonical form")
+			require.ErrorIs(t, err, ErrInvalidLanguage,
 				"expected error to wrap ErrInvalidLanguage, got %v", err)
 			wantSub := "\"" + tc.input + "\""
 			assert.Contains(t, err.Error(), wantSub,
@@ -261,7 +259,7 @@ func TestValidateDateRange(t *testing.T) {
 			t.Parallel()
 			err := validateDateRange(tc.from, tc.to)
 			require.Error(t, err)
-			assert.True(t, errors.Is(err, tc.wantWrap),
+			require.ErrorIs(t, err, tc.wantWrap,
 				"expected error to wrap %v, got %v", tc.wantWrap, err)
 			// D-23: error message must include the offending from/to dates.
 			assert.Contains(t, err.Error(), "from="+tc.from.String(),
@@ -303,7 +301,7 @@ func TestValidators_NoSensitiveData(t *testing.T) {
 	assertNoLeak := func(t *testing.T, msg string) {
 		t.Helper()
 		for _, forbidden := range forbiddenSubstrings {
-			assert.False(t, strings.Contains(msg, forbidden),
+			assert.NotContains(t, msg, forbidden,
 				"validator error message must not contain %q (ERR-04 leak guard); got %q",
 				forbidden, msg)
 		}

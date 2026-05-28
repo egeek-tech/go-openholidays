@@ -30,7 +30,6 @@ package openholidays
 import (
 	"bufio"
 	"context"
-	"errors"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -48,16 +47,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// fakeNetErr is a test-only net.Error implementation used to drive
+// fakeNetError is a test-only net.Error implementation used to drive
 // shouldRetry's net.Error.Timeout() branch (D-75). The Timeout() flag
 // is the only field that matters for the retry matrix; Temporary() is
 // deprecated but still part of the net.Error interface so it returns
 // false (a non-temporary timeout is still retryable per D-75).
-type fakeNetErr struct{ timeout bool }
+type fakeNetError struct{ timeout bool }
 
-func (e *fakeNetErr) Error() string   { return "fake net error" }
-func (e *fakeNetErr) Timeout() bool   { return e.timeout }
-func (e *fakeNetErr) Temporary() bool { return false }
+func (e *fakeNetError) Error() string   { return "fake net error" }
+func (e *fakeNetError) Timeout() bool   { return e.timeout }
+func (e *fakeNetError) Temporary() bool { return false }
 
 // newTestRand builds a deterministic rand.Rand for the helper tests via
 // rand.NewChaCha8 with a fixed 32-byte seed. Test isolation matters
@@ -69,7 +68,9 @@ func newTestRand() *rand.Rand {
 	for i := range seed {
 		seed[i] = byte(i + 1)
 	}
-	return rand.New(rand.NewChaCha8(seed))
+	// G404: math/rand/v2 is the project-sanctioned RNG (CLAUDE.md); test
+	// uses a fixed-seed ChaCha8 for determinism, not cryptographic strength.
+	return rand.New(rand.NewChaCha8(seed)) //nolint:gosec // G404: deterministic test RNG, not cryptographic
 }
 
 // TestShouldRetry locks the D-75 retryable-conditions matrix verbatim.
@@ -88,22 +89,22 @@ func TestShouldRetry(t *testing.T) {
 	}
 	cases := []tc{
 		// Retryable HTTP statuses (D-75).
-		{name: "408 Request Timeout retryable", resp: &http.Response{StatusCode: 408}, err: nil, want: true},
-		{name: "429 Too Many Requests retryable", resp: &http.Response{StatusCode: 429}, err: nil, want: true},
-		{name: "500 Internal Server Error retryable", resp: &http.Response{StatusCode: 500}, err: nil, want: true},
-		{name: "502 Bad Gateway retryable", resp: &http.Response{StatusCode: 502}, err: nil, want: true},
-		{name: "503 Service Unavailable retryable", resp: &http.Response{StatusCode: 503}, err: nil, want: true},
-		{name: "504 Gateway Timeout retryable", resp: &http.Response{StatusCode: 504}, err: nil, want: true},
+		{name: "408 Request Timeout retryable", resp: &http.Response{StatusCode: http.StatusRequestTimeout}, err: nil, want: true},
+		{name: "429 Too Many Requests retryable", resp: &http.Response{StatusCode: http.StatusTooManyRequests}, err: nil, want: true},
+		{name: "500 Internal Server Error retryable", resp: &http.Response{StatusCode: http.StatusInternalServerError}, err: nil, want: true},
+		{name: "502 Bad Gateway retryable", resp: &http.Response{StatusCode: http.StatusBadGateway}, err: nil, want: true},
+		{name: "503 Service Unavailable retryable", resp: &http.Response{StatusCode: http.StatusServiceUnavailable}, err: nil, want: true},
+		{name: "504 Gateway Timeout retryable", resp: &http.Response{StatusCode: http.StatusGatewayTimeout}, err: nil, want: true},
 		// Non-retryable HTTP statuses.
-		{name: "200 OK not retryable", resp: &http.Response{StatusCode: 200}, err: nil, want: false},
-		{name: "201 Created not retryable", resp: &http.Response{StatusCode: 201}, err: nil, want: false},
-		{name: "400 Bad Request not retryable", resp: &http.Response{StatusCode: 400}, err: nil, want: false},
-		{name: "401 Unauthorized not retryable", resp: &http.Response{StatusCode: 401}, err: nil, want: false},
-		{name: "403 Forbidden not retryable", resp: &http.Response{StatusCode: 403}, err: nil, want: false},
-		{name: "404 Not Found not retryable", resp: &http.Response{StatusCode: 404}, err: nil, want: false},
+		{name: "200 OK not retryable", resp: &http.Response{StatusCode: http.StatusOK}, err: nil, want: false},
+		{name: "201 Created not retryable", resp: &http.Response{StatusCode: http.StatusCreated}, err: nil, want: false},
+		{name: "400 Bad Request not retryable", resp: &http.Response{StatusCode: http.StatusBadRequest}, err: nil, want: false},
+		{name: "401 Unauthorized not retryable", resp: &http.Response{StatusCode: http.StatusUnauthorized}, err: nil, want: false},
+		{name: "403 Forbidden not retryable", resp: &http.Response{StatusCode: http.StatusForbidden}, err: nil, want: false},
+		{name: "404 Not Found not retryable", resp: &http.Response{StatusCode: http.StatusNotFound}, err: nil, want: false},
 		// Transport errors.
-		{name: "net.Error Timeout()==true retryable", resp: nil, err: &fakeNetErr{timeout: true}, want: true},
-		{name: "net.Error Timeout()==false not retryable", resp: nil, err: &fakeNetErr{timeout: false}, want: false},
+		{name: "net.Error Timeout()==true retryable", resp: nil, err: &fakeNetError{timeout: true}, want: true},
+		{name: "net.Error Timeout()==false not retryable", resp: nil, err: &fakeNetError{timeout: false}, want: false},
 		{name: "syscall.ECONNRESET wrapped in net.OpError retryable", resp: nil, err: &net.OpError{Op: "read", Err: syscall.ECONNRESET}, want: true},
 		{name: "bare syscall.ECONNRESET retryable", resp: nil, err: syscall.ECONNRESET, want: true},
 		// Ctx errors — D-75: NEVER retried.
@@ -491,7 +492,7 @@ func TestRetry_CtxCancel(t *testing.T) {
 		elapsed := time.Since(start)
 
 		require.Error(t, err, "canceled ctx must produce an error")
-		assert.True(t, errors.Is(err, context.Canceled),
+		require.ErrorIs(t, err, context.Canceled,
 			"expected errors.Is(err, context.Canceled); got %v", err)
 		assert.Less(t, elapsed, 200*time.Millisecond,
 			"ctx cancel must interrupt within ≤ 100 ms target (200 ms ceiling for CI slack); took %v", elapsed)
@@ -540,7 +541,7 @@ func TestRetry_CtxCancel(t *testing.T) {
 		elapsed := time.Since(start)
 
 		require.Error(t, err, "canceled ctx during sleep must produce an error")
-		assert.True(t, errors.Is(err, context.Canceled),
+		require.ErrorIs(t, err, context.Canceled,
 			"expected errors.Is(err, context.Canceled); got %v", err)
 		assert.Less(t, elapsed, 200*time.Millisecond,
 			"ctx cancel during sleep must interrupt within ≤ 100 ms target (RESIL-04); took %v", elapsed)

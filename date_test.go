@@ -2,7 +2,6 @@ package openholidays
 
 import (
 	"encoding/json"
-	"errors"
 	"testing"
 	"time"
 
@@ -50,7 +49,7 @@ func TestParseDate(t *testing.T) {
 		t.Parallel()
 		d, err := ParseDate("")
 		require.Error(t, err)
-		assert.True(t, errors.Is(err, errEmptyDate), "err must wrap errEmptyDate")
+		require.ErrorIs(t, err, errEmptyDate, "err must wrap errEmptyDate")
 		assert.True(t, d.IsZero(), "Date must be zero on error")
 	})
 
@@ -125,7 +124,7 @@ func TestDate_UnmarshalJSON(t *testing.T) {
 		var d Date
 		err := d.UnmarshalJSON([]byte("null"))
 		require.Error(t, err)
-		assert.True(t, errors.Is(err, errEmptyDate), "must wrap errEmptyDate")
+		require.ErrorIs(t, err, errEmptyDate, "must wrap errEmptyDate")
 		assert.True(t, d.IsZero(), "receiver unchanged on error")
 	})
 
@@ -134,7 +133,7 @@ func TestDate_UnmarshalJSON(t *testing.T) {
 		var d Date
 		err := d.UnmarshalJSON([]byte(`""`))
 		require.Error(t, err)
-		assert.True(t, errors.Is(err, errEmptyDate), "must wrap errEmptyDate")
+		require.ErrorIs(t, err, errEmptyDate, "must wrap errEmptyDate")
 		assert.True(t, d.IsZero(), "receiver unchanged on error")
 	})
 

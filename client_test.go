@@ -186,7 +186,7 @@ func TestClient_Close(t *testing.T) {
 		t.Parallel()
 		c := NewClient()
 		require.NotNil(t, c)
-		for i := 0; i < 5; i++ {
+		for i := range 5 {
 			assert.NoError(t, c.Close(),
 				"Close call %d must return nil (idempotent per CLIENT-08)", i+1)
 		}
@@ -198,7 +198,7 @@ func TestClient_Close(t *testing.T) {
 		require.NotNil(t, c)
 		var wg sync.WaitGroup
 		const N = 100
-		for i := 0; i < N; i++ {
+		for range N {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
@@ -261,7 +261,7 @@ func TestClient_ConcurrentAccess(t *testing.T) {
 	// math/rand/v2.IntN (D-47 5-20 ms range) is concurrent-safe without
 	// seeding — preferred over math/rand v1 per CLAUDE.md What-NOT-to-Use.
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		time.Sleep(time.Duration(5+rand.IntN(15)) * time.Millisecond)
+		time.Sleep(time.Duration(5+rand.IntN(15)) * time.Millisecond) //nolint:gosec // G404: synthetic latency jitter, not cryptographic
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write(body)
 	}))
@@ -273,7 +273,7 @@ func TestClient_ConcurrentAccess(t *testing.T) {
 	errs := make([]error, N)
 	results := make([][]Country, N)
 
-	for i := 0; i < N; i++ {
+	for i := range N {
 		wg.Add(1)
 		go func(idx int) {
 			defer wg.Done()
@@ -283,7 +283,7 @@ func TestClient_ConcurrentAccess(t *testing.T) {
 	wg.Wait()
 
 	t.Run("all 50 calls succeed with identical payloads", func(t *testing.T) {
-		for i := 0; i < N; i++ {
+		for i := range N {
 			require.NoError(t, errs[i], "call %d failed: %v", i, errs[i])
 			require.NotEmpty(t, results[i], "call %d returned empty", i)
 			if i > 0 {
@@ -360,7 +360,7 @@ func TestClient_ConcurrentRetry_RaceClean(t *testing.T) {
 
 	var wg sync.WaitGroup
 	errs := make([]error, N)
-	for i := 0; i < N; i++ {
+	for i := range N {
 		wg.Add(1)
 		go func(idx int) {
 			defer wg.Done()
@@ -370,7 +370,7 @@ func TestClient_ConcurrentRetry_RaceClean(t *testing.T) {
 	wg.Wait()
 
 	t.Run("all N parallel retry-enabled calls succeed (race detector validates rand serialization)", func(t *testing.T) {
-		for i := 0; i < N; i++ {
+		for i := range N {
 			require.NoError(t, errs[i],
 				"call %d failed under concurrent retry — if `go test -race` flagged a data race on c.rand, the CR-01 fix has regressed", i)
 		}
@@ -432,7 +432,7 @@ func TestClient_FinalAttemptRespBodyDrained(t *testing.T) {
 
 		_, err := c.Countries(context.Background(), CountriesRequest{})
 		require.Error(t, err, "CheckRedirect rejection must surface as error")
-		assert.ErrorIs(t, err, injected,
+		require.ErrorIs(t, err, injected,
 			"injected CheckRedirect error must be wrapped via %%w so callers can errors.Is to it")
 		assert.Contains(t, err.Error(), "/Countries",
 			"path must appear in the error message (WR-05 path-carrying contract)")
@@ -492,7 +492,7 @@ func TestCtxSleep(t *testing.T) {
 		t.Parallel()
 		start := time.Now()
 		err := ctxSleep(context.Background(), 5*time.Millisecond)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.GreaterOrEqual(t, time.Since(start), 5*time.Millisecond,
 			"the sleep must actually elapse the requested duration on a live ctx")
 	})
@@ -540,7 +540,7 @@ func TestClient_RetryExhaustedPrefix(t *testing.T) {
 
 		_, err := c.Countries(context.Background(), CountriesRequest{})
 		require.Error(t, err)
-		assert.ErrorIs(t, err, injected,
+		require.ErrorIs(t, err, injected,
 			"underlying transport error must remain wrapped via %%w")
 		assert.NotContains(t, err.Error(), "retry exhausted",
 			"WR-03 contract: a single-attempt failure with WithRetry(5,_) must NOT prepend 'retry exhausted (5 attempts):' — no retries actually ran")
@@ -551,10 +551,10 @@ func TestClient_RetryExhaustedPrefix(t *testing.T) {
 	t.Run("retryable transport error exhausting all attempts retains retry-exhausted prefix", func(t *testing.T) {
 		t.Parallel()
 
-		// fakeNetErr with Timeout()==true is retryable per
+		// fakeNetError with Timeout()==true is retryable per
 		// shouldRetry — the loop runs to full exhaustion.
 		transport := roundTripperFunc(func(_ *http.Request) (*http.Response, error) {
-			return nil, &fakeNetErr{timeout: true}
+			return nil, &fakeNetError{timeout: true}
 		})
 		httpClient := &http.Client{Transport: transport}
 
@@ -613,7 +613,7 @@ func TestClient_ContextCancel(t *testing.T) {
 		// 30s WithTimeout while reducing flake under load.
 		assert.Less(t, elapsed, 500*time.Millisecond,
 			"ctx cancel must interrupt in-flight HTTP within 500 ms (CLIENT-09 target 100ms; CI slack); took %v", elapsed)
-		assert.True(t, errors.Is(err, context.Canceled),
+		assert.ErrorIs(t, err, context.Canceled,
 			"expected errors.Is(err, context.Canceled) to hold; got %v", err)
 	})
 }
@@ -689,7 +689,7 @@ func TestClient_NoCache_AllCallsHitNetwork(t *testing.T) {
 		c := NewClient(WithBaseURL(srv.URL)) // NO WithCache
 		t.Cleanup(func() { _ = c.Close() })
 
-		for i := 0; i < 3; i++ {
+		for range 3 {
 			_, err := c.Countries(context.Background(), CountriesRequest{})
 			require.NoError(t, err)
 		}
