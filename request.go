@@ -53,9 +53,9 @@ const apiErrorBodyCap = 4 << 10
 // error-bearing helpers.
 //
 // Post-decode validation is the caller's responsibility — doJSONGet does
-// NOT inspect the decoded value. PublicHolidays and SchoolHolidays will
-// call a separate validateHolidays helper (D-65, lands in Plan 04) on the
-// decode result before returning.
+// NOT inspect the decoded value. PublicHolidays and SchoolHolidays call
+// the validateHolidays helper (declared below in this file) on the decode
+// result before returning (D-65 / CL-12).
 func doJSONGet[T any](ctx context.Context, c *Client, path string, q url.Values) (T, error) {
 	var zero T
 	if ctx == nil {
