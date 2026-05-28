@@ -16,7 +16,6 @@
 //     deviation from ROADMAP success criterion #4's literal text so the
 //     iterator composes directly with Date math helpers (Equal/Before/After,
 //     DaysUntil) without conversion churn. Recorded as CL-11.
-
 package openholidays
 
 import (

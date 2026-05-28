@@ -8,7 +8,6 @@
 //
 // File scope is intentionally narrow (D-64): the SubdivisionsRequest type
 // and the endpoint method (≤ 30 lines). No HTTP plumbing is duplicated here.
-
 package openholidays
 
 import (

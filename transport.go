@@ -21,7 +21,6 @@
 // Neither transport is exported. Endpoint methods consume the chain via the
 // *http.Client returned by composeHTTPClient (Phase 2 plan 02 wires the
 // chain into Client construction).
-
 package openholidays
 
 import (

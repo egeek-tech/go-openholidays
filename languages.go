@@ -10,7 +10,6 @@
 // LanguagesRequest{} reproduces the upstream's unfiltered /Languages
 // response verbatim and is the recommended call shape when no filter
 // is needed.
-
 package openholidays
 
 import (

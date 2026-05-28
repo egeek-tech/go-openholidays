@@ -161,7 +161,7 @@ func TestClient_SchoolHolidays(t *testing.T) {
 
 	t.Run("4xx returns *APIError with detail Message", func(t *testing.T) {
 		t.Parallel()
-		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("Content-Type", "application/problem+json")
 			w.WriteHeader(http.StatusNotFound)
 			_, _ = w.Write([]byte(`{"detail": "Country not supported"}`))
@@ -187,7 +187,7 @@ func TestClient_SchoolHolidays(t *testing.T) {
 
 	t.Run("5xx with title fallback", func(t *testing.T) {
 		t.Parallel()
-		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("Content-Type", "application/problem+json")
 			w.WriteHeader(http.StatusInternalServerError)
 			_, _ = w.Write([]byte(`{"title": "Internal Server Error"}`))
@@ -213,7 +213,7 @@ func TestClient_SchoolHolidays(t *testing.T) {
 
 	t.Run("malformed JSON wraps decode error (no sentinel)", func(t *testing.T) {
 		t.Parallel()
-		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			_, _ = w.Write([]byte(`{"this": "is not an array of Holiday"`)) // missing closing brace
 		}))
@@ -238,7 +238,7 @@ func TestClient_SchoolHolidays(t *testing.T) {
 		// Handler blocks until the client disconnects; the test cancels
 		// ctx after a short delay, exercising the in-flight cancellation
 		// path (CLIENT-09: within ≤ 100 ms).
-		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		srv := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
 			<-r.Context().Done()
 		}))
 		t.Cleanup(srv.Close)
@@ -319,7 +319,7 @@ func TestClient_SchoolHolidays(t *testing.T) {
 			"type":"School","name":[{"language":"en","text":"X"}],
 			"nationwide":true,"regionalScope":"National","temporalScope":"FullDay"
 		}]`
-		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			_, _ = w.Write([]byte(bad))
 		}))
@@ -365,7 +365,7 @@ func TestClient_SchoolHolidays_IsInRegion_FerieZimowe(t *testing.T) {
 	require.NoError(t, err, "fixture missing — re-capture from live API per Plan 03-05 Task 1 (captured %s)",
 		schoolHolidaysPL2025FixtureCapturedAt)
 
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write(body)
 	}))

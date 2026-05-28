@@ -27,6 +27,7 @@
 package openholidays
 
 import (
+	"context"
 	"errors"
 	"io"
 	"net/http"
@@ -72,12 +73,13 @@ func TestHookTransport_RoundTrip(t *testing.T) {
 		})
 		tr := &hookTransport{hook: hook, next: next}
 
-		req, err := http.NewRequest(http.MethodGet, "https://example.test/Countries", nil)
+		req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "https://example.test/Countries", nil)
 		require.NoError(t, err)
 
 		resp, err := tr.RoundTrip(req)
 		require.NoError(t, err, "next returned success — hookTransport must propagate")
 		require.NotNil(t, resp, "next returned a response — hookTransport must propagate")
+		defer func() { _ = resp.Body.Close() }()
 
 		assert.Equal(t, int32(1), calls.Load(),
 			"hook must be invoked exactly once per round trip (D-88)")
@@ -105,10 +107,13 @@ func TestHookTransport_RoundTrip(t *testing.T) {
 		})
 		tr := &hookTransport{hook: hook, next: next}
 
-		req, err := http.NewRequest(http.MethodGet, "https://example.test/Countries", nil)
+		req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "https://example.test/Countries", nil)
 		require.NoError(t, err)
 
 		resp, err := tr.RoundTrip(req)
+		if resp != nil {
+			defer func() { _ = resp.Body.Close() }()
+		}
 		assert.Nil(t, resp, "hookTransport must propagate nil resp on next error")
 		require.Error(t, err, "hookTransport must propagate next's error")
 		assert.Equal(t, "boom", err.Error(), "error must propagate verbatim (no decoration)")
@@ -134,13 +139,14 @@ func TestHookTransport_RoundTrip(t *testing.T) {
 		})
 		tr := &hookTransport{hook: nil, next: next}
 
-		req, err := http.NewRequest(http.MethodGet, "https://example.test/Countries", nil)
+		req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "https://example.test/Countries", nil)
 		require.NoError(t, err)
 
 		require.NotPanics(t, func() {
 			resp, rtErr := tr.RoundTrip(req)
 			require.NoError(t, rtErr, "nil hook must not affect next's success return")
 			require.NotNil(t, resp, "nil hook must pass through next's resp")
+			defer func() { _ = resp.Body.Close() }()
 			assert.Equal(t, http.StatusOK, resp.StatusCode,
 				"nil hook must NOT modify or replace next's response")
 		})
@@ -190,14 +196,17 @@ func TestHookTransport_FiresPerAttempt(t *testing.T) {
 		}
 		tr := &hookTransport{hook: hook, next: next}
 
-		req, err := http.NewRequest(http.MethodGet, "https://example.test/Countries", nil)
+		req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "https://example.test/Countries", nil)
 		require.NoError(t, err)
 
 		// Manually invoke RoundTrip three times — simulates the retry loop
 		// in doJSONGet which dispatches a fresh c.http.Do per attempt. The
 		// hook must fire on each.
 		for range 3 {
-			_, _ = tr.RoundTrip(req)
+			resp, _ := tr.RoundTrip(req)
+			if resp != nil {
+				_ = resp.Body.Close()
+			}
 		}
 
 		assert.Equal(t, int32(3), serverHits.Load(),
@@ -232,10 +241,13 @@ func TestHookTransport_PanicPropagates(t *testing.T) {
 		})
 		tr := &hookTransport{hook: panickyHook, next: next}
 
-		req, err := http.NewRequest(http.MethodGet, "https://example.test/Countries", nil)
+		req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "https://example.test/Countries", nil)
 		require.NoError(t, err)
 
 		assert.PanicsWithValue(t, "oops", func() {
+			// nolint:bodyclose // the hook panics before RoundTrip returns,
+			// so the response body never reaches the caller and cannot be
+			// closed here. The panic itself is the asserted behavior.
 			_, _ = tr.RoundTrip(req)
 		}, "panic in user hook MUST propagate — library does not defer/recover (D-90)")
 	})
@@ -271,10 +283,13 @@ func TestHookTransport_NilSafeOnTransportError(t *testing.T) {
 		}
 		tr := &hookTransport{hook: hook, next: next}
 
-		req, err := http.NewRequest(http.MethodGet, "https://example.test/Countries", nil)
+		req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "https://example.test/Countries", nil)
 		require.NoError(t, err)
 
-		_, err = tr.RoundTrip(req)
+		resp, err := tr.RoundTrip(req)
+		if resp != nil {
+			_ = resp.Body.Close()
+		}
 		require.Error(t, err, "RoundTrip must surface the transport error")
 		assert.Equal(t, "net failure", err.Error(),
 			"transport error must propagate verbatim")

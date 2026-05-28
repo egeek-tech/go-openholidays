@@ -9,7 +9,6 @@
 // the maxResponseBytes / apiErrorBodyCap constants live here too — their
 // natural home is the shared pipeline, not the Countries-specific endpoint
 // file.
-
 package openholidays
 
 import (

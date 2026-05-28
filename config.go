@@ -24,7 +24,6 @@
 //
 // No init() and no package-level vars — keeps the CLIENT-10 AST audit in
 // internal_test.go green without modification to its allowlist.
-
 package openholidays
 
 import (

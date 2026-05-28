@@ -113,7 +113,7 @@ func TestClient_Languages(t *testing.T) {
 
 	t.Run("4xx returns *APIError with Path /Languages", func(t *testing.T) {
 		t.Parallel()
-		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("Content-Type", "application/problem+json")
 			w.WriteHeader(http.StatusNotFound)
 			_, _ = w.Write([]byte(`{"detail":"Language not supported"}`))
@@ -135,7 +135,7 @@ func TestClient_Languages(t *testing.T) {
 
 	t.Run("5xx with title fallback", func(t *testing.T) {
 		t.Parallel()
-		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("Content-Type", "application/problem+json")
 			w.WriteHeader(http.StatusInternalServerError)
 			_, _ = w.Write([]byte(`{"title":"Internal Server Error"}`))
@@ -156,7 +156,7 @@ func TestClient_Languages(t *testing.T) {
 
 	t.Run("malformed JSON returns decode error (not sentinel)", func(t *testing.T) {
 		t.Parallel()
-		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 			// Truncated array opener — json.Decoder.Decode surfaces a

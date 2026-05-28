@@ -161,7 +161,7 @@ func TestClient_Subdivisions(t *testing.T) {
 
 	t.Run("4xx returns *APIError with Path /Subdivisions", func(t *testing.T) {
 		t.Parallel()
-		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("Content-Type", "application/problem+json")
 			w.WriteHeader(http.StatusNotFound)
 			_, _ = w.Write([]byte(`{"detail": "Country not supported"}`))
@@ -183,7 +183,7 @@ func TestClient_Subdivisions(t *testing.T) {
 
 	t.Run("5xx with title fallback", func(t *testing.T) {
 		t.Parallel()
-		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("Content-Type", "application/problem+json")
 			w.WriteHeader(http.StatusInternalServerError)
 			_, _ = w.Write([]byte(`{"title": "Internal Server Error"}`))
@@ -205,7 +205,7 @@ func TestClient_Subdivisions(t *testing.T) {
 
 	t.Run("malformed JSON returns decode error", func(t *testing.T) {
 		t.Parallel()
-		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 			_, _ = w.Write([]byte(`not valid`))

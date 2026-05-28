@@ -2,6 +2,7 @@ package openholidays
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -71,11 +72,12 @@ func TestLoggingTransport_RoundTrip(t *testing.T) {
 			}),
 		}
 
-		req, err := http.NewRequest(http.MethodGet, "https://example.test/Countries", nil)
+		req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "https://example.test/Countries", nil)
 		require.NoError(t, err)
 
-		_, err = l.RoundTrip(req)
+		resp, err := l.RoundTrip(req)
 		require.NoError(t, err)
+		defer func() { _ = resp.Body.Close() }()
 
 		var rec map[string]any
 		require.NoError(t, json.Unmarshal(buf.Bytes(), &rec),
@@ -111,11 +113,12 @@ func TestLoggingTransport_RoundTrip(t *testing.T) {
 			}),
 		}
 
-		req, err := http.NewRequest(http.MethodGet, "https://example.test/Countries", nil)
+		req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "https://example.test/Countries", nil)
 		require.NoError(t, err)
 
-		_, err = l.RoundTrip(req)
+		resp, err := l.RoundTrip(req)
 		require.NoError(t, err)
+		defer func() { _ = resp.Body.Close() }()
 
 		var rec map[string]any
 		require.NoError(t, json.Unmarshal(buf.Bytes(), &rec))
@@ -140,10 +143,13 @@ func TestLoggingTransport_RoundTrip(t *testing.T) {
 			}),
 		}
 
-		req, err := http.NewRequest(http.MethodGet, "https://example.test/Countries", nil)
+		req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "https://example.test/Countries", nil)
 		require.NoError(t, err)
 
 		resp, err := l.RoundTrip(req)
+		if resp != nil {
+			defer func() { _ = resp.Body.Close() }()
+		}
 		require.Error(t, err, "network error must propagate to the caller")
 		assert.Nil(t, resp, "loggingTransport must propagate nil response on next error")
 
@@ -176,11 +182,12 @@ func TestLoggingTransport_RoundTrip(t *testing.T) {
 			}),
 		}
 
-		req, err := http.NewRequest(http.MethodGet, "https://example.test/Countries", nil)
+		req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "https://example.test/Countries", nil)
 		require.NoError(t, err)
 
-		_, err = l.RoundTrip(req)
+		resp, err := l.RoundTrip(req)
 		require.NoError(t, err)
+		defer func() { _ = resp.Body.Close() }()
 
 		// OBS-01 / Pitfall OBS-1: the response body must never be read inside
 		// loggingTransport. If a future change introduced Read/ReadAll/Copy

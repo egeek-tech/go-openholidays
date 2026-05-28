@@ -24,7 +24,6 @@
 // and returns (false, nil) instead of looping forever. Per RESEARCH.md
 // Pitfall 4 and ASVS V5.1.4. The cap is regression-locked by the
 // cycle-enforcement subtest in TestClient_IsInRegion.
-
 package openholidays
 
 import (

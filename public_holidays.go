@@ -13,7 +13,6 @@
 // "required + optional + post-decode" validator chain (D-54 / D-56) and is
 // the canonical analog for the SchoolHolidays endpoint that lands later in
 // Wave 1 with one additional optional field.
-
 package openholidays
 
 import (

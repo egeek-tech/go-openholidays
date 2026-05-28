@@ -18,7 +18,6 @@
 // All three renderers share the same lang argument so Holiday.NameFor can
 // resolve the localized name with the same language preference used by the
 // upstream filter (--lang xx flag in every subcommand).
-
 package main
 
 import (

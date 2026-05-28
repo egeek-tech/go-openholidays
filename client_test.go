@@ -260,7 +260,7 @@ func TestClient_ConcurrentAccess(t *testing.T) {
 	// Synthetic delay simulates real network latency without flake risk.
 	// math/rand/v2.IntN (D-47 5-20 ms range) is concurrent-safe without
 	// seeding — preferred over math/rand v1 per CLAUDE.md What-NOT-to-Use.
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		time.Sleep(time.Duration(5+rand.IntN(15)) * time.Millisecond) //nolint:gosec // G404: synthetic latency jitter, not cryptographic
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write(body)

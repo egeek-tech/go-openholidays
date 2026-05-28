@@ -53,7 +53,7 @@ func TestWithHTTPClient(t *testing.T) {
 		// RESEARCH OQ-2: composeHTTPClient's shallow copy must preserve
 		// every non-Transport field on the caller's *http.Client.
 		custom := &http.Client{
-			CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
 				return http.ErrUseLastResponse
 			},
 		}

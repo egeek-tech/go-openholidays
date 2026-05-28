@@ -6,7 +6,6 @@
 // with its six constants. JSON tags match the upstream camelCase wire shape
 // exactly. Phase 2's endpoint methods decode upstream bytes directly into
 // these structs; Phase 3 helpers operate on them.
-
 package openholidays
 
 import "strings"

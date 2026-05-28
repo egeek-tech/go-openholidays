@@ -3,7 +3,6 @@
 // This file implements the custom Date wrapper that every Holiday.StartDate
 // and Holiday.EndDate field will use. Date is the foundational type for all
 // subsequent Phase 1 work beyond errors.
-
 package openholidays
 
 import (

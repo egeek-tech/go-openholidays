@@ -5,7 +5,6 @@
 // ErrResponseTooLarge (CL-07); Phase 3 appends ErrMalformedResponse (CL-12,
 // D-66) for post-decode Holiday schema-drift detection by validateHolidays
 // in request.go.
-
 package openholidays
 
 import (
