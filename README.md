@@ -17,20 +17,32 @@ go get github.com/egeek-tech/go-openholidays
 ## Quickstart
 
 ```go
-c := openholidays.NewClient()
-defer c.Close()
-ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-defer cancel()
-hs, err := c.PublicHolidays(ctx, openholidays.PublicHolidaysRequest{
-    CountryIsoCode: "PL",
-    ValidFrom:      openholidays.NewDate(2025, time.January, 1),
-    ValidTo:        openholidays.NewDate(2025, time.December, 31),
-})
-if err != nil {
-    fmt.Println("error:", err)
-    return
+package main
+
+import (
+    "context"
+    "fmt"
+    "time"
+
+    "github.com/egeek-tech/go-openholidays"
+)
+
+func main() {
+    c := openholidays.NewClient()
+    defer func() { _ = c.Close() }()
+    ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+    defer cancel()
+    hs, err := c.PublicHolidays(ctx, openholidays.PublicHolidaysRequest{
+        CountryIsoCode: "PL",
+        ValidFrom:      openholidays.NewDate(2025, time.January, 1),
+        ValidTo:        openholidays.NewDate(2025, time.December, 31),
+    })
+    if err != nil {
+        fmt.Println("error:", err)
+        return
+    }
+    fmt.Printf("got %d Polish public holidays\n", len(hs))
 }
-fmt.Printf("got %d Polish public holidays\n", len(hs))
 ```
 
 The full surface — including every option and helper — is documented on [pkg.go.dev](https://pkg.go.dev/github.com/egeek-tech/go-openholidays). The runnable form of this quickstart lives at [`example_test.go`](./example_test.go) as `Example_quickstart`.
