@@ -159,14 +159,20 @@ func (t *cacheTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 		// ("the Response should be ignored when err != nil") holds.
 		return nil, fmt.Errorf("openholidays: cache: read response body: %w", readErr)
 	}
-	// Only cache when within the documented cap. A buf longer than
-	// maxResponseBytes (the LimitReader returned maxResponseBytes+1
-	// bytes) indicates upstream truncation territory and MUST NOT be
-	// cached — the downstream decoder's mid-truncation gate would
-	// reject it on every read.
-	if len(buf) <= maxResponseBytes {
-		t.cache.Put(key, buf)
+	// WR-08: when upstream exceeded maxResponseBytes (LimitReader returned
+	// maxResponseBytes+1 bytes), surface ErrResponseTooLarge from the
+	// cache transport rather than handing the oversized buffer to the
+	// downstream decoder. The cleaner contract: cacheTransport either
+	// caches the bytes (within cap) or errors — it never returns an
+	// oversized response. The downstream decoder's mid-truncation gate
+	// would catch this anyway, but routing the error through the cache
+	// layer keeps the prefix accurate and avoids subtle decoder behavior
+	// dependent on the cap.
+	if len(buf) > maxResponseBytes {
+		return nil, fmt.Errorf("openholidays: cache: response exceeded %d bytes: %w",
+			maxResponseBytes, ErrResponseTooLarge)
 	}
+	t.cache.Put(key, buf)
 	resp.Body = io.NopCloser(bytes.NewReader(buf))
 	resp.ContentLength = int64(len(buf))
 	return resp, nil
