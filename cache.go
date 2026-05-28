@@ -98,6 +98,17 @@ type MemoryCache struct {
 // a constructed-but-unused MemoryCache costs zero goroutines. Close is
 // idempotent (D-85) and safe to call from any goroutine concurrently —
 // the documented v1 cleanup idiom is defer client.Close().
+//
+// Caller contract on ttl (WR-02): callers MUST supply a positive ttl.
+// A non-positive ttl (ttl <= 0) produces a constructed-but-useless
+// cache — every Put stores an entry whose expiresAt is at or before
+// now, so every subsequent Get returns (nil, false), AND the sweeper
+// still spawns on first Put (wasting one goroutine for the cache's
+// lifetime). The WithCache(ttl) option correctly rejects ttl <= 0
+// (D-80); callers using NewMemoryCache directly via
+// WithCacheBackend(NewMemoryCache(ttl)) must validate ttl themselves.
+// NewMemoryCache does not panic on ttl <= 0 to preserve the library
+// contract that constructors never error.
 func NewMemoryCache(ttl time.Duration) *MemoryCache {
 	return newMemoryCacheWithClock(ttl, time.Now)
 }
