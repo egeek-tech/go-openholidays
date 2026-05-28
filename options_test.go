@@ -203,3 +203,116 @@ func TestWithStrictDecoding(t *testing.T) {
 			"strict-decoding must be OFF by default — upstream schema drifts and silent rejection would break consumers (Pitfall JSON-1)")
 	})
 }
+
+// TestWithRetry covers D-73 / D-74 / RESIL-01..05: the public WithRetry
+// option stores maxAttempts verbatim (including the <=0 disabled
+// sentinel) and applies the defaultBaseDelay fallback when the supplied
+// baseDelay is non-positive. The default-disabled invariant (no
+// WithRetry call → maxAttempts == 0) is locked too.
+func TestWithRetry(t *testing.T) {
+	t.Parallel()
+
+	t.Run("positive args stored verbatim", func(t *testing.T) {
+		t.Parallel()
+		c := NewClient(WithRetry(5, 100*time.Millisecond))
+		require.NotNil(t, c)
+		assert.Equal(t, 5, c.retry.maxAttempts,
+			"positive maxAttempts must be stored verbatim per D-74")
+		assert.Equal(t, 100*time.Millisecond, c.retry.baseDelay,
+			"positive baseDelay must be stored verbatim per D-74")
+		assert.Equal(t, defaultMaxRetryWait, c.retry.maxWait,
+			"WithRetry must seed maxWait to defaultMaxRetryWait when WithMaxRetryWait is not also called (D-74)")
+	})
+
+	t.Run("maxAttempts <= 0 stored as DISABLED (defensive symmetry with WithTimeout(0))", func(t *testing.T) {
+		t.Parallel()
+		c := NewClient(WithRetry(0, 100*time.Millisecond))
+		require.NotNil(t, c)
+		assert.Equal(t, 0, c.retry.maxAttempts,
+			"maxAttempts=0 must be stored verbatim — interpreted as DISABLED by the retry loop per D-74")
+	})
+
+	t.Run("baseDelay <= 0 falls back to defaultBaseDelay", func(t *testing.T) {
+		t.Parallel()
+		c := NewClient(WithRetry(3, 0))
+		require.NotNil(t, c)
+		assert.Equal(t, 3, c.retry.maxAttempts,
+			"maxAttempts must still be stored when baseDelay falls back to default")
+		assert.Equal(t, defaultBaseDelay, c.retry.baseDelay,
+			"baseDelay <= 0 must fall back to defaultBaseDelay (250ms) per D-74")
+	})
+
+	t.Run("negative baseDelay falls back to defaultBaseDelay", func(t *testing.T) {
+		t.Parallel()
+		c := NewClient(WithRetry(3, -1*time.Second))
+		require.NotNil(t, c)
+		assert.Equal(t, defaultBaseDelay, c.retry.baseDelay,
+			"negative baseDelay must fall back to defaultBaseDelay per D-74 (treat non-positive uniformly)")
+	})
+
+	t.Run("default Client (no WithRetry) has retry disabled", func(t *testing.T) {
+		t.Parallel()
+		c := NewClient()
+		require.NotNil(t, c)
+		assert.Equal(t, 0, c.retry.maxAttempts,
+			"default Client must have retry disabled — opt-in per D-74 / STATE.md")
+	})
+
+	t.Run("WithRetry followed by WithMaxRetryWait — last-wins on maxWait", func(t *testing.T) {
+		t.Parallel()
+		c := NewClient(
+			WithRetry(3, 100*time.Millisecond),
+			WithMaxRetryWait(5*time.Second),
+		)
+		require.NotNil(t, c)
+		assert.Equal(t, 5*time.Second, c.retry.maxWait,
+			"WithMaxRetryWait after WithRetry must overwrite the default maxWait (functional-options last-wins)")
+	})
+
+	t.Run("WithMaxRetryWait followed by WithRetry — WithRetry preserves caller-supplied maxWait", func(t *testing.T) {
+		t.Parallel()
+		c := NewClient(
+			WithMaxRetryWait(5*time.Second),
+			WithRetry(3, 100*time.Millisecond),
+		)
+		require.NotNil(t, c)
+		// WithRetry only seeds maxWait when cfg.retry.maxWait <= 0; a
+		// prior WithMaxRetryWait(5s) leaves it at 5s, so WithRetry
+		// must NOT clobber it. This is the D-74 "preserve caller
+		// intent" rule.
+		assert.Equal(t, 5*time.Second, c.retry.maxWait,
+			"WithRetry must preserve a caller-supplied positive maxWait from a prior WithMaxRetryWait call")
+	})
+}
+
+// TestWithMaxRetryWait covers D-74: positive duration stored verbatim;
+// non-positive duration falls back to defaultMaxRetryWait. The cap is
+// per-attempt, NOT cumulative (godoc-documented; not mechanically
+// checked here).
+func TestWithMaxRetryWait(t *testing.T) {
+	t.Parallel()
+
+	t.Run("positive d stored verbatim", func(t *testing.T) {
+		t.Parallel()
+		c := NewClient(WithMaxRetryWait(10 * time.Second))
+		require.NotNil(t, c)
+		assert.Equal(t, 10*time.Second, c.retry.maxWait,
+			"positive d must be stored verbatim per D-74")
+	})
+
+	t.Run("zero d falls back to defaultMaxRetryWait", func(t *testing.T) {
+		t.Parallel()
+		c := NewClient(WithMaxRetryWait(0))
+		require.NotNil(t, c)
+		assert.Equal(t, defaultMaxRetryWait, c.retry.maxWait,
+			"zero d must fall back to defaultMaxRetryWait (60s) per D-74 — calling WithMaxRetryWait(0) does NOT disable the cap")
+	})
+
+	t.Run("negative d falls back to defaultMaxRetryWait", func(t *testing.T) {
+		t.Parallel()
+		c := NewClient(WithMaxRetryWait(-1 * time.Second))
+		require.NotNil(t, c)
+		assert.Equal(t, defaultMaxRetryWait, c.retry.maxWait,
+			"negative d must fall back to defaultMaxRetryWait per D-74 (treat non-positive uniformly)")
+	})
+}

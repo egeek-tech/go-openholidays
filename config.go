@@ -10,13 +10,14 @@
 // shape (D-29: req → headerTransport → loggingTransport → underlying).
 //
 // Phase 4 additions in this file: the Cache interface (D-79), the
-// RequestHookFunc type (D-87), the retryConfig stub (D-77; Plan 03 fills
-// its fields), and five additive clientConfig fields (retry / cache /
-// cacheTTL / hook / strictDecoding). Phase 4 fills in retry/cache/hook/
-// strict config fields — buildTransport is edited in place by Plans 04
-// (cache) and 05 (hook); this plan only declares the types and config
-// fields, leaving buildTransport untouched so the Phase 2 chain order
-// remains in effect until cache/hook actually exist.
+// RequestHookFunc type (D-87), and five additive clientConfig fields
+// (retry / cache / cacheTTL / hook / strictDecoding). The retryConfig
+// struct itself lives in retry.go (Plan 03) so all retry types are
+// colocated in a single file. Phase 4 fills in retry/cache/hook/strict
+// config fields — buildTransport is edited in place by Plans 04 (cache)
+// and 05 (hook); this plan only declares the types and config fields,
+// leaving buildTransport untouched so the Phase 2 chain order remains
+// in effect until cache/hook actually exist.
 //
 // No init() and no package-level vars — keeps the CLIENT-10 AST audit in
 // internal_test.go green without modification to its allowlist.
@@ -45,12 +46,6 @@ type clientConfig struct {
 	hook           RequestHookFunc // D-87; nil = no hook
 	strictDecoding bool            // D-91
 }
-
-// retryConfig is the unexported retry policy carried by Client. Plan 03
-// fills in maxAttempts/baseDelay/maxWait. Declared as an empty struct in
-// Plan 02 so Client.retry has a non-interface type to embed without
-// forward-referencing the Plan 03 file (D-77).
-type retryConfig struct{}
 
 // Cache is the contract for any cache backend wired via WithCache or
 // WithCacheBackend (Plan 04). Implementations must be safe for concurrent
