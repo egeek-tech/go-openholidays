@@ -89,7 +89,7 @@
   5. `c := NewClient(WithStrictDecoding(true))` fails the decode when an upstream JSON response contains a field absent from our struct (verified with a fixture containing an injected `extra_unknown_field`); strict-decoding is OFF by default (lenient decode is the default, so adding upstream fields does not break consumers); ALL Phase 3 endpoint signatures and tests are untouched (no diff to `public_holidays.go` API surface).
 **Plans**: 6 plans
   - [x] 04-01-PLAN.md — Wave 0 test scaffold: clock_test.go with fakeClock (Now/Advance/Sleep) + race-free smoke test (D-95); unblocks retry + cache fake-clock tests
-  - [ ] 04-02-PLAN.md — Strict decoding + Client field plumbing: extends Client struct with 8 Phase 4 fields (closeOnce, nowFunc, sleepFunc, rand, strict, cache, requestHook, retry); declares Cache interface + RequestHookFunc + retryConfig stub; ships WithStrictDecoding(bool); adds ctxSleep + newClientRand helpers + newClientForTest seam (D-91/D-92/D-94/D-78/D-85)
+  - [x] 04-02-PLAN.md — Strict decoding + Client field plumbing: extends Client struct with 8 Phase 4 fields (closeOnce, nowFunc, sleepFunc, rand, strict, cache, requestHook, retry); declares Cache interface + RequestHookFunc + retryConfig stub; ships WithStrictDecoding(bool); adds ctxSleep + newClientRand helpers + newClientForTest seam (D-91/D-92/D-94/D-78/D-85)
   - [ ] 04-03-PLAN.md — Retry layer (retry.go): retryConfig (filled), shouldRetry, parseRetryAfter, computeBackoff + WithRetry(n, baseDelay) + WithMaxRetryWait(d); wraps c.http.Do inside doJSONGet (D-77 + RESIL-05); 10 tests (TestShouldRetry, TestParseRetryAfter, TestComputeBackoff, TestRetry_E2E_429Then500Then200, TestRetry_HonorsRetryAfter[Seconds|Date], TestRetry_CtxCancel, TestRetry_NeverRetriesCtxErrors, TestRetry_DeterministicClock, TestRetry_NotARoundTripper)
   - [ ] 04-04-PLAN.md — Cache layer (cache.go + transport_cache.go): MemoryCache + NewMemoryCache + sweeper goroutine + cacheTransport + isCacheablePath + CacheHitContextKey; WithCache(ttl) + WithCacheBackend(c Cache); buildTransport edit (cache above logging); allowedVars adds CacheHitContextKey (DEVIATION from CONTEXT.md D-97 step 6); composition tests for sweeper-stop, strict+cache, default-off, per-Client isolation (RESIL-06..09 + CLIENT-08 full wiring)
   - [ ] 04-05-PLAN.md — Hook RoundTripper (transport_hook.go): hookTransport (outermost per D-89) + WithRequestHook(fn); buildTransport edit (hook outermost when cfg.hook != nil); composition tests for fires-per-attempt, sees-cache-hits, does-not-fire-on-decode-error, panic-propagates (TRANS-05)
@@ -116,7 +116,7 @@
 | 1. Foundation | 6/6 | Complete   | 2026-05-27 |
 | 2. Transport | 4/4 | Complete   | 2026-05-27 |
 | 3. Endpoints & Helpers | 11/11 | Complete   | 2026-05-27 |
-| 4. Resilience | 1/6 | In Progress|  |
+| 4. Resilience | 2/6 | In Progress|  |
 | 5. Distribution | 0/0 | Not started | - |
 
 ---
