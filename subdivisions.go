@@ -85,6 +85,15 @@ type SubdivisionsRequest struct {
 // Concurrent use: the Client is immutable after NewClient, so Subdivisions
 // is safe to call from any goroutine without external synchronization
 // (CLIENT-07).
+//
+// Trust model (IN-04): the upstream is assumed to return only subdivisions
+// belonging to the requested country. The library does NOT post-decode-verify
+// the country prefix on Subdivision.Code values; a hostile or buggy upstream
+// that returns mixed-country codes would produce undefined behavior in
+// downstream helpers (in particular Client.IsInRegion's hierarchical walk,
+// which keys its parent-index by Subdivision.Code). The current v0.x scope
+// is intentionally trust-the-upstream; a post-decode country-prefix filter is
+// a v0.2 deviation candidate.
 func (c *Client) Subdivisions(ctx context.Context, req SubdivisionsRequest) ([]Subdivision, error) {
 	country, err := validateCountry(req.CountryIsoCode)
 	if err != nil {
