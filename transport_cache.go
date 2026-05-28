@@ -44,6 +44,7 @@ package openholidays
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 )
@@ -151,7 +152,12 @@ func (t *cacheTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, maxResponseBytes+1))
 	_ = resp.Body.Close()
 	if readErr != nil {
-		return nil, readErr
+		// CR-02: wrap with a layer prefix so consumers reading
+		// err.Error() can attribute the failure to the cache transport.
+		// The *http.Response is intentionally NOT returned — its body
+		// has been drained-and-closed above, so RoundTripper contract
+		// ("the Response should be ignored when err != nil") holds.
+		return nil, fmt.Errorf("openholidays: cache: read response body: %w", readErr)
 	}
 	// Only cache when within the documented cap. A buf longer than
 	// maxResponseBytes (the LimitReader returned maxResponseBytes+1
