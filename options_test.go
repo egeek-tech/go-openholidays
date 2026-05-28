@@ -8,9 +8,11 @@
 package openholidays
 
 import (
+	"context"
 	"io"
 	"log/slog"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -178,11 +180,20 @@ func TestWithTimeout(t *testing.T) {
 	})
 }
 
-// TestWithStrictDecoding covers D-91 / Pitfall JSON-1: strict-decoding is
-// OFF by default; WithStrictDecoding(true) flips the immutable c.strict
-// flag; WithStrictDecoding(false) stores false verbatim. The flag is
-// immutable after NewClient by design (no runtime toggle exists — see
-// D-91 + CL-15).
+// TestWithStrictDecoding covers D-91 / Pitfall JSON-1 + OBS-03 wire-level
+// behavior (D-92): strict-decoding is OFF by default; WithStrictDecoding(true)
+// flips the immutable c.strict flag AND causes json.Decoder.DisallowUnknownFields
+// to fire on the next endpoint call; WithStrictDecoding(false) stores false
+// verbatim. The flag is immutable after NewClient by design (no runtime
+// toggle exists — see D-91 + CL-15).
+//
+// WR-03 follow-up: the wire-level subtests "wire-level: rejects unknown
+// fields when strict (Countries)" and "wire-level: default lenient
+// (Countries)" were previously top-level TestWithStrictDecoding_RejectsUnknown
+// / TestWithStrictDecoding_DefaultLenient in client_test.go, in violation
+// of Gold Rule 3 (one TestXxx per production function). Demoted to subtests
+// here so the strict-decoding option's full contract — the construction-time
+// store AND the end-to-end behavior — lives under one TestXxx.
 func TestWithStrictDecoding(t *testing.T) {
 	t.Parallel()
 
@@ -208,6 +219,50 @@ func TestWithStrictDecoding(t *testing.T) {
 		require.NotNil(t, c)
 		assert.False(t, c.strict,
 			"strict-decoding must be OFF by default — upstream schema drifts and silent rejection would break consumers (Pitfall JSON-1)")
+	})
+
+	t.Run("wire-level: rejects unknown fields when strict (Countries)", func(t *testing.T) {
+		t.Parallel()
+		// OBS-03 wire-level (D-91 + D-92): WithStrictDecoding(true) Client
+		// sends every JSON response through json.Decoder.DisallowUnknownFields,
+		// so an upstream payload with a field absent from the destination Go
+		// struct surfaces a decode error containing the offending field name.
+		// The error path also confirms the existing request.go error-wrap
+		// ("openholidays: decode") stays intact.
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`[{"isoCode":"PL","extra_unknown_field":42,"name":[{"language":"en","text":"Poland"}]}]`))
+		}))
+		t.Cleanup(srv.Close)
+
+		c := NewClient(WithBaseURL(srv.URL), WithStrictDecoding(true))
+		_, err := c.Countries(context.Background(), CountriesRequest{})
+		require.Error(t, err, "strict mode must surface a decode error on unknown field")
+		assert.Contains(t, err.Error(), "extra_unknown_field",
+			"error message must name the offending field (json.Decoder.DisallowUnknownFields convention)")
+		assert.Contains(t, err.Error(), "openholidays: decode",
+			"existing request.go error-wrap prefix must be preserved (Phase 1 D-23 / Phase 3 D-62)")
+	})
+
+	t.Run("wire-level: default lenient (Countries accepts unknown fields)", func(t *testing.T) {
+		t.Parallel()
+		// Pitfall JSON-1 / D-91: a default-constructed Client MUST accept
+		// upstream JSON containing fields absent from the destination Go
+		// struct without error — the only reason this subtest exists is to
+		// lock the "OFF by default" invariant against accidental future flips.
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`[{"isoCode":"PL","extra_unknown_field":42,"name":[{"language":"en","text":"Poland"}]}]`))
+		}))
+		t.Cleanup(srv.Close)
+
+		c := NewClient(WithBaseURL(srv.URL)) // NO WithStrictDecoding
+		cs, err := c.Countries(context.Background(), CountriesRequest{})
+		require.NoError(t, err,
+			"default Client must accept unknown JSON fields (Pitfall JSON-1 — upstream adds fields routinely)")
+		require.Len(t, cs, 1, "decoded payload must produce exactly one Country")
+		assert.Equal(t, "PL", cs[0].IsoCode,
+			"known fields must decode normally even with an unknown sibling present")
 	})
 }
 

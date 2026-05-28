@@ -279,60 +279,6 @@ func TestNewClientForTest(t *testing.T) {
 	})
 }
 
-// TestWithStrictDecoding_RejectsUnknown covers OBS-03 wire-level behavior
-// (D-91 + D-92): the WithStrictDecoding(true) Client sends every JSON
-// response through json.Decoder.DisallowUnknownFields, so an upstream
-// payload with a field absent from the destination Go struct surfaces a
-// decode error containing the offending field name. The error path also
-// confirms the existing request.go error-wrap ("openholidays: decode")
-// stays intact.
-func TestWithStrictDecoding_RejectsUnknown(t *testing.T) {
-	t.Parallel()
-
-	t.Run("strict mode rejects unknown JSON fields", func(t *testing.T) {
-		t.Parallel()
-		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-			w.Header().Set("Content-Type", "application/json")
-			_, _ = w.Write([]byte(`[{"isoCode":"PL","extra_unknown_field":42,"name":[{"language":"en","text":"Poland"}]}]`))
-		}))
-		t.Cleanup(srv.Close)
-
-		c := NewClient(WithBaseURL(srv.URL), WithStrictDecoding(true))
-		_, err := c.Countries(context.Background(), CountriesRequest{})
-		require.Error(t, err, "strict mode must surface a decode error on unknown field")
-		assert.Contains(t, err.Error(), "extra_unknown_field",
-			"error message must name the offending field (json.Decoder.DisallowUnknownFields convention)")
-		assert.Contains(t, err.Error(), "openholidays: decode",
-			"existing request.go error-wrap prefix must be preserved (Phase 1 D-23 / Phase 3 D-62)")
-	})
-}
-
-// TestWithStrictDecoding_DefaultLenient covers Pitfall JSON-1 / D-91:
-// strict-decoding is OFF by default. A default-constructed Client MUST
-// accept upstream JSON containing fields absent from the destination Go
-// struct without error — the only reason this test exists is to lock the
-// "OFF by default" invariant against accidental future flips.
-func TestWithStrictDecoding_DefaultLenient(t *testing.T) {
-	t.Parallel()
-
-	t.Run("default Client accepts unknown JSON fields", func(t *testing.T) {
-		t.Parallel()
-		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-			w.Header().Set("Content-Type", "application/json")
-			_, _ = w.Write([]byte(`[{"isoCode":"PL","extra_unknown_field":42,"name":[{"language":"en","text":"Poland"}]}]`))
-		}))
-		t.Cleanup(srv.Close)
-
-		c := NewClient(WithBaseURL(srv.URL)) // NO WithStrictDecoding
-		cs, err := c.Countries(context.Background(), CountriesRequest{})
-		require.NoError(t, err,
-			"default Client must accept unknown JSON fields (Pitfall JSON-1 — upstream adds fields routinely)")
-		require.Len(t, cs, 1, "decoded payload must produce exactly one Country")
-		assert.Equal(t, "PL", cs[0].IsoCode,
-			"known fields must decode normally even with an unknown sibling present")
-	})
-}
-
 // countriesServer returns an httptest.Server that responds 200 with the
 // supplied body and increments hits on every request. Shared helper for
 // the Plan 04 cache composition tests below.
