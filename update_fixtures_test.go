@@ -249,10 +249,18 @@ func TestUpdateFixtures(t *testing.T) {
 			tmpDir := filepath.Join("testdata")
 			tmp, err := os.CreateTemp(tmpDir, c.fixture+".tmp-*")
 			require.NoError(t, err)
-			// Best-effort cleanup of the temp file even after a successful
-			// rename — Remove on the original temp name is a no-op when
-			// the rename has already moved the entry.
-			defer func() { _ = os.Remove(tmp.Name()) }()
+			// IN-05: defer Close alongside Remove so a require.NoError
+			// abort between CreateTemp and the explicit Close below does
+			// not leak the file handle until the test binary exits.
+			// Close on an already-closed file returns an error we ignore
+			// (the explicit Close below has already returned its error
+			// to require), so the doubled close is harmless. Remove on
+			// the original temp name is a no-op when the rename has
+			// already moved the entry.
+			defer func() {
+				_ = tmp.Close()
+				_ = os.Remove(tmp.Name())
+			}()
 
 			_, err = tmp.Write(pretty.Bytes())
 			require.NoError(t, err)
