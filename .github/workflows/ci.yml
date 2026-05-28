@@ -295,7 +295,13 @@ jobs:
           go-version: stable
           cache: true
 
+      # Inlined instead of `golang/govulncheck-action` because that
+      # composite action internally uses `actions/checkout@v4.1.1` and
+      # `actions/setup-go@v5.0.0` (tag pins) which the egeek-tech org
+      # policy rejects transitively. The action's body is small enough
+      # to inline — `go install` + a single `govulncheck` invocation.
+      - name: Install govulncheck
+        run: go install golang.org/x/vuln/cmd/govulncheck@latest
+
       - name: Run govulncheck
-        uses: golang/govulncheck-action@b625fbe08f3bccbe446d94fbf87fcc875a4f50ee  # v1.0.4
-        with:
-          go-package: ./...
+        run: govulncheck ./...
