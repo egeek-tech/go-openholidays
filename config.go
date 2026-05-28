@@ -118,8 +118,8 @@ func composeHTTPClient(cfg *clientConfig) *http.Client {
 	return &cp
 }
 
-// buildTransport composes the RoundTripper chain. Through Phase 4 Plan 04
-// (cache layer), the revised D-89 chain is:
+// buildTransport composes the RoundTripper chain. The full Phase 4 chain
+// per D-89 (revised — retry moved to the endpoint layer per RESIL-05) is:
 //
 //	req → [hookTransport] → [cacheTransport] → loggingTransport →
 //	      headerTransport → underlying
@@ -128,7 +128,12 @@ func composeHTTPClient(cfg *clientConfig) *http.Client {
 // custom Transport on their *http.Client, else the stdlib default. Layers
 // in square brackets are conditional on the corresponding option being
 // passed (WithCache/WithCacheBackend for cacheTransport; WithRequestHook
-// for hookTransport — Plan 05 adds the latter).
+// for hookTransport).
+//
+// hookTransport is OUTERMOST (D-89) so it observes every round trip —
+// including the synthetic *http.Response returned by cacheTransport on
+// cache hits. Consumers detect cache hits inside their hook via
+// req.Context().Value(openholidays.CacheHitContextKey).
 //
 // Composition order in code is INVERSE the documented chain order
 // because Go's RoundTripper decorator pattern wraps inside-out — the
@@ -154,8 +159,7 @@ func buildTransport(cfg *clientConfig) http.RoundTripper {
 	rt = &loggingTransport{logger: cfg.logger, next: rt}
 	// Phase 4 cache layer (D-89: above logging so cache-hit logs still
 	// emit — the loggingTransport above does NOT see a cache hit because
-	// cacheTransport short-circuits; the hookTransport above WILL see it
-	// once Plan 05 lands).
+	// cacheTransport short-circuits; the hookTransport above DOES see it).
 	if cfg.cache != nil {
 		rt = &cacheTransport{
 			cache:         cfg.cache,
@@ -163,11 +167,12 @@ func buildTransport(cfg *clientConfig) http.RoundTripper {
 			next:          rt,
 		}
 	}
-	// Phase 4 hook layer (D-89 outermost) — added by Plan 05 once
-	// hookTransport ships:
-	//
-	//   if cfg.hook != nil {
-	//       rt = &hookTransport{hook: cfg.hook, next: rt}
-	//   }
+	// Phase 4 hook layer — OUTERMOST per D-89 so it observes cache-hit
+	// synthetic responses returned by cacheTransport above. Elided
+	// entirely when cfg.hook is nil so non-observability callers pay zero
+	// overhead (no extra RoundTrip frame, no nil-check per request).
+	if cfg.hook != nil {
+		rt = &hookTransport{hook: cfg.hook, next: rt}
+	}
 	return rt
 }

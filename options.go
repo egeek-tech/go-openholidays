@@ -319,3 +319,73 @@ func WithCacheBackend(c Cache) Option {
 		}
 	}
 }
+
+// WithRequestHook supplies an observability hook function invoked after
+// every HTTP round trip the Client performs (D-87 / D-88 / D-89 / D-90 /
+// TRANS-05). The hook receives the (*http.Request, *http.Response, error)
+// triple produced by the RoundTripper chain. Use it to wire metrics
+// counters, distributed-tracing spans, or per-request audit logs into the
+// SDK without modifying it — the hook is the single observability seam
+// the library exposes.
+//
+// Hook contract (D-87..D-90):
+//
+//   - Fires AFTER every real HTTP round trip — including each retry attempt
+//     (retry lives in doJSONGet per RESIL-05, so each c.http.Do dispatch
+//     re-enters the chain; a 429→500→200 sequence triggers three hook
+//     invocations).
+//   - Fires on cache-hit synthetic responses too (D-88). cacheTransport
+//     stores cached bytes for /Countries, /Languages, /Subdivisions; on a
+//     hit it builds a synthetic *http.Response and the hook above sees it.
+//     Distinguish hits from real round trips via
+//     req.Context().Value(openholidays.CacheHitContextKey) — the value is
+//     the untyped boolean true on a hit, and absent (nil) on a miss.
+//   - Does NOT fire on decode errors. JSON decoding runs in doJSONGet
+//     AFTER the RoundTripper chain returns; a successful HTTP round trip
+//     whose body fails decode produces exactly one hook invocation (for
+//     the HTTP layer success), not two.
+//   - Does NOT fire on pre-HTTP failures (validateCountry rejecting an
+//     empty CountryIsoCode, validateDateRange rejecting a backwards window,
+//     etc.). No HTTP attempt → no hook.
+//
+// Synchronous-only contract (D-90 / Pitfall CONC-2): the hook runs on the
+// calling goroutine's stack. If you need asynchronous behavior, spawn a
+// goroutine inside your hook — but YOU own the goroutine and any leak.
+// Async-hook support (background queue with bounded buffer) is explicitly
+// deferred (CONTEXT.md `<deferred>`).
+//
+// Panic propagation (D-90 / mirrors stdlib http.Handler): a panicking hook
+// propagates the panic to the caller. The library does NOT use
+// defer/recover — silent recovery would hide bugs in consumer hooks.
+// Consumers wanting recovery wrap their hook body with their own
+// defer/recover; the library will never do it for them.
+//
+// Body invariant (Pitfall LOG-1 / OBS-01): the hook MUST NOT read resp.Body
+// — doing so depletes bytes before the downstream decoder runs in
+// doJSONGet. The hook also MUST NOT log resp.Body content above
+// slog.LevelDebug because that would leak payload data into operator logs
+// (PROJECT.md). Log method, URL, status, duration, attempt counters,
+// trace-context — never the body content.
+//
+// Nil-safe contract (D-88): on a transport-level failure (DNS error, TCP
+// reset, ctx cancel during request body write) the hook receives
+// (req, nil, err). Implementations MUST nil-check resp before accessing
+// any field on it.
+//
+// Chain placement (D-89): hookTransport is the OUTERMOST RoundTripper in
+// the chain, so it observes EVERY round trip the chain performs:
+//
+//	req → hookTransport → cacheTransport → loggingTransport →
+//	      headerTransport → underlying
+//
+// A nil fn is a no-op (mirrors WithHTTPClient(nil)) — the default Client
+// has no hook, and buildTransport elides the hookTransport layer entirely
+// when cfg.hook is nil so there is zero overhead for callers not using
+// observability.
+func WithRequestHook(fn RequestHookFunc) Option {
+	return func(cfg *clientConfig) {
+		if fn != nil {
+			cfg.hook = fn
+		}
+	}
+}
