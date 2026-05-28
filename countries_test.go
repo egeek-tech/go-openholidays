@@ -385,4 +385,3 @@ func TestClient_Countries(t *testing.T) {
 			"expected ErrInvalidLanguage via errors.Is, got %v", err)
 	})
 }
-

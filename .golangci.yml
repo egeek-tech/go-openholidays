@@ -76,5 +76,15 @@ linters:
         text: "G122"
         path: _test\.go
 formatters:
+  # golangci-lint v2 split formatters out of the `linters:` section. Without an
+  # explicit `enable:` here, NO formatting check runs — that gap let a
+  # gofmt-dirty file (countries_test.go trailing blank line) slip past CI
+  # while Go Report Card flagged it. Enable gofmt with the `-s` simplifications
+  # to keep CI and goreportcard in sync.
+  enable:
+    - gofmt
+  settings:
+    gofmt:
+      simplify: true
   exclusions:
     generated: lax
