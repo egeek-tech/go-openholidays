@@ -16,7 +16,7 @@
 - [x] **Phase 1: Foundation** — Domain types, custom `Date`, sentinel errors, `*APIError`, validators, `go.mod` at Go 1.23. (completed 2026-05-27)
 - [x] **Phase 2: Transport** — `Client`, functional options, RoundTripper chain (header + logging), first endpoint (Countries) end-to-end. (completed 2026-05-27)
 - [x] **Phase 3: Endpoints & Helpers** — Languages, Subdivisions, PublicHolidays, SchoolHolidays + `Holiday.Name/IsInRegion/Days/Range` helpers + golden fixtures. (completed 2026-05-27)
-- [ ] **Phase 4: Resilience** — Retry, cache, observability hook, strict-decoding, `Client.Close()` wiring — all as transparent middleware that does NOT modify Phase 3 method signatures.
+- [x] **Phase 4: Resilience** — Retry, cache, observability hook, strict-decoding, `Client.Close()` wiring — all as transparent middleware that does NOT modify Phase 3 method signatures. (completed 2026-05-28)
 - [ ] **Phase 5: Distribution** — `cmd/ohcli`, examples, fuzz, benchmarks, integration tests, CI matrix, golangci-lint, govulncheck, goreleaser, docs, `v0.1.0` tag.
 
 ---
@@ -93,7 +93,7 @@
   - [x] 04-03-PLAN.md — Retry layer (retry.go): retryConfig (filled), shouldRetry, parseRetryAfter, computeBackoff + WithRetry(n, baseDelay) + WithMaxRetryWait(d); wraps c.http.Do inside doJSONGet (D-77 + RESIL-05); 10 tests (TestShouldRetry, TestParseRetryAfter, TestComputeBackoff, TestRetry_E2E_429Then500Then200, TestRetry_HonorsRetryAfter[Seconds|Date], TestRetry_CtxCancel, TestRetry_NeverRetriesCtxErrors, TestRetry_DeterministicClock, TestRetry_NotARoundTripper)
   - [x] 04-04-PLAN.md — Cache layer (cache.go + transport_cache.go): MemoryCache + NewMemoryCache + sweeper goroutine + cacheTransport + isCacheablePath + CacheHitContextKey; WithCache(ttl) + WithCacheBackend(c Cache); buildTransport edit (cache above logging); allowedVars adds CacheHitContextKey (DEVIATION from CONTEXT.md D-97 step 6); composition tests for sweeper-stop, strict+cache, default-off, per-Client isolation (RESIL-06..09 + CLIENT-08 full wiring)
   - [x] 04-05-PLAN.md — Hook RoundTripper (transport_hook.go): hookTransport (outermost per D-89) + WithRequestHook(fn); buildTransport edit (hook outermost when cfg.hook != nil); composition tests for fires-per-attempt, sees-cache-hits, does-not-fire-on-decode-error, panic-propagates (TRANS-05)
-  - [ ] 04-06-PLAN.md — PROJECT.md Key Decisions append: CL-15 (Cache public surface) + CL-16 (strict-decoding immutability); DEVIATION from CONTEXT.md D-80 wording — Phase 3 already took CL-14, so cache uses CL-15 and strict uses CL-16
+  - [x] 04-06-PLAN.md — PROJECT.md Key Decisions append: CL-15 (Cache public surface) + CL-16 (strict-decoding immutability); DEVIATION from CONTEXT.md D-80 wording — Phase 3 already took CL-14, so cache uses CL-15 and strict uses CL-16
 
 ### Phase 5: Distribution
 **Goal**: Library is feature-complete and demonstrably production-ready: demo CLI dogfoods the public surface, fuzz/integration/benchmark tests are wired, CI matrix is green across Go 1.23/1.24/stable, docs render cleanly on `pkg.go.dev`, and `v0.1.0` ships via `goreleaser`.
@@ -116,7 +116,7 @@
 | 1. Foundation | 6/6 | Complete   | 2026-05-27 |
 | 2. Transport | 4/4 | Complete   | 2026-05-27 |
 | 3. Endpoints & Helpers | 11/11 | Complete   | 2026-05-27 |
-| 4. Resilience | 5/6 | In Progress|  |
+| 4. Resilience | 6/6 | Complete   | 2026-05-28 |
 | 5. Distribution | 0/0 | Not started | - |
 
 ---
