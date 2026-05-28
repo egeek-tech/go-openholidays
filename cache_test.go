@@ -97,6 +97,21 @@ func TestMemoryCache_GetPut(t *testing.T) {
 //
 // runtime.NumGoroutine() is the no-dep approach per D-96 (avoids adding
 // go.uber.org/goleak as a test-only dep).
+//
+// IN-02 (round 3) — accepted design choice: a deterministic alternative
+// using MemoryCache.sweepDone (the channel closed by `defer close(m.sweepDone)`
+// in sweepLoop) is available and is used by client_test.go's
+// "stops cache sweeper goroutine" subtest. Switching this test to that
+// channel would require re-architecting the lazy-start portion: there
+// is no "sweeper has started" channel — only a "sweeper has exited"
+// channel — so the start-observation half of this test STILL needs a
+// process-wide goroutine-count signal. Per the round-3 IN-02 finding,
+// the current state is documented and stable enough for v0.x. The
+// per-subtest grace windows (5ms / 10ms) and the +1 slack tolerance in
+// the sequential test combine to suppress flake on CI-loaded runners.
+// Future deterministic harness (e.g. an internal "sweeper started"
+// channel exposed for tests) is tracked as a follow-up if CI flake
+// rates emerge.
 func TestMemoryCache_SweeperLazyStart(t *testing.T) {
 	// NOTE: not t.Parallel() — runtime.NumGoroutine() delta checks are
 	// sensitive to other tests' goroutine churn. Running serially is the
@@ -166,6 +181,18 @@ func TestMemoryCache_TTLEviction(t *testing.T) {
 // TestMemoryCache_CloseIdempotent covers D-85 + Pitfall CONC-2: Close is
 // idempotent under sequential and concurrent invocations from many
 // goroutines.
+//
+// IN-02 (round 3) — accepted design choice: the concurrent-close
+// subtest uses runtime.NumGoroutine() because the 100-goroutine pile-up
+// has no per-goroutine completion signal short of waiting on sweepDone
+// (which would only confirm the sweeper exited once, not that 100
+// concurrent Close calls all completed). The wg.Wait() already locks
+// completion of all 100 close calls; the NumGoroutine assertion is a
+// secondary verification that the sweeper itself exited and that no
+// concurrent-close goroutine leaked. The +1 slack tolerance suppresses
+// flake on CI-loaded runners. A switch to sweepDone would lose the
+// "no leaked close goroutines" signal; the current design intentionally
+// keeps both.
 func TestMemoryCache_CloseIdempotent(t *testing.T) {
 	// NOTE: not t.Parallel() — the concurrent-close subtest uses
 	// runtime.NumGoroutine which is sensitive to other tests' goroutine
