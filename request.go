@@ -145,6 +145,21 @@ func doJSONGet[T any](ctx context.Context, c *Client, path string, q url.Values)
 		}
 	}
 	if httpErr != nil {
+		// WR-02: net/http.Client.Do can return BOTH a non-nil *Response
+		// AND a non-nil error — documented for CheckRedirect failures and
+		// reproducible via user-supplied custom RoundTrippers (e.g.
+		// third-party tracing middleware). The post-loop defer at line
+		// 167 only registers AFTER this block, so on the final-attempt
+		// httpErr branch the response body would leak its connection
+		// back to the keep-alive pool unused. Mirror the in-loop drain
+		// pattern (drain bounded by maxResponseBytes+1, then close) so
+		// the connection is returned to the pool cleanly. The in-loop
+		// path already nils resp on every non-final iteration, so resp
+		// here is the FINAL attempt's response only.
+		if resp != nil && resp.Body != nil {
+			_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, maxResponseBytes+1))
+			_ = resp.Body.Close()
+		}
 		// Retry exhaustion (maxAttempts > 1): wrap with the explicit
 		// retry-exhaustion prefix per D-77 so callers branching on
 		// errors.Is(err, ErrEmptyResponse) / errors.As(err, &APIError)

@@ -377,6 +377,68 @@ func TestClient_ConcurrentRetry_RaceClean(t *testing.T) {
 	})
 }
 
+// TestClient_FinalAttemptRespBodyDrained locks WR-02 defensive behavior:
+// when c.http.Do returns BOTH a non-nil *http.Response AND a non-nil
+// error (the documented "CheckRedirect rejected" shape from Go 1
+// compatibility — net/http issue 3795), doJSONGet's post-loop httpErr
+// block must drain + close the response body. Prior to the fix the
+// post-loop drain defer was registered AFTER the httpErr branch, so
+// this body bypassed the drain entirely.
+//
+// In modern Go stdlib (verified against go1.26 source) the redirect
+// machinery already closes the body before returning (see net/http
+// client.go's CheckRedirect failure branch — "The resp.Body has
+// already been closed."). The WR-02 drain is therefore belt-and-
+// suspenders: harmless on the in-tree path because Close on a closed
+// body is idempotent, but a meaningful defense against any future
+// stdlib change AND against the third-party-tracing-RoundTripper
+// scenario where a custom *http.Client.Transport could be substituted
+// for the default one.
+//
+// The test asserts the user-visible contract: a CheckRedirect
+// rejection MUST surface as an error wrapped via %%w so callers can
+// errors.Is to it. A direct "did the drain run" assertion is not
+// possible from outside the package because the stdlib hides the body
+// behind its own *bodyEOFSignal wrapper; the structural fix is
+// verified by reading request.go and confirming the drain block runs
+// before the httpErr return.
+func TestClient_FinalAttemptRespBodyDrained(t *testing.T) {
+	t.Parallel()
+
+	t.Run("CheckRedirect rejection produces wrapped error (WR-02 contract)", func(t *testing.T) {
+		t.Parallel()
+
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			// 302 with a body — net/http.Client.Do calls
+			// CheckRedirect, which rejects, and surfaces
+			// (resp, err) to doJSONGet. The body is closed
+			// pre-emptively by the stdlib redirect machinery; the
+			// WR-02 drain is the defensive call that runs after.
+			w.Header().Set("Location", "http://other.example/Countries")
+			w.WriteHeader(http.StatusFound)
+			_, _ = w.Write([]byte("redirect-body-payload"))
+		}))
+		t.Cleanup(srv.Close)
+
+		injected := errors.New("simulated CheckRedirect rejection")
+		httpClient := &http.Client{
+			CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
+				return injected
+			},
+		}
+
+		c := NewClient(WithBaseURL(srv.URL), WithHTTPClient(httpClient))
+		t.Cleanup(func() { _ = c.Close() })
+
+		_, err := c.Countries(context.Background(), CountriesRequest{})
+		require.Error(t, err, "CheckRedirect rejection must surface as error")
+		assert.ErrorIs(t, err, injected,
+			"injected CheckRedirect error must be wrapped via %%w so callers can errors.Is to it")
+		assert.Contains(t, err.Error(), "/Countries",
+			"path must appear in the error message (WR-05 path-carrying contract)")
+	})
+}
+
 // TestClient_ContextCancel verifies CLIENT-09 + D-48: ctx cancellation
 // interrupts in-flight HTTP within ≤ 100 ms (asserted at the 200 ms ceiling
 // for 2x CI slack); errors.Is(err, context.Canceled) holds through
