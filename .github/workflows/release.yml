@@ -1,0 +1,72 @@
+# go-openholidays — tag-triggered release workflow (CI-05 / REL-03 / D-11).
+#
+# Fires only on tag pushes matching `v*` (e.g. v0.1.0, v0.1.0-rc1). Tag
+# protection in repo settings restricts who can push these tags — out of
+# scope to enforce in YAML but documented in PROJECT.md.
+#
+# Two-step release:
+#   1. goreleaser/goreleaser-action@v6 with version "~> v2" reads
+#      .goreleaser.yaml at repo root, builds the 6-binary matrix, archives
+#      them, generates checksums.txt, and publishes a GitHub Release.
+#   2. actions/attest-build-provenance@v4 (NOT @v1 per Phase 5 RESEARCH
+#      Pitfall 2 — @v1/@v2/@v3 are deprecated wrappers) signs the
+#      ./dist/checksums.txt manifest. Because checksums.txt covers every
+#      binary by SHA-256, signing the manifest transitively attests every
+#      released binary without a per-binary attestation step.
+#
+# Permissions (REQUIRED for the attestation flow per docs.github.com):
+#   - contents: write — goreleaser uploads release assets.
+#   - id-token: write — Sigstore/Fulcio OIDC for keyless signing.
+#   - attestations: write — attach attestations to the release artifacts.
+#
+# Triggers deliberately omitted:
+#   - pull_request_target: NOT present (security best practice — would let
+#     a hostile fork PR run the release flow with elevated permissions).
+#   - workflow_dispatch: NOT present in v0.1.0 (tag-only policy is locked;
+#     manual dispatch can be added in v0.2.x if a need surfaces).
+#
+# Security note — no untrusted input is interpolated into any run: step.
+# The only step that sets env: is the goreleaser step, which receives the
+# default GITHUB_TOKEN scoped by the top-level permissions: block. No
+# `github.event.*` references, no head_ref, no author-controlled values.
+#
+# Action versions pinned per Phase 5 RESEARCH Source-current notes:
+# actions/checkout@v4, actions/setup-go@v5, goreleaser/goreleaser-action@v6,
+# actions/attest-build-provenance@v4.
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+jobs:
+  goreleaser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # required for goreleaser changelog generation
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+
+      - name: Run goreleaser
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: "~> v2"
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Attest binaries via subject-checksums
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-checksums: ./dist/checksums.txt
