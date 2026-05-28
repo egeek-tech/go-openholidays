@@ -89,6 +89,48 @@ func TestMemoryCache_GetPut(t *testing.T) {
 		require.True(t, ok, "Get after Put must return ok=true")
 		assert.Equal(t, []byte("v"), v, "Get must return the bytes previously stored via Put")
 	})
+
+	t.Run("Get returns defensive copy — caller mutation does not corrupt cache (IN-05)", func(t *testing.T) {
+		t.Parallel()
+		nc := NewMemoryCache(time.Hour)
+		t.Cleanup(func() { _ = nc.Close() })
+
+		original := []byte(`{"isoCode":"PL"}`)
+		nc.Put("k", original)
+
+		// First Get — mutate the returned slice.
+		v1, ok := nc.Get("k")
+		require.True(t, ok)
+		require.Equal(t, original, v1, "first Get must return the stored bytes")
+		// Mutate the returned slice.
+		v1[0] = 'X'
+
+		// Second Get — must return the original unmutated bytes.
+		v2, ok := nc.Get("k")
+		require.True(t, ok)
+		assert.Equal(t, original, v2,
+			"IN-05: caller mutation of the previously-returned slice MUST NOT corrupt the cache — subsequent Get must return the original bytes")
+		assert.NotEqual(t, v1, v2,
+			"IN-05: the two Get results must be independent buffers (defensive copy contract)")
+	})
+
+	t.Run("Put copies value — caller mutation after Put does not corrupt cache (IN-05)", func(t *testing.T) {
+		t.Parallel()
+		nc := NewMemoryCache(time.Hour)
+		t.Cleanup(func() { _ = nc.Close() })
+
+		buf := []byte(`{"isoCode":"PL"}`)
+		nc.Put("k", buf)
+
+		// Mutate the original slice AFTER Put — must not affect
+		// the cache.
+		buf[0] = 'X'
+
+		v, ok := nc.Get("k")
+		require.True(t, ok)
+		assert.Equal(t, []byte(`{"isoCode":"PL"}`), v,
+			"IN-05: Put must copy the supplied slice — caller mutation after Put must NOT corrupt the cached entry")
+	})
 }
 
 // TestMemoryCache_SweeperLazyStart locks the D-84 lazy-start invariant: the

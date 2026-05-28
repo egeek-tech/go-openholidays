@@ -65,10 +65,14 @@ type clientConfig struct {
 //
 // Get returns the cached value bytes and true on a hit, or nil and false
 // on a miss or on entries that have expired according to the cache's
-// internal clock. Put stores value under key; replacing an existing entry
-// at key is the cache's prerogative. Close is the best-effort shutdown
-// hook called from Client.Close — implementations should stop any
-// sweeper goroutine and return nil on the typical path.
+// internal clock. The returned slice is a defensive copy owned by the
+// caller — implementations MUST NOT return a reference to internal
+// storage. This frees callers to mutate or retain the returned slice
+// without corrupting cache state (IN-05). Put copies value into internal
+// storage; the caller may safely modify the supplied slice after Put
+// returns. Close is the best-effort shutdown hook called from
+// Client.Close — implementations should stop any sweeper goroutine and
+// return nil on the typical path.
 //
 // The interface is declared in Plan 02 (D-79) so Client.Close can call
 // c.cache.Close() without a build error; the MemoryCache implementation

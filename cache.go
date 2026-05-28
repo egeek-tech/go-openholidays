@@ -137,10 +137,19 @@ func newMemoryCacheWithClock(ttl time.Duration, nowFn func() time.Time) *MemoryC
 // on a miss or expired entry (D-81 lazy-expiration-on-read). Safe for
 // concurrent use.
 //
-// The RLock path is the hot path: a hit returns the slice without
-// acquiring the write lock. Stale entries are NOT deleted on Get —
-// deletion is the sweeper's responsibility — but they are reported as a
-// miss so callers observe the expected post-TTL behavior immediately.
+// The RLock path is the hot path: a hit returns a defensive copy of the
+// stored slice without acquiring the write lock. Stale entries are NOT
+// deleted on Get — deletion is the sweeper's responsibility — but they
+// are reported as a miss so callers observe the expected post-TTL
+// behavior immediately.
+//
+// IN-05: the returned slice is a defensive copy of the internal byte
+// buffer, NOT a reference. Callers may safely mutate or retain the
+// returned slice without corrupting cache state. The copy cost for the
+// typical 50-holiday JSON payload (<10 KiB) is negligible relative to
+// the alternative footgun where a caller mutating the returned slice
+// silently corrupts every subsequent cache read. This guarantee is
+// part of the Cache interface contract (config.go).
 func (m *MemoryCache) Get(key string) ([]byte, bool) {
 	m.mu.RLock()
 	e, ok := m.entries[key]
@@ -148,7 +157,10 @@ func (m *MemoryCache) Get(key string) ([]byte, bool) {
 	if !ok || m.nowFn().After(e.expiresAt) {
 		return nil, false
 	}
-	return e.value, true
+	// Defensive copy — see Cache interface godoc / IN-05.
+	out := make([]byte, len(e.value))
+	copy(out, e.value)
+	return out, true
 }
 
 // Put stores value under key with an expiresAt of now + ttl. The first
@@ -158,9 +170,17 @@ func (m *MemoryCache) Get(key string) ([]byte, bool) {
 //
 // Replacing an existing entry at key is supported and refreshes the TTL.
 // Safe for concurrent use.
+//
+// IN-05: Put stores a defensive copy of value, NOT a reference. Callers
+// may safely mutate or retain the supplied slice after Put returns
+// without corrupting cache state. This guarantee mirrors the Get-side
+// copy contract and is part of the Cache interface (config.go).
 func (m *MemoryCache) Put(key string, value []byte) {
+	// Defensive copy — see Cache interface godoc / IN-05.
+	stored := make([]byte, len(value))
+	copy(stored, value)
 	m.mu.Lock()
-	m.entries[key] = entry{value: value, expiresAt: m.nowFn().Add(m.ttl)}
+	m.entries[key] = entry{value: stored, expiresAt: m.nowFn().Add(m.ttl)}
 	m.mu.Unlock()
 	m.startOnce.Do(m.startSweeper)
 }
