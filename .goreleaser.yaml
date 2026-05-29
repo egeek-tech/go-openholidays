@@ -78,7 +78,15 @@ release:
   github:
     owner: egeek-tech
     name: go-openholidays
-  draft: false
+  # Keep the release as draft after asset upload — the consolidated
+  # release-please.yml workflow flips draft=false in a dedicated step
+  # AFTER attest-build-provenance has signed the checksums manifest.
+  # Reason: this repo's published releases are immutable (observed
+  # 422 "Cannot upload assets to an immutable release" on v0.2.2). If
+  # goreleaser un-drafted mid-pipeline, subsequent operations on the
+  # release (including attestation) would 422. Letting our workflow
+  # control the draft→published transition keeps the order correct.
+  draft: true
   prerelease: auto
 
 changelog:
