@@ -2,26 +2,48 @@
 #
 # Single job, two phases, in the same workflow run:
 #
-#   Phase 1 — Release Please:
+#   Phase 1 — Release Please (PR + tag only, NO GitHub Release):
 #     On every push to master, scans Conventional Commits since the
 #     last release tag and either:
 #       a) opens/updates a "Release PR" (when there are release-worthy
 #          commits since the last tag, but no Release PR is open yet),
-#       b) cuts the release when a Release PR is merged (creates the
-#          `vX.Y.Z` annotated tag + GitHub Release with auto-generated
-#          notes), `version.go` is rewritten via the
-#          `// x-release-please-version` marker, `CHANGELOG.md` is
-#          updated, `.release-please-manifest.json` is bumped.
+#       b) when a Release PR is merged: pushes the `vX.Y.Z` annotated
+#          tag, rewrites `version.go` via the
+#          `// x-release-please-version` marker, updates `CHANGELOG.md`
+#          and `.release-please-manifest.json`. With `skip-github-
+#          release: true`, the action does NOT create the GitHub Release
+#          object — that's goreleaser's job in Phase 2.
 #
-#   Phase 2 — Build + attest (gated on `release_created`):
-#     When Phase 1 cut a release in THIS run, the same job continues
-#     with goreleaser + attest-build-provenance. Phase 2 lives in
-#     the same job DELIBERATELY: a tag pushed by GITHUB_TOKEN does
-#     NOT trigger downstream workflows (GitHub anti-loop guard for
-#     GITHUB_TOKEN). Putting goreleaser in a separate workflow keyed
-#     on `push:tags:v*` therefore SILENTLY DROPS — observed during
-#     the v0.2.0 release: tag landed but no binaries were ever built.
-#     Same-job execution sidesteps the cascade entirely.
+#     Why skip GitHub Release here: this repo auto-marks published
+#     Releases as immutable (observed on v0.2.0..v0.2.3). An immutable
+#     release blocks POST /releases/:id/assets, which is exactly what
+#     goreleaser does next. Letting goreleaser create the release fresh
+#     means the whole draft → upload → publish lifecycle stays inside
+#     one mutable window.
+#
+#     Earlier attempt to use release-please's draft=true also failed —
+#     in draft mode the action ALSO skips pushing the tag (only creates
+#     a draft GH Release), leaving v0.2.4 / v0.3.0 as zombie drafts
+#     with no tag and the Phase 2 checkout step failing.
+#
+#   Phase 2 — Build + create release + attest (gated on `release_created`):
+#     When Phase 1 cut a tag in THIS run, the same job continues:
+#       - Check out the new tag (it exists because Phase 1 pushed it).
+#       - Goreleaser builds 6 binaries + checksums.txt, then creates a
+#         DRAFT GitHub Release (`release.draft: true` in
+#         .goreleaser.yaml) and uploads all 7 assets to it.
+#       - actions/attest-build-provenance signs ./dist/checksums.txt
+#         and attaches the attestation to the draft release.
+#       - Final step: `gh release edit vX.Y.Z --draft=false` flips the
+#         draft bit, which is the moment GitHub auto-marks the release
+#         immutable. By then every asset + attestation is already in
+#         place.
+#
+#     Phase 2 lives in the same job DELIBERATELY: a tag pushed by
+#     GITHUB_TOKEN does NOT trigger downstream workflows (GitHub anti-
+#     loop guard). The App token (Phase 1) DOES cascade, but keeping
+#     Phase 2 inline avoids the dependency on cascade-vs-no-cascade
+#     and keeps the release lifecycle in one journal.
 #
 # GitHub App identity (`egeek-tech-release-bot`, see docs/release-bot.md):
 #     release-please-action is given a token minted from the
@@ -100,18 +122,34 @@ jobs:
           client-id: ${{ secrets.RELEASE_BOT_APP_CLIENT_ID }}
           private-key: ${{ secrets.RELEASE_BOT_APP_PRIVATE_KEY }}
 
-      # PHASE 1 — release-please scans commits + manages tag/Release.
-      # The `token:` input swaps in the App-minted token so Release PRs
-      # are authored by `egeek-tech-release-bot[bot]` instead of
-      # github-actions[bot]. Without this swap, branch protection blocks
-      # merging because ci.yml never fires on the Release PR (anti-loop
-      # guard on GITHUB_TOKEN).
+      # PHASE 1 — release-please opens Release PRs and pushes tags.
+      #
+      # `skip-github-release: true` means release-please-action ONLY pushes
+      # the annotated tag `vX.Y.Z` when a Release PR is merged — it does
+      # NOT create the GitHub Release object. That's deliberate: this
+      # repo's published Releases are auto-marked immutable on creation
+      # (observed on v0.2.0..v0.2.3), and an immutable release blocks
+      # POST /releases/:id/assets, which is exactly what goreleaser does
+      # next. Letting goreleaser create the release from scratch in Phase
+      # 2 means the release goes through goreleaser's own draft → upload
+      # → publish lifecycle inside the same workflow, with no immutable
+      # collision.
+      #
+      # Earlier attempts to use release-please's draft=true did NOT work:
+      # in draft mode the action also skips pushing the tag (only creates
+      # a draft GH Release), which left v0.2.4 / v0.3.0 as zombie drafts
+      # with no tag and the checkout step failing.
+      #
+      # `token:` swaps in the App-minted token so the tag push + Release
+      # PR creation cascade ci.yml correctly (default GITHUB_TOKEN does
+      # NOT cascade per GitHub's anti-loop guard).
       - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7  # v5.0.0
         id: release
         with:
           token: ${{ steps.app-token.outputs.token }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
+          skip-github-release: true
 
       # PHASE 2 — runs ONLY when release-please cut a new release in
       # this run. `release_created` is the string "true" when a tag
@@ -158,16 +196,16 @@ jobs:
         with:
           subject-checksums: ./dist/checksums.txt
 
-      # Publish the release — release-please-config.json sets draft:true
-      # so the release stays mutable while goreleaser uploads assets +
-      # attest signs the checksums manifest. GitHub flips published
-      # releases to immutable automatically on this repo (observed on
-      # v0.2.0/v0.2.1/v0.2.2: the existing release returned 422 to every
-      # POST /assets), so the upload phase has to finish against a draft.
-      # After attestation lands we flip draft=false here, which is the
-      # transition that lets the release surface on the public Releases
-      # tab. Idempotent — `gh release edit --draft=false` on an already-
-      # published release is a no-op.
+      # Publish the release — goreleaser created the GH Release with
+      # `release.draft: true` per .goreleaser.yaml, then uploaded all
+      # assets to it. The attest step above attached attestation
+      # provenance to that same draft. Drafts are mutable on this repo;
+      # published releases auto-flip to immutable (observed on
+      # v0.2.0..v0.2.3: POST /assets returned 422 against an already-
+      # published immutable release). So all the writes have to land
+      # against the draft, and only after attestation succeeds do we
+      # flip the draft bit. `gh release edit --draft=false` on an
+      # already-published release is a no-op (idempotent).
       - name: Publish release (draft → published)
         if: ${{ steps.release.outputs.release_created }}
         env:
