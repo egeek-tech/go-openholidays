@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.2.3](https://github.com/egeek-tech/go-openholidays/compare/v0.2.2...v0.2.3) (2026-05-29)
+
+
+### Bug Fixes
+
+* **tests:** refresh fixtures + soften over-tight cardinality assertions ([34d281f](https://github.com/egeek-tech/go-openholidays/commit/34d281f7f9a706c5118e017e377eb9ae32527e38))
+* **tests:** refresh fixtures + soften over-tight cardinality assertions ([bd9be20](https://github.com/egeek-tech/go-openholidays/commit/bd9be20d3f7675f5face1d7befd3c8a036319547))
+
+
+### Documentation
+
+* **05-08:** rewrite release runbook + log CL-19 Go-floor decision ([626f64e](https://github.com/egeek-tech/go-openholidays/commit/626f64ef1ce93654d99404a73ad9c6239aebfaa5))
+
 ## [0.2.2](https://github.com/egeek-tech/go-openholidays/compare/v0.2.1...v0.2.2) (2026-05-29)
 
 

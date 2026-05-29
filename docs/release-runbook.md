@@ -1,232 +1,283 @@
 # Release Runbook — go-openholidays
 
-Single source of truth for cutting a tagged release of `go-openholidays`. Every step below
-is anchored to the workflow, config, or source file it depends on; follow them in order.
-This document is consumed by the human release operator — every section maps to one or
-more Phase 5 acceptance criteria (REL-01..04, DOC-07, CI-04).
+Single source of truth for cutting a tagged release of `go-openholidays`. Every step
+below is anchored to the workflow, config, or source file it depends on; follow them
+in order. This document is consumed by the human release operator — every section
+maps to one or more Phase 5 acceptance criteria (REL-01..04, DOC-07, CI-04).
+
+Release Please drives the actual tag/Release/CHANGELOG; the operator's role is to
+review the Release PR it opens, merge it, and verify the post-merge artifacts.
 
 Pipeline overview:
 
 ```
-local pre-tag checks           →  `git push origin v0.1.0`           →  release.yml fires
-                                                                          │
-                                                                          ├─ goreleaser (.goreleaser.yaml) builds 6 binaries + checksums.txt
-                                                                          └─ actions/attest-build-provenance@v4 signs ./dist/checksums.txt
-                                                                                                  │
-post-tag verification          ←  manual reads of pkg.go.dev, Go Report Card, gh attestation verify
+Conventional-Commit PRs merged to master
+                  │
+                  ▼
+   release-please.yml fires on push:master
+                  │
+                  ├─ no release-worthy commits since last tag → no-op
+                  │
+                  └─ release-worthy commits AND no open Release PR
+                              │
+                              ▼
+                  Release Please opens / updates a Release PR
+                  ("chore(master): release X.Y.Z")
+                              │
+       human reviews and merges the Release PR
+                              │
+                              ▼
+   release-please.yml fires again on push:master
+                              │
+                              ├─ Phase 1: tag vX.Y.Z + GitHub Release cut via API
+                              │
+                              └─ Phase 2 (gated on release_created):
+                                  ├─ checkout @ vX.Y.Z (fresh fetch — tag was just born)
+                                  ├─ goreleaser builds 6 binaries + checksums.txt
+                                  └─ actions/attest-build-provenance signs checksums.txt
+                              │
+              post-tag verification (manual reads of pkg.go.dev,
+              Go Report Card, gh attestation verify)
 ```
+
+The two phases live in the **same** job deliberately. A tag pushed by `GITHUB_TOKEN`
+does NOT trigger a downstream workflow keyed on `push:tags:v*` (GitHub's anti-loop
+guard). Putting goreleaser in a separate workflow silently drops; v0.2.0 hit this
+exact failure mode before the consolidation in PR #11 (commit 3b23874).
 
 ---
 
-## 1. Pre-tag checklist
+## 1. Pre-merge checklist (before merging a Release Please PR)
 
-Run every command from the repo root on the `main` branch. None of these steps mutate the
-remote — they are local readiness gates only.
+Run every command from the repo root on the `master` branch. None of these steps
+mutate the remote — they are local readiness gates only.
 
-- [ ] On `main`, fully synced with origin (`git status` clean, `git pull` is a no-op).
-- [ ] CI is green on the most recent `main` commit (visit the Actions tab; the `CI`
-      workflow matrix legs all pass on Go 1.23.x, 1.24.x, and `stable`).
-- [ ] `version.go` `Version` value matches the intended tag minus the `v` prefix
-      (e.g., for tag `v0.1.0` the source has `var Version = "0.1.0"`). The
-      `.goreleaser.yaml` `ldflags` use `{{ trimPrefix "v" .Version }}` so the release
-      binary's `User-Agent` matches the dev binary's exactly — W-05 invariant.
-- [ ] `go.mod` first line is `module github.com/egeek-tech/go-openholidays`. This
-      satisfies REL-04 (module path owner — confirmed 2026-05-28).
+- [ ] On `master`, fully synced with origin (`git status` clean, `git pull` is a no-op).
+- [ ] CI is green on the most recent `master` commit (visit Actions tab; the `CI`
+      workflow matrix legs all pass on Go 1.24.x, 1.25.x, and `stable`).
+- [ ] The Release Please PR diff matches expectations: `version.go` bump,
+      `CHANGELOG.md` entries grouped by Conventional-Commit prefix, and
+      `.release-please-manifest.json` updated. No production source changes
+      should appear in a Release PR.
+- [ ] `version.go` (post-merge) will satisfy the W-05 invariant — the literal value
+      matches the intended tag minus the `v` prefix (e.g. for tag `v0.3.0` the
+      source has `var Version = "0.3.0"`). Release Please writes this via the
+      `// x-release-please-version` marker; verify the diff manually.
+- [ ] `go.mod` first line is `module github.com/egeek-tech/go-openholidays` (REL-04 —
+      verified once at 2026-05-28; no follow-up edits expected).
 - [ ] `go test -race -coverprofile=coverage.out ./...` exits 0 locally; coverage ≥ 85 %.
       The exact gate CI enforces on the `stable` matrix leg.
-- [ ] `golangci-lint run` exits 0 locally (config: `.golangci.yml`, v2 schema,
-      27 enabled linters).
-- [ ] `govulncheck ./...` exits 0 locally.
-- [ ] `go test -run Example .` exits 0 (TEST-09 — every `// Output:` block in
-      `example_test.go` still matches). Includes `Example_quickstart`,
-      which must stay synchronized with the runnable `package main` snippet
-      in `README.md` (DOC-01 — paste-and-run substance must be byte-for-byte
-      equivalent).
-- [ ] (Optional) `goreleaser check` exits 0 if `goreleaser` is installed locally
-      (`goreleaser check` validates `.goreleaser.yaml` without building anything).
+- [ ] `golangci-lint run --max-issues-per-linter=0 --max-same-issues=0 ./...` exits 0.
+      Then re-run with `--build-tags=integration` to cover the integration build.
+- [ ] `govulncheck ./...` exits 0.
+- [ ] `go test -run Example .` exits 0 (TEST-09 — every `// Output:` block still
+      matches). Includes `Example_quickstart`, which must stay byte-for-byte
+      equivalent to the runnable `package main` snippet in `README.md` (DOC-01).
+- [ ] (Optional) `goreleaser check` exits 0 if `goreleaser` v2 is installed
+      locally — catches `.goreleaser.yaml` syntax errors before the workflow runs.
+      Note: `goreleaser check` does NOT validate template-function references in
+      ldflags; see Section 6 "Known issues" for the v0.2.1 incident.
 
 ---
 
-## 2. Dry-run rehearsal (strongly recommended for v0.1.0)
+## 2. Cutting the release
 
-The very first release is the riskiest — `release.yml` and `.goreleaser.yaml` have only
-been syntactically validated up to this point. Push a release-candidate tag from a side
-branch to exercise the pipeline end-to-end before the real tag goes out.
-
-1. Create a side branch from `main` and push an `-rc.1` tag:
-
-   ```bash
-   git checkout -b release-rehearsal
-   git tag v0.1.0-rc.1
-   git push origin v0.1.0-rc.1
-   ```
-
-2. Watch `release.yml` in the Actions tab. ETA ~3-5 min (cross-compile + attestation).
-
-3. When the workflow is green, confirm the GitHub Release for `v0.1.0-rc.1` carries:
-
-   - 6 binary archives (`ohcli_v0.1.0-rc.1_linux_amd64.tar.gz`, `_linux_arm64.tar.gz`,
-     `_darwin_amd64.tar.gz`, `_darwin_arm64.tar.gz`, `_windows_amd64.zip`,
-     `_windows_arm64.zip`), and
-   - 1 `checksums.txt` (SHA-256 manifest).
-
-4. Verify the attestation on at least one binary:
-
-   ```bash
-   gh attestation verify ohcli_v0.1.0-rc.1_linux_amd64.tar.gz \
-       --repo egeek-tech/go-openholidays
-   ```
-
-   Exit code must be 0; the output must say the binary is verified against the workflow
-   that built it.
-
-5. Clean up the rehearsal:
-
-   ```bash
-   git tag -d v0.1.0-rc.1
-   git push origin :refs/tags/v0.1.0-rc.1
-   ```
-
-   Delete the rc Release on GitHub if it was not auto-marked prerelease (the
-   `prerelease: auto` flag in `.goreleaser.yaml` should mark anything matching
-   `-rc.*` as prerelease automatically, but verify in the UI).
-
-Skip this section only for subsequent stable releases (v0.1.1, v0.2.0, …) where the
-release pipeline has been exercised successfully at least once.
-
----
-
-## 3. Tag push (the actual release)
-
-This is the only step that publishes anything to consumers. Do it once you are fully
-satisfied with Sections 1 and 2.
+The operator's action is to **merge the Release Please PR**. Release Please then
+tags `vX.Y.Z`, drafts the GitHub Release, and triggers Phase 2 of
+`release-please.yml` (goreleaser + attest-build-provenance) in the same workflow
+run.
 
 ```bash
-# Annotated tag (recommended — carries metadata; goreleaser accepts either form).
-git tag -a v0.1.0 -m "v0.1.0 — initial release"
-
-# Or non-annotated (also works):
-# git tag v0.1.0
-
-git push origin v0.1.0
+# From the GitHub UI on the Release PR, or via the CLI:
+gh pr merge <release-pr-number> --merge --repo egeek-tech/go-openholidays
 ```
 
-The push to `refs/tags/v0.1.0` is the trigger configured in `.github/workflows/release.yml`
-(`on: push: tags: ['v*']`). Watch the workflow in the Actions tab. ETA ~3-5 min.
+A merge commit is required (do not squash) — Release Please's automation reads
+the merge commit's metadata to confirm the release boundary. The repo's branch
+protection rules should already disallow squash on Release PRs.
+
+Watch `release-please.yml` in the Actions tab. ETA ~3-5 min for Phase 2
+(cross-compile + attestation). The run is the SAME workflow that fired when the
+Release PR was first opened; the second invocation runs Phase 2 because
+`steps.release.outputs.release_created` is now `"true"`.
 
 ---
 
-## 4. Post-tag verification matrix
+## 3. Post-tag verification matrix
 
-When `release.yml` is green, run every check in this table. Each row maps to a
-Phase 5 requirement that `.planning/phases/05-distribution/05-VALIDATION.md` flagged as
-manual-only because the underlying surface is an external service or a CLI that CI
-cannot reliably poll.
+When `release-please.yml` is green, run every check in this table. Each row maps
+to a Phase 5 requirement that `.planning/phases/05-distribution/05-VALIDATION.md`
+flagged as manual-only because the underlying surface is an external service or a
+CLI that CI cannot reliably poll.
 
 | Check | Command / URL | Expected | When |
 |-------|---------------|----------|------|
-| REL-03: GitHub Release artifacts present | `gh release view v0.1.0 --json assets \| jq '.assets \| length'` | `7` (6 binary archives + 1 `checksums.txt`); asset names match `ohcli_v0.1.0_*` | Immediately after `release.yml` green |
-| REL-03: Attestation verifiable from CLI | Download one binary, then `gh attestation verify ohcli_v0.1.0_linux_amd64.tar.gz --repo egeek-tech/go-openholidays` | Exit 0; output reports binary "verified" against this repo's workflow | Immediately after `release.yml` green |
-| REL-01: `pkg.go.dev` renders the package | Visit `https://pkg.go.dev/github.com/egeek-tech/go-openholidays@v0.1.0` | HTTP 200; no "no documentation" banner; every exported symbol renders; `Example_*` functions attached to their target symbols | Within 30 min of tag push (proxy lag — see Section 5) |
-| REL-02: Go Report Card grade A | Visit `https://goreportcard.com/report/github.com/egeek-tech/go-openholidays`; for badge only: `curl -fsS https://goreportcard.com/badge/github.com/egeek-tech/go-openholidays` | Grade A; green badge | Within 24 h of tag (first scan can be slow) |
-| DOC-07: pkg.go.dev godoc audit | On the pkg.go.dev page above, spot-check at least three exported symbols (e.g. `NewClient`, `Holiday.NameFor`, `HolidayType.IsKnown`) | Each section renders; no "Documentation: no" warnings; opening godoc line starts with the symbol name | Within 30 min of tag push |
+| REL-03: GitHub Release artifacts present | `gh release view vX.Y.Z --repo egeek-tech/go-openholidays --json assets \| jq '.assets \| length'` | `7` (6 binary archives + 1 `checksums.txt`); asset names match `ohcli_X.Y.Z_*` | Immediately after `release-please.yml` green |
+| REL-03: Attestation verifiable from CLI | Download one binary, then `gh attestation verify <archive> --repo egeek-tech/go-openholidays` | Exit 0; output reports the archive verified against this repo's workflow | Immediately after `release-please.yml` green |
+| REL-01: `pkg.go.dev` renders the package | Visit `https://pkg.go.dev/github.com/egeek-tech/go-openholidays@vX.Y.Z` | HTTP 200; no "no documentation" banner; every exported symbol renders; `Example_*` functions attached to their target symbols; `[pkg.Type]` doclinks render as clickable | Within 30 min of merge (proxy lag — see Section 4) |
+| REL-02: Go Report Card grade A | Visit `https://goreportcard.com/report/github.com/egeek-tech/go-openholidays`; for badge only: `curl -fsS https://goreportcard.com/badge/github.com/egeek-tech/go-openholidays` | Grade A; green badge | Within 24 h of merge (first scan can be slow) |
+| DOC-07: pkg.go.dev godoc audit | On the pkg.go.dev page above, spot-check at least three exported symbols (e.g. `NewClient`, `Holiday.NameFor`, `HolidayType.IsKnown`) | Each section renders; no "Documentation: no" warnings; opening godoc line starts with the symbol name | Within 30 min of merge |
 
 ---
 
-## 5. pkg.go.dev index trigger (mitigation for Pitfall 6)
+## 4. pkg.go.dev index trigger (mitigation for Pitfall 6)
 
-The Go module proxy fetches new tagged versions lazily. After a tag push, `pkg.go.dev`
-may report "no module found" for up to 30 min until the proxy is poked. The repository
-is already public (D-02 / 05-CONTEXT.md), so this is the only manual nudge required —
-no visibility flip step exists for v0.1.0.
+The Go module proxy fetches new tagged versions lazily. After a tag is created,
+`pkg.go.dev` may report "no module found" for up to 30 min until the proxy is
+poked. The repository is public (D-02 / 05-CONTEXT.md), so this is the only
+manual nudge required.
 
-If the page returns "no module found" 5 min after the tag push, force the proxy fetch:
+If the page returns "no module found" 5 min after the merge:
 
 ```bash
-curl -fsS https://pkg.go.dev/github.com/egeek-tech/go-openholidays@v0.1.0 -o /dev/null
+curl -fsS https://pkg.go.dev/github.com/egeek-tech/go-openholidays@vX.Y.Z -o /dev/null
 # Repeat with @latest if needed:
 curl -fsS https://pkg.go.dev/github.com/egeek-tech/go-openholidays@latest -o /dev/null
 ```
 
-If after 30 min the page still does not render, escalate — the most common root cause
-is a `go.mod` first-line mismatch with the actual module-import path users would use
-(verified clean in Section 1's bullet point).
+If after 30 min the page still does not render, escalate — the most common root
+cause is a `go.mod` first-line mismatch with the actual module-import path users
+would use (verified clean in Section 1).
 
-Reference: 05-RESEARCH.md §"Common Pitfalls → Pitfall 6" — pkg.go.dev 30-min index lag.
+Reference: 05-RESEARCH.md §"Common Pitfalls → Pitfall 6" — pkg.go.dev 30-min
+index lag.
 
 ---
 
-## 6. Rollback
+## 5. Rollback
 
-`release.yml` is idempotent on re-run: a transient failure (network blip, proxy
-hiccup, GitHub API 5xx) can be recovered by hitting "Re-run workflow" in the
-Actions tab. The goreleaser step uses `--clean`, which removes `./dist/` before
-rebuilding.
+`release-please.yml` is idempotent on re-run: a transient failure (network blip,
+proxy hiccup, GitHub API 5xx) can be recovered by hitting "Re-run workflow" in
+the Actions tab. The goreleaser step uses `--clean`, which removes `./dist/`
+before rebuilding.
 
 If the tagged release contains binaries you cannot ship (wrong version pin,
 attestation regression, accidental inclusion of a file, …), the only safe
-recovery is to delete the tag and re-issue:
+recovery is to **bump to the next patch** rather than reuse the tag — the Go
+module proxy caches versions, and any caller who already fetched `vX.Y.Z` via
+`go get` will see the bad artifact until their local module cache evicts.
 
 ```bash
-# Delete the GitHub Release (drops uploaded assets):
-gh release delete v0.1.0 --yes
-
-# Delete the tag remotely:
-git push origin :refs/tags/v0.1.0
-
-# Delete locally:
-git tag -d v0.1.0
-
-# Fix the issue on main, then either re-tag the same name (after fixing
-# whatever caused the bad release) or bump:
-git tag -a v0.1.1 -m "v0.1.1 — fixes broken v0.1.0"
-git push origin v0.1.1
+# Make whatever fix is needed on master via a regular PR with a Conventional-
+# Commit prefix that bumps version (fix: → patch, feat: → minor, ! suffix or
+# BREAKING CHANGE footer → major). Release Please will pick it up automatically
+# on the next merge to master and open a new Release PR.
 ```
 
-Note that the Go module proxy caches versions — if you reuse `v0.1.0`, callers
-who already fetched the broken module via `go get` may see the old artifact
-until their local module cache evicts. SemVer best practice in this situation
-is to bump to `v0.1.1` rather than reusing `v0.1.0`. The reuse path exists only
-as a last-resort for the first 5-10 minutes after a botched first push, before
-any consumer has fetched.
+Reusing a tag (`gh release delete` + `git push origin :refs/tags/vX.Y.Z`) is the
+absolute last-resort path and only viable in the first ~5 minutes after a botched
+merge, before any consumer has fetched. Do not use it after a tag has been
+public for any meaningful duration.
+
+---
+
+## 6. Known issues (must read before cutting v0.3.0+)
+
+### 6.1 `trimPrefix` goreleaser template — broke v0.2.1 binaries
+
+`.goreleaser.yaml` line 55 currently reads:
+
+```yaml
+ldflags:
+  - -X github.com/egeek-tech/go-openholidays.Version={{ trimPrefix "v" .Version }}
+```
+
+Goreleaser's template engine does **not** define a `trimPrefix` function;
+attempting to invoke it produces `template: failed to apply ...: function
+"trimPrefix" not defined` and aborts the build. This fired on the v0.2.1 release
+(workflow run `26605628217`) and on v0.2.0 (which also hit the standalone-tag
+cascade gap, so two distinct bugs masked each other). Net effect: **v0.2.0 and
+v0.2.1 GitHub Releases were created but carry zero binary assets and zero
+attestations**.
+
+The fix is to drop the `trimPrefix` call entirely — goreleaser's `.Version` is
+already the tag without the leading `v` per the official template docs, so the
+correct ldflag is:
+
+```yaml
+ldflags:
+  - -X github.com/egeek-tech/go-openholidays.Version={{ .Version }}
+```
+
+This is a one-line fix that should land in a `fix(release): drop unsupported
+trimPrefix template call` PR before the next release attempt. The next release
+will then be the first to ship signed binaries — treat that release like a v0.1.0
+dry-run (Section 7).
+
+### 6.2 v0.2.0 / v0.2.1 are tag-only releases
+
+For external consumers using `go get github.com/egeek-tech/go-openholidays@v0.2.1`
+the library code is intact and complete — `go get` reads the module from
+`proxy.golang.org` and does not touch the GitHub Release assets. Only the
+**CLI** ohcli binaries and their attestations are missing.
+
+If a user asks for an ohcli build for v0.2.x: instruct them to build from source
+(`go install github.com/egeek-tech/go-openholidays/cmd/ohcli@v0.2.1`) until the
+next release ships verified binaries.
+
+### 6.3 First-time binary release after the fix
+
+When the `trimPrefix` fix lands and the next Release PR is merged, the resulting
+release is effectively the project's first signed-binary release. Treat the
+post-tag verification matrix (Section 3) as a hard checkpoint — every row must
+pass before the milestone closes.
 
 ---
 
 ## 7. Post-release housekeeping
 
-After the human verifier in Section 4 has confirmed all rows pass:
+After the human verifier in Section 3 has confirmed all rows pass:
 
-- Update `version.go` to the next pre-release / development version:
+- Release Please will have already updated `version.go`, `CHANGELOG.md`, and
+  `.release-please-manifest.json` via the merged Release PR. No manual bump is
+  required. The next merged Conventional-Commit-prefixed PR (`feat:`, `fix:`,
+  etc.) triggers the next Release PR.
 
-  ```go
-  // version.go
-  var Version = "0.2.0-dev"
-  ```
+- Update `.planning/STATE.md` if the release closed a milestone — set
+  `progress.completed_phases` accordingly and mark the milestone `completed`.
 
-  Open a PR titled `chore: bump version to 0.2.0-dev`.
+- Optional post-release retrospective: note in `STATE.md` Session Continuity
+  what worked, what surprised you, and what remained gated on manual checks.
+  Especially valuable on the first signed-binary release after the §6.1 fix.
 
-- Update `STATE.md` milestone status to `completed` for the v0.1.0 milestone.
-
-- File a post-release retrospective per `.planning/RETROSPECTIVE.md` cadence if
-  the file exists; otherwise add a brief note to `STATE.md` under Session
-  Continuity describing what worked and what bit (especially anything about the
-  release pipeline that surprised you on the first real tag).
-
-- The `CHANGELOG.md` file is intentionally a one-line pointer to the GitHub
-  Releases page — `goreleaser` auto-generates per-release notes from
-  Conventional-Commit prefixes (`feat:`, `fix:`, `perf:`, …) per the
-  `changelog.groups` block in `.goreleaser.yaml`. No manual `CHANGELOG.md` edit
-  is required.
+- `CHANGELOG.md` is auto-managed by Release Please using the
+  `release-please-config.json` `release-as` and `bump-minor-pre-major` settings.
+  No manual `CHANGELOG.md` edit is required or accepted.
 
 ---
 
-## 8. References
+## 8. Release history (audit trail)
 
-- `.github/workflows/release.yml` — the workflow this runbook triggers (`on: push: tags: ['v*']`).
-- `.github/workflows/integration.yml` — nightly live-API integration suite (independent of releases; mentioned here only for completeness).
-- `.goreleaser.yaml` — drives the 6-binary build matrix, archive layout, and `checksums.txt`.
-- `version.go` — single source of truth for the `Version` literal; W-05 invariant pinned via `trimPrefix "v" .Version` in `.goreleaser.yaml` ldflags.
+| Tag | Date | Flow | Binaries | Notes |
+|-----|------|------|----------|-------|
+| v0.1.0 | — | (never cut) | — | Project decided to use Release Please bump-minor-pre-major; the first auto-cut was v0.2.0 |
+| v0.2.0 | 2026-05-28 | Standalone tag-trigger workflow | 0 | GITHUB_TOKEN cascade gap — separate goreleaser workflow keyed on `push:tags:v*` never fired |
+| v0.2.1 | 2026-05-28 | Consolidated workflow (PR #11) | 0 | Goreleaser failed: `template: function "trimPrefix" not defined` (§6.1) |
+| v0.3.0 (next) | TBD | Consolidated workflow + `trimPrefix` fix | (target: 7 assets) | Will be the first release to actually ship signed binaries |
+
+---
+
+## 9. References
+
+- `.github/workflows/release-please.yml` — the consolidated release workflow.
+  Phase 1 is googleapis/release-please-action; Phase 2 is gated on
+  `steps.release.outputs.release_created` and runs goreleaser +
+  attest-build-provenance.
+- `.github/workflows/ci.yml` — Go matrix tests + lint + govulncheck on every PR
+  and push to master.
+- `.github/workflows/integration.yml` — nightly live-API integration suite
+  (independent of releases; listed here only for completeness).
+- `.goreleaser.yaml` — drives the 6-binary build matrix, archive layout, and
+  `checksums.txt`. See §6.1 for the open `trimPrefix` issue.
+- `release-please-config.json` + `.release-please-manifest.json` — Release Please
+  configuration (`bump-minor-pre-major: true` pre-1.0).
+- `version.go` — single source of truth for the `Version` literal; written by
+  Release Please via the `// x-release-please-version` marker.
 - `go.mod` first line — `module github.com/egeek-tech/go-openholidays` (REL-04).
-- `.planning/phases/05-distribution/05-VALIDATION.md` §"Manual-Only Verifications" — canonical list of post-tag checks for REL-01..03 and DOC-07.
-- `.planning/phases/05-distribution/05-RESEARCH.md` §"Common Pitfalls → Pitfall 6" — pkg.go.dev 30-min index lag mitigation.
-- `.planning/PROJECT.md` Key Decisions CL-18 — Source-current action-version pins exercised by this pipeline.
+- `.planning/phases/05-distribution/05-VALIDATION.md` §"Manual-Only
+  Verifications" — canonical list of post-tag checks for REL-01..03 and DOC-07.
+- `.planning/phases/05-distribution/05-RESEARCH.md` §"Common Pitfalls →
+  Pitfall 6" — pkg.go.dev 30-min index lag mitigation.
+- `.planning/PROJECT.md` Key Decisions CL-18 — action-version policy.
+- `.planning/PROJECT.md` Key Decisions CL-19 — Go 1.24 floor + t.Context()
+  migration + Phase 5 lint additions.
