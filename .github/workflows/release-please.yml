@@ -39,8 +39,12 @@
 #       (b) Audit clarity. PRs authored by `egeek-tech-release-bot[bot]`
 #           are visually distinct from human-authored PRs and from
 #           default-GITHUB_TOKEN actions.
-#     Secrets consumed: RELEASE_BOT_APP_ID, RELEASE_BOT_APP_PRIVATE_KEY
-#     (org-level). Token is minted once at the top of the job and
+#     Secrets consumed: RELEASE_BOT_APP_CLIENT_ID, RELEASE_BOT_APP_PRIVATE_KEY
+#     (org-level). `app-id` was deprecated by create-github-app-token in
+#     favor of `client-id` (App's OAuth Client ID, distinct from the
+#     numeric App ID); the secret RELEASE_BOT_APP_ID is left in place for
+#     other consumers but no longer referenced by this workflow.
+#     Token is minted once at the top of the job and
 #     reused by every step that would otherwise reach for GITHUB_TOKEN
 #     for release-write operations (release-please-action, goreleaser
 #     env, gh release edit). First-party actions that use OIDC
@@ -93,7 +97,7 @@ jobs:
         id: app-token
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1  # v3.2.0
         with:
-          app-id: ${{ secrets.RELEASE_BOT_APP_ID }}
+          client-id: ${{ secrets.RELEASE_BOT_APP_CLIENT_ID }}
           private-key: ${{ secrets.RELEASE_BOT_APP_PRIVATE_KEY }}
 
       # PHASE 1 — release-please scans commits + manages tag/Release.
