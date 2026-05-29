@@ -306,15 +306,15 @@ func TestClient_ConcurrentAccess(t *testing.T) {
 // single Int64N call.
 //
 // The test fires N parallel Countries calls against a flaky server that
-// returns 503 on its first response and 200 thereafter. With WithRetry
-// enabled, every goroutine hits at least one 503, triggering a
+// returns 503 for the first N requests it sees and 200 thereafter. With
+// WithRetry enabled, every goroutine hits at least one 503, triggering a
 // computeBackoff (and therefore an rnd.Int64N). Under `go test -race`
 // the test fails immediately if c.rand is accessed without
 // synchronization. Under non-race builds the assertion is just "all
 // calls succeed" — the race detector is the load-bearing signal.
 //
 // Mirrors TestClient_ConcurrentAccess in shape but ADDS WithRetry +
-// uses the per-server-attempt counter to guarantee every goroutine
+// uses the first-N-fail server pattern to guarantee every goroutine
 // drives at least one retry path. The fakeClock seam is intentionally
 // NOT used here because the race occurs in the retry loop independent
 // of the sleep mechanism, and using a real sleepFunc with a short
@@ -326,20 +326,31 @@ func TestClient_ConcurrentRetry_RaceClean(t *testing.T) {
 	body, err := os.ReadFile(filepath.Join("testdata", "countries.json"))
 	require.NoError(t, err, "fixture missing — re-capture per Plan 02-03 Task 2")
 
-	// Server returns 503 on odd-numbered global attempts and 200 on
-	// even-numbered attempts. With maxAttempts=8 every goroutine
-	// eventually lands on an even-numbered attempt and succeeds, and
-	// most goroutines drive at least one 503 → retry → backoff cycle.
-	// The combination guarantees the race-sensitive code path
-	// (computeBackoff → c.rand.Int64N inside the c.randMu critical
-	// section) is exercised by concurrent goroutines. Under
-	// `go test -race`, an unsynchronized access to c.rand would be
-	// flagged immediately.
+	// Server returns 503 for the first N global requests and 200 for
+	// every request after that. Under N concurrent goroutine spawns +
+	// 1 ms baseDelay backoffs, the N first attempts arrive within
+	// microseconds (httptest round-trip on localhost is sub-millisecond)
+	// — well before any backoff timer elapses. So every goroutine
+	// deterministically sees 503 on its first attempt, retries through
+	// computeBackoff (exercising the race-sensitive c.rand.Int64N inside
+	// the c.randMu critical section), and observes 200 on its second
+	// attempt. Exhaustion of the 8-attempt budget for any single
+	// goroutine would require that goroutine to make 8 round trips
+	// before the other N-1 goroutines even queue their first — which
+	// the Go runtime scheduler does not produce under this workload.
+	//
+	// The previous odd-503/even-200 alternation was statistically flaky
+	// because the global counter advanced unpredictably during a
+	// goroutine's backoff (i.e. the parity it observed on its retry
+	// was effectively random), giving each attempt a ~50 % chance of
+	// 503 and a ~17 % per-run chance that SOME goroutine exhausted its
+	// 8-attempt budget. The first-N-fail design removes the random
+	// walk entirely.
 	const N = 50
 	var attempts atomic.Int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		n := attempts.Add(1)
-		if n%2 == 1 {
+		if n <= int32(N) {
 			w.WriteHeader(http.StatusServiceUnavailable)
 			return
 		}
@@ -348,9 +359,10 @@ func TestClient_ConcurrentRetry_RaceClean(t *testing.T) {
 	}))
 	t.Cleanup(srv.Close)
 
-	// maxAttempts=8 gives every goroutine ample budget — under the
-	// odd-503/even-200 pattern, a string of all-odd attempts is
-	// vanishingly unlikely past 4-5 tries. baseDelay 1 ms keeps the
+	// maxAttempts=8 gives every goroutine ample budget. Under the
+	// first-N-fail pattern only 2 attempts are needed in the steady
+	// state; the remaining budget is defensive headroom against any
+	// future scheduling pessimization on CI. baseDelay 1 ms keeps the
 	// test cheap.
 	c := NewClient(
 		WithBaseURL(srv.URL),
