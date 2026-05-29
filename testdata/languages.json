@@ -8,7 +8,7 @@
             },
             {
                 "language": "BE",
-                "text": "\u0431\u0435\u043b\u0430\u0440\u0443\u0441\u043a\u0456"
+                "text": "беларускі"
             },
             {
                 "language": "DE",
@@ -25,7 +25,7 @@
             },
             {
                 "language": "BG",
-                "text": "\u0411\u044a\u043b\u0433\u0430\u0440\u0441\u043a\u0438"
+                "text": "Български"
             },
             {
                 "language": "DE",
@@ -42,11 +42,11 @@
             },
             {
                 "language": "CA",
-                "text": "Catal\u00e0"
+                "text": "Català"
             },
             {
                 "language": "ES",
-                "text": "Catal\u00e1n"
+                "text": "Catalán"
             },
             {
                 "language": "DE",
@@ -63,7 +63,7 @@
             },
             {
                 "language": "CS",
-                "text": "\u010cesky"
+                "text": "Česky"
             },
             {
                 "language": "DE",
@@ -106,7 +106,7 @@
             },
             {
                 "language": "ES",
-                "text": "Espa\u00f1ol"
+                "text": "Español"
             },
             {
                 "language": "DE",
@@ -161,11 +161,11 @@
             },
             {
                 "language": "FR",
-                "text": "fran\u00e7ais"
+                "text": "français"
             },
             {
                 "language": "DE",
-                "text": "Franz\u00f6sisch"
+                "text": "Französisch"
             }
         ]
     },
@@ -233,7 +233,7 @@
             },
             {
                 "language": "HU",
-                "text": "Magyarorsz\u00e1g"
+                "text": "Magyarország"
             },
             {
                 "language": "DE",
@@ -267,7 +267,7 @@
             },
             {
                 "language": "LB",
-                "text": "L\u00ebtzebuergesch"
+                "text": "Lëtzebuergesch"
             },
             {
                 "language": "DE",
@@ -284,7 +284,7 @@
             },
             {
                 "language": "LT",
-                "text": "Lietuvi\u0173"
+                "text": "Lietuvių"
             },
             {
                 "language": "DE",
@@ -305,7 +305,7 @@
             },
             {
                 "language": "LV",
-                "text": "Latvie\u0161u"
+                "text": "Latviešu"
             },
             {
                 "language": "DE",
@@ -343,7 +343,7 @@
             },
             {
                 "language": "DE",
-                "text": "Niederl\u00e4ndisch"
+                "text": "Niederländisch"
             }
         ]
     },
@@ -373,7 +373,7 @@
             },
             {
                 "language": "PT",
-                "text": "Portugu\u00eas"
+                "text": "Português"
             },
             {
                 "language": "DE",
@@ -394,7 +394,7 @@
             },
             {
                 "language": "DE",
-                "text": "R\u00e4toromanisch"
+                "text": "Rätoromanisch"
             }
         ]
     },
@@ -407,11 +407,11 @@
             },
             {
                 "language": "RO",
-                "text": "Limba rom\u00e2n\u0103"
+                "text": "Limba română"
             },
             {
                 "language": "DE",
-                "text": "Rum\u00e4nisch"
+                "text": "Rumänisch"
             }
         ]
     },
@@ -424,7 +424,7 @@
             },
             {
                 "language": "RU",
-                "text": "\u0420\u0443\u0441\u0441\u043a\u0438\u0439"
+                "text": "Русский"
             },
             {
                 "language": "DE",
@@ -441,7 +441,7 @@
             },
             {
                 "language": "SK",
-                "text": "Slovensk\u00fd"
+                "text": "Slovenský"
             },
             {
                 "language": "DE",
@@ -492,7 +492,7 @@
             },
             {
                 "language": "SR",
-                "text": "\u0441\u0440\u043f\u0441\u043a\u0438"
+                "text": "српски"
             },
             {
                 "language": "DE",

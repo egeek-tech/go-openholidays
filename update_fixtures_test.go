@@ -183,7 +183,13 @@ func TestUpdateFixtures(t *testing.T) {
 		},
 		{
 			"/SchoolHolidays",
-			"countryIsoCode=PL&validFrom=2025-01-01&validTo=2025-12-31&languageIsoCode=EN",
+			// languageIsoCode=PL so Polish names ("Ferie zimowe", "Wiosenna
+			// przerwa świąteczna") land in the fixture — school_holidays_test.go
+			// asserts on the Polish names. The earlier capture used EN, which
+			// accidentally returned Polish because upstream did not yet honor
+			// the language param for SchoolHolidays; once upstream started
+			// honoring it the fixture went out of sync.
+			"countryIsoCode=PL&validFrom=2025-01-01&validTo=2025-12-31&languageIsoCode=PL",
 			"school_holidays_pl_2025.json",
 			nonEmptyJSONArray,
 		},
