@@ -106,3 +106,20 @@ jobs:
         uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32  # v4.1.0
         with:
           subject-checksums: ./dist/checksums.txt
+
+      # Publish the release — release-please-config.json sets draft:true
+      # so the release stays mutable while goreleaser uploads assets +
+      # attest signs the checksums manifest. GitHub flips published
+      # releases to immutable automatically on this repo (observed on
+      # v0.2.0/v0.2.1/v0.2.2: the existing release returned 422 to every
+      # POST /assets), so the upload phase has to finish against a draft.
+      # After attestation lands we flip draft=false here, which is the
+      # transition that lets the release surface on the public Releases
+      # tab. Idempotent — `gh release edit --draft=false` on an already-
+      # published release is a no-op.
+      - name: Publish release (draft → published)
+        if: ${{ steps.release.outputs.release_created }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.release.outputs.tag_name }}
+        run: gh release edit "$TAG" --draft=false --repo "$GITHUB_REPOSITORY"
