@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.4](https://github.com/egeek-tech/go-openholidays/compare/v0.2.3...v0.2.4) (2026-05-29)
+
+
+### Bug Fixes
+
+* **release:** adopt draft pattern to sidestep immutable-release 422 ([9280d62](https://github.com/egeek-tech/go-openholidays/commit/9280d62ae1a11dd60e050c36192a9d100d8affb9))
+
 ## [0.2.3](https://github.com/egeek-tech/go-openholidays/compare/v0.2.2...v0.2.3) (2026-05-29)
 
 
