@@ -259,3 +259,15 @@ If you do not know something with confidence, do not write it as if you do. Eith
 - `require` for preconditions (aborts the case), `assert` for verifications (reports without aborting).
 
 Approved test-only dependencies: `github.com/stretchr/testify` (primary), `github.com/google/go-cmp` (deep-equal diffs when testify is insufficient). Any further test-only dep requires explicit user approval and a `Key Decisions` entry in PROJECT.md.
+
+### Rule 4 — Published releases and tags are immutable; fix forward only
+
+Once a release tag (`vX.Y.Z`) has been pushed to origin OR a GitHub Release has been transitioned out of draft state, both are **frozen**. The only sanctioned response when something is wrong with a published release is to cut a new release that supersedes it — never delete, never rewrite, never amend.
+
+**Forbidden**: `git push --force` on tag refs, `git push origin :refs/tags/vX.Y.Z`, `gh release delete` on non-draft releases, editing a published release's body / title / assets, force-pushing master after a tag has been cut from it, amending a `CHANGELOG.md` entry for an already-published version.
+
+**Allowed**: discarding a release while it is still `draft: true` (drafts are not yet reachable by consumers); cutting a new release that supersedes a broken one (`v0.2.5` supersedes broken `v0.2.4`); adding clarifying entries to `docs/release-runbook.md` §8 "Release history" describing what went wrong.
+
+**Why**: `go get` and the Go module proxy cache module bytes by `(module, version)` — once any caller has fetched a version, those bytes persist in their cache regardless of upstream changes. SLSA / sigstore attestations chain to specific commit + tag + workflow run; rewriting a tag breaks every attestation that referenced it. Audit logs reference prior state by SHA. Trust signal degrades on every silent rewrite.
+
+**Recovery from a bad release**: leave it; open a `fix:` PR; let Release Please cut the next version; document the bad release in `docs/release-runbook.md` §8 (and §6 if it's a recurring class). Precedents on this repo: `v0.2.0`, `v0.2.1`, `v0.2.2` ship with zero binary assets due to various pipeline bugs; `v0.2.4` is a stray draft from an aborted release run. **None have been deleted or rewritten.** `v0.2.3`, `v0.2.5+` are the fix-forward responses; the broken releases stay as audit trail.

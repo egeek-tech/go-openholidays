@@ -89,6 +89,43 @@ func TestClient_PublicHolidays(t *testing.T) {
 }
 ```
 
+### Rule 4 — Published releases and tags are immutable; fix forward only
+
+Once a release tag (`vX.Y.Z`) has been pushed to origin, it is **frozen**. Once a GitHub Release has been transitioned out of draft to published state, it is **frozen**. The only sanctioned action on a frozen release is to read it; the only sanctioned response when something is wrong with one is to cut a new release that supersedes it.
+
+**Forbidden**:
+- `git push --force` on any tag ref under `refs/tags/v*`
+- `git push origin :refs/tags/vX.Y.Z` (deleting a tag from origin)
+- `gh release delete vX.Y.Z` on a release that is NOT in draft state
+- Editing the body / notes / title / asset list of a published release
+- "Re-issuing" a tag with different content (delete + recreate)
+- Force-pushing master after a release tag has been cut from it
+- Amending a `CHANGELOG.md` entry that corresponds to an already-published version (write a new entry that documents the fix instead)
+
+**Allowed**:
+- Discarding a release that is still `draft: true` — drafts are not yet reachable by consumers, so cleaning them up is a one-time pre-publication action. Example: the v0.2.4 zombie draft was deletable in the window before any consumer fetched.
+- Cutting a new release that supersedes a broken one (`v0.2.5` supersedes `v0.2.4`; the broken release stays as historical record).
+- Adding clarifying comments to `docs/release-runbook.md` §8 "Release history" describing what went wrong with a prior release.
+
+**Why**:
+- `go get` and the Go module proxy cache module bytes by `(module, version)`. Once any caller has fetched `vX.Y.Z`, the bytes they pulled are committed to their local cache and the upstream proxy keeps serving them indefinitely. Rewriting a tag does **not** retract those bytes — it just makes the upstream and downstream disagree.
+- SLSA / sigstore attestations chain to the specific commit + tag + workflow run that produced them. Rewriting a tag breaks every attestation that referenced it; `gh attestation verify` against the rewritten artifact would fail with a transparency-log mismatch.
+- Branch protection bypass logs and audit logs reference prior state by SHA. Rewriting introduces "ghost" entries the audit cannot cross-reference.
+- Trust signal: "we ship and stand behind our releases" beats "we ship and silently rewrite when something looks wrong" by a wide margin for OSS consumers evaluating the library.
+
+**How to recover from a bad release** (the only sanctioned path):
+1. Do not delete or rewrite the bad tag/release. Leave it as historical record.
+2. Open a `fix:` PR with the correct change.
+3. Let Release Please cut the next version (e.g. `v0.2.5` supersedes a broken `v0.2.4`).
+4. Document the bad release in `docs/release-runbook.md` §8 "Release history" and (if helpful) §6 "Known issues" so future operators know what happened.
+
+**Precedents (proof this rule is load-bearing)**:
+- `v0.2.0` shipped with 0 binary assets (GITHUB_TOKEN cascade gap)
+- `v0.2.1` shipped with 0 binary assets (goreleaser `trimPrefix` template bug)
+- `v0.2.2` shipped with 0 binary assets (immutable-release 422 on goreleaser upload)
+- `v0.2.4` is a stray draft created by an aborted release run
+- **None of these have been deleted or rewritten**. `v0.2.3`, `v0.2.5+` are the fix-forward responses; the broken releases remain on the Releases tab as audit trail.
+
 ## Style
 
 ### Em-dashes ("—", U+2014) in godoc and Markdown are deliberate
@@ -118,4 +155,4 @@ across every file or to ship a lint rule that prevents re-introduction.
 These conventions are the floor, not the ceiling. New conventions discovered during implementation (idioms, lint rules, fixture patterns, naming schemes) belong in this file. Update freely and commit.
 
 ---
-*Last updated: 2026-05-28 — style section added documenting em-dash decision.*
+*Last updated: 2026-05-29 — Rule 4 added: published releases and tags are immutable; fix forward only.*
