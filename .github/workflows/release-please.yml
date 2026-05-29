@@ -21,8 +21,31 @@
 #     GITHUB_TOKEN). Putting goreleaser in a separate workflow keyed
 #     on `push:tags:v*` therefore SILENTLY DROPS — observed during
 #     the v0.2.0 release: tag landed but no binaries were ever built.
-#     Same-job execution sidesteps the cascade entirely; no PAT,
-#     no GitHub App token, no repository_dispatch round-trip.
+#     Same-job execution sidesteps the cascade entirely.
+#
+# GitHub App identity (`egeek-tech-release-bot`, see docs/release-bot.md):
+#     release-please-action is given a token minted from the
+#     egeek-tech-release-bot GitHub App via actions/create-github-app-
+#     token. Two reasons:
+#       (a) Cascading CI on Release PRs. When release-please opens its
+#           PR using the default GITHUB_TOKEN, the GitHub anti-loop
+#           guard blocks the ci.yml downstream workflow from firing on
+#           that PR — so required status checks (lint, tests matrix,
+#           govulncheck) never run and branch protection holds the PR
+#           BLOCKED indefinitely. PR #21 / v0.2.4 release sat in this
+#           state for hours. A GitHub App is a separate principal and
+#           its actions DO cascade workflows, so the Release PR gets
+#           a normal CI matrix run.
+#       (b) Audit clarity. PRs authored by `egeek-tech-release-bot[bot]`
+#           are visually distinct from human-authored PRs and from
+#           default-GITHUB_TOKEN actions.
+#     Secrets consumed: RELEASE_BOT_APP_ID, RELEASE_BOT_APP_PRIVATE_KEY
+#     (org-level). Token is minted once at the top of the job and
+#     reused by every step that would otherwise reach for GITHUB_TOKEN
+#     for release-write operations (release-please-action, goreleaser
+#     env, gh release edit). First-party actions that use OIDC
+#     (attest-build-provenance) or only read (checkout, setup-go) keep
+#     the default GITHUB_TOKEN.
 #
 # Permissions union of both phases:
 #   - contents:      write  (release-please cuts tag/Release; goreleaser uploads assets)
@@ -39,6 +62,10 @@
 #   * Trigger is push to master only — code that ran this workflow has
 #     already passed PR review.
 #   * No untrusted event-payload values reach a `run:` step.
+#   * The App private key never leaves the runner — actions/create-
+#     github-app-token exchanges it for a short-lived (1 hour) repo-
+#     scoped token at job start, and only that token is passed to
+#     downstream steps.
 name: Release
 
 on:
@@ -58,10 +85,27 @@ jobs:
       id-token: write
       attestations: write
     steps:
+      # Mint a short-lived (1 h) token from the egeek-tech-release-bot
+      # GitHub App. Reused by every step below that needs to write to
+      # the repo as the bot principal. See docs/release-bot.md for the
+      # full setup + operator runbook.
+      - name: Mint GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1  # v3.2.0
+        with:
+          app-id: ${{ secrets.RELEASE_BOT_APP_ID }}
+          private-key: ${{ secrets.RELEASE_BOT_APP_PRIVATE_KEY }}
+
       # PHASE 1 — release-please scans commits + manages tag/Release.
+      # The `token:` input swaps in the App-minted token so Release PRs
+      # are authored by `egeek-tech-release-bot[bot]` instead of
+      # github-actions[bot]. Without this swap, branch protection blocks
+      # merging because ci.yml never fires on the Release PR (anti-loop
+      # guard on GITHUB_TOKEN).
       - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7  # v5.0.0
         id: release
         with:
+          token: ${{ steps.app-token.outputs.token }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
 
@@ -95,7 +139,10 @@ jobs:
           version: "~> v2"
           args: release --clean
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Use the App token so the asset uploads are attributed to
+          # the bot, matching the principal that drafted the release in
+          # Phase 1.
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
 
       # Sign the checksums manifest, not each binary — checksums.txt
       # SHA-256-fingerprints every released archive, so attesting the
@@ -120,6 +167,8 @@ jobs:
       - name: Publish release (draft → published)
         if: ${{ steps.release.outputs.release_created }}
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # App token keeps the un-draft transition attributed to the
+          # same principal as the rest of the release.
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
           TAG: ${{ steps.release.outputs.tag_name }}
         run: gh release edit "$TAG" --draft=false --repo "$GITHUB_REPOSITORY"
