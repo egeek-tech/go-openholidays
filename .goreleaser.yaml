@@ -78,15 +78,25 @@ release:
   github:
     owner: egeek-tech
     name: go-openholidays
-  # Keep the release as draft after asset upload — the consolidated
-  # release-please.yml workflow flips draft=false in a dedicated step
-  # AFTER attest-build-provenance has signed the checksums manifest.
-  # Reason: this repo's published releases are immutable (observed
-  # 422 "Cannot upload assets to an immutable release" on v0.2.2). If
-  # goreleaser un-drafted mid-pipeline, subsequent operations on the
-  # release (including attestation) would 422. Letting our workflow
-  # control the draft→published transition keeps the order correct.
+  # Stay in draft through asset upload + attestation — published releases
+  # on this repo are auto-marked immutable, which blocks both. The final
+  # `gh release edit --draft=false` in release-please.yml flips the draft
+  # bit only after every write has succeeded.
   draft: true
+  # Adopt the draft GH Release that release-please-action created for
+  # this tag (config: draft: true + force-tag-creation: true → tag is
+  # pushed first via git/refs, then a draft release is created on it).
+  # Without this flag goreleaser would POST a second release for the
+  # same tag and collide. Verified: goreleaser github.go:547
+  # switches to findDraftRelease() when use_existing_draft is true.
+  use_existing_draft: true
+  # Overwrite the draft's body. release-please-action writes a body from
+  # its own commit walker which gets unbounded when a previous version
+  # has no real git tag on origin (observed: v0.3.0 draft body was 227
+  # lines back to BoM). goreleaser's body is bounded by the previous git
+  # tag on origin and filtered by `changelog.filters.exclude` below.
+  # Verified: release_notes.go:9-10 — `case ReleaseNotesModeReplace: return current`.
+  mode: replace
   prerelease: auto
 
 changelog:

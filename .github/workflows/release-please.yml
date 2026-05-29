@@ -97,6 +97,16 @@ name: Release
 on:
   push:
     branches: [master]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to (re)release, e.g. v0.4.0'
+        required: true
+        type: string
+      sha:
+        description: 'Commit SHA the tag should point at (only used if the tag does not already exist on origin)'
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -122,34 +132,85 @@ jobs:
           client-id: ${{ secrets.RELEASE_BOT_APP_CLIENT_ID }}
           private-key: ${{ secrets.RELEASE_BOT_APP_PRIVATE_KEY }}
 
-      # PHASE 1 — release-please opens Release PRs and pushes tags.
+      # PHASE 1 — release-please opens Release PRs and, on PR merge,
+      # pushes the tag + creates a DRAFT GH Release. The combination is
+      # configured in release-please-config.json:
+      #   "draft": true              → release created as draft
+      #   "force-tag-creation": true → tag pushed to origin via git/refs
+      #                                BEFORE the draft release is created
       #
-      # `skip-github-release: true` means release-please-action ONLY pushes
-      # the annotated tag `vX.Y.Z` when a Release PR is merged — it does
-      # NOT create the GitHub Release object. That's deliberate: this
-      # repo's published Releases are auto-marked immutable on creation
-      # (observed on v0.2.0..v0.2.3), and an immutable release blocks
-      # POST /releases/:id/assets, which is exactly what goreleaser does
-      # next. Letting goreleaser create the release from scratch in Phase
-      # 2 means the release goes through goreleaser's own draft → upload
-      # → publish lifecycle inside the same workflow, with no immutable
-      # collision.
+      # Verified in release-please core (github-api.ts:667-695): with
+      # forceTag: true, octokit.git.createRef pushes refs/tags/vX.Y.Z to
+      # origin first, then repos.createRelease creates the draft release
+      # attached to that tag. Outputs release_created + tag_name are set
+      # in both cases (drafted and non-drafted) — see manifest.ts:1322-1341.
       #
-      # Earlier attempts to use release-please's draft=true did NOT work:
-      # in draft mode the action also skips pushing the tag (only creates
-      # a draft GH Release), which left v0.2.4 / v0.3.0 as zombie drafts
-      # with no tag and the checkout step failing.
+      # Why this combination, and not the alternatives:
+      #   * draft: false alone → release publishes immediately → GitHub
+      #     auto-marks it immutable on this repo → goreleaser asset upload
+      #     returns 422 (observed v0.2.0..v0.2.3, run 26632385497 log).
+      #   * draft: true alone → "lazy tag creation": per release-please's
+      #     own JSON schema, "GitHub does not create a Git tag for draft
+      #     releases until they are published" → Phase 2 checkout fails
+      #     (observed v0.2.4 / v0.3.0).
+      #   * skip-github-release: true → action.yml says "do not try to
+      #     tag releases"; src/index.ts:130-144 confirms createReleases()
+      #     is skipped entirely, no tag pushed, no outputs set. Phase 2
+      #     gate would always be false.
       #
       # `token:` swaps in the App-minted token so the tag push + Release
       # PR creation cascade ci.yml correctly (default GITHUB_TOKEN does
       # NOT cascade per GitHub's anti-loop guard).
-      - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7  # v5.0.0
+      - name: release-please
         id: release
+        if: github.event_name == 'push'
+        uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7  # v5.0.0
         with:
           token: ${{ steps.app-token.outputs.token }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
-          skip-github-release: true
+
+      # ─────────────────────────────────────────────────────────────
+      # Dispatch-triggered recovery path: push the missing tag, then
+      # let Phase 2 below run against it. Used for drafts created by
+      # the previous broken pipeline (v0.2.4 / v0.3.0 / v0.4.0) that
+      # never had their tags pushed.
+      # ─────────────────────────────────────────────────────────────
+      - name: Push tag for dispatch recovery
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          TAG: ${{ inputs.tag }}
+          SHA: ${{ inputs.sha }}
+        run: |
+          set -euo pipefail
+          if gh api "repos/$GITHUB_REPOSITORY/git/refs/tags/$TAG" --silent 2>/dev/null; then
+            echo "Tag $TAG already exists on origin — skipping creation."
+          else
+            echo "Creating tag $TAG -> $SHA on origin via git/refs API."
+            gh api -X POST "repos/$GITHUB_REPOSITORY/git/refs" \
+              -f "ref=refs/tags/$TAG" \
+              -f "sha=$SHA"
+          fi
+
+      # Compute the tag Phase 2 should run against, from whichever
+      # entry point fired.
+      - name: Resolve target tag
+        id: tag
+        if: |
+          (github.event_name == 'push' && steps.release.outputs.release_created == 'true') ||
+          github.event_name == 'workflow_dispatch'
+        env:
+          PUSH_TAG: ${{ steps.release.outputs.tag_name }}
+          DISPATCH_TAG: ${{ inputs.tag }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT" = "push" ]; then
+            echo "name=$PUSH_TAG" >> "$GITHUB_OUTPUT"
+          else
+            echo "name=$DISPATCH_TAG" >> "$GITHUB_OUTPUT"
+          fi
 
       # PHASE 2 — runs ONLY when release-please cut a new release in
       # this run. `release_created` is the string "true" when a tag
@@ -160,57 +221,59 @@ jobs:
       # this, goreleaser's `git describe` can fail to see the tag
       # release-please just pushed via API (the initial checkout was
       # before the tag existed).
-      - name: Check out at the new tag
-        if: ${{ steps.release.outputs.release_created }}
+      # ─────────────────────────────────────────────────────────────
+      # PHASE 2 — build, attest, publish. Runs for both entry points
+      # (push that produced a tag, OR workflow_dispatch).
+      # Gating: every Phase 2 step uses `steps.tag.outputs.name != ''`
+      # so the steps only run when the previous Resolve-target-tag step
+      # actually produced a tag to operate on.
+      # ─────────────────────────────────────────────────────────────
+      - name: Check out at the target tag
+        if: steps.tag.outputs.name != ''
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
-          ref: ${{ steps.release.outputs.tag_name }}
+          ref: ${{ steps.tag.outputs.name }}
           fetch-depth: 0
 
       - name: Set up Go
-        if: ${{ steps.release.outputs.release_created }}
+        if: steps.tag.outputs.name != ''
         uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c  # v6.4.0
         with:
           go-version: stable
 
+      # goreleaser adopts the existing draft GH Release for this tag
+      # (per .goreleaser.yaml: use_existing_draft: true + mode: replace),
+      # builds 6 binaries + checksums.txt, uploads them as assets, and
+      # overwrites the draft's body with its own changelog (bounded by
+      # the previous git tag on origin, filtered per changelog.filters
+      # in .goreleaser.yaml).
       - name: Run goreleaser
-        if: ${{ steps.release.outputs.release_created }}
+        if: steps.tag.outputs.name != ''
         uses: goreleaser/goreleaser-action@5daf1e915a5f0af01ddbcd89a43b8061ff4f1a89  # v7.2.2
         with:
           distribution: goreleaser
           version: "~> v2"
           args: release --clean
         env:
-          # Use the App token so the asset uploads are attributed to
-          # the bot, matching the principal that drafted the release in
-          # Phase 1.
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
 
       # Sign the checksums manifest, not each binary — checksums.txt
       # SHA-256-fingerprints every released archive, so attesting the
-      # manifest transitively attests every binary. Cheaper than a
-      # per-binary attestation step.
+      # manifest transitively covers every binary in one attestation.
       - name: Attest binaries via subject-checksums
-        if: ${{ steps.release.outputs.release_created }}
+        if: steps.tag.outputs.name != ''
         uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32  # v4.1.0
         with:
           subject-checksums: ./dist/checksums.txt
 
-      # Publish the release — goreleaser created the GH Release with
-      # `release.draft: true` per .goreleaser.yaml, then uploaded all
-      # assets to it. The attest step above attached attestation
-      # provenance to that same draft. Drafts are mutable on this repo;
-      # published releases auto-flip to immutable (observed on
-      # v0.2.0..v0.2.3: POST /assets returned 422 against an already-
-      # published immutable release). So all the writes have to land
-      # against the draft, and only after attestation succeeds do we
-      # flip the draft bit. `gh release edit --draft=false` on an
-      # already-published release is a no-op (idempotent).
+      # Final un-draft. By here: tag exists on origin, 7 assets uploaded
+      # to the draft, attestation written to the attestations API. The
+      # moment we un-draft, GitHub auto-marks the release immutable —
+      # by then everything that needed to write is done. `gh release
+      # edit --draft=false` on an already-published release is a no-op.
       - name: Publish release (draft → published)
-        if: ${{ steps.release.outputs.release_created }}
+        if: steps.tag.outputs.name != ''
         env:
-          # App token keeps the un-draft transition attributed to the
-          # same principal as the rest of the release.
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
-          TAG: ${{ steps.release.outputs.tag_name }}
+          TAG: ${{ steps.tag.outputs.name }}
         run: gh release edit "$TAG" --draft=false --repo "$GITHUB_REPOSITORY"
