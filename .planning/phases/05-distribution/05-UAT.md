@@ -11,7 +11,7 @@ source:
   - .planning/phases/05-distribution/05-07-SUMMARY.md
   - .planning/phases/05-distribution/05-08-SUMMARY.md
 started: 2026-05-29T18:49:03Z
-updated: 2026-05-29T18:59:00Z
+updated: 2026-05-29T19:00:00Z
 ---
 
 ## Current Test
@@ -78,19 +78,24 @@ expected: |
   assets: 6 ohcli binaries (linux/darwin/windows × amd64/arm64)
   and checksums.txt. `gh attestation verify --owner egeek-tech`
   against any of those binaries succeeds.
+result: pass
+verified_against: |
+  v0.5.0 — first release through the fixed pipeline (PR #29 + PR #28).
+  Confirmed: 7 assets present (checksums.txt + 6 ohcli binaries
+  linux/darwin/windows × amd64/arm64). `gh attestation verify
+  --owner egeek-tech ohcli_0.5.0_linux_amd64.tar.gz` returns exit 0.
+  Attestation predicate https://slsa.dev/provenance/v1, build URI
+  https://github.com/egeek-tech/go-openholidays/.github/workflows/release-please.yml@refs/heads/master,
+  signer github-hosted runner.
 
-  NOTE: known broken at time of UAT creation — published v0.2.3
-  has 0 assets; v0.2.4/v0.3.0/v0.4.0 are drafts. Fix queued in PR #29.
-result: issue
-reported: |
-  User ran `gh attestation verify /home/rtkocz/go/bin/ohcli --owner egeek-tech`
-  and got `HTTP 404: Not Found` on the attestations-API lookup.
-  Caveat: the binary tested was a local `go install` build, not a
-  release-uploaded binary; locally-built binaries don't carry
-  attestations regardless. The underlying Phase 5 gap is that no
-  release has ever uploaded binaries to attest in the first place
-  (v0.2.0..v0.2.3 published with 0 assets; v0.2.4..v0.4.0 are drafts).
-severity: blocker
+  Earlier failure (local `go install`-built binary returning 404) was
+  expected — local builds never carry attestations; only release-
+  uploaded artifacts do.
+
+  Orphan drafts v0.2.4 / v0.3.0 / v0.4.0 remain as drafts per Gold
+  Rule 4 and the earlier user decision ("leave drafts alone; let
+  v0.4.0 bridge the gap"). They have no binaries but are non-blocking
+  audit-trail artifacts.
 
 ### 9. pkg.go.dev page renders
 expected: |
@@ -115,34 +120,23 @@ result: pass
 ## Summary
 
 total: 10
-passed: 9
-issues: 1
+passed: 10
+issues: 0
 pending: 0
 skipped: 0
 blocked: 0
 
 ## Gaps
 
+[none — all tests pass]
+
+## Resolved Gaps
+
 - truth: "Latest GitHub Release ships 6 ohcli binaries + checksums.txt; attestation verifiable via `gh attestation verify --owner egeek-tech`"
-  status: failed
-  reason: |
-    Released GitHub Releases v0.2.0..v0.2.3 publish with zero assets
-    (release-please-action created the release with draft:false, GitHub
-    auto-marked it immutable, goreleaser's POST /releases/:id/assets
-    returned 422 — run 26632385497 log). v0.2.4/v0.3.0/v0.4.0 are stuck
-    as drafts because the previous fix attempt (PR #19) set draft:true
-    without the partner `force-tag-creation: true`, so the underlying
-    git tag is never pushed and Phase 2 checkout fails. With no
-    binaries uploaded, attest-build-provenance has nothing to sign.
-  severity: blocker
-  test: 8
-  artifacts:
-    - .github/workflows/release-please.yml
-    - .goreleaser.yaml
-    - release-please-config.json
-  missing:
-    - "force-tag-creation: true in release-please-config.json"
-    - "use_existing_draft: true and mode: replace under .goreleaser.yaml release:"
-    - "workflow_dispatch recovery path in release-please.yml for stuck drafts"
-  fix_status: in_flight
+  was_status: failed
+  resolved_in: v0.5.0
   fix_pr: 29
+  verification: |
+    v0.5.0 published 2026-05-29T14:24:00Z with 7 assets. Attestation
+    verified end-to-end against ohcli_0.5.0_linux_amd64.tar.gz, exit 0.
+    Build URI chains to .github/workflows/release-please.yml on master.
