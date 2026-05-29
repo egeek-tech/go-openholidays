@@ -18,6 +18,7 @@ linters:
     - staticcheck
     - gosec
     - revive
+    - godox
     - gocritic
     # godoclint — added 2026-05-29. Enforces godoc conventions: only one
     # canonical package godoc per package (`single-pkg-doc`), every
@@ -52,6 +53,7 @@ linters:
     - sloglint
     - testifylint
     - thelper
+    - tparallel
     - unconvert
     # unparam: disabled 2026-05-11. 13 findings split between real code
     # smells (dead returns / dead params / a stub `buildLazyModal` whose

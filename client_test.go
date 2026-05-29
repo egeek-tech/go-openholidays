@@ -283,6 +283,7 @@ func TestClient_ConcurrentAccess(t *testing.T) {
 	wg.Wait()
 
 	t.Run("all 50 calls succeed with identical payloads", func(t *testing.T) {
+		t.Parallel()
 		for i := range N {
 			require.NoError(t, errs[i], "call %d failed: %v", i, errs[i])
 			require.NotEmpty(t, results[i], "call %d returned empty", i)
@@ -370,6 +371,7 @@ func TestClient_ConcurrentRetry_RaceClean(t *testing.T) {
 	wg.Wait()
 
 	t.Run("all N parallel retry-enabled calls succeed (race detector validates rand serialization)", func(t *testing.T) {
+		t.Parallel()
 		for i := range N {
 			require.NoError(t, errs[i],
 				"call %d failed under concurrent retry — if `go test -race` flagged a data race on c.rand, the CR-01 fix has regressed", i)

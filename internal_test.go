@@ -222,6 +222,7 @@ func TestNoInitOrGlobalState(t *testing.T) {
 	sort.Strings(failures)
 
 	t.Run("found_at_least_one_production_go_file", func(t *testing.T) {
+		t.Parallel()
 		// Sanity guard: if the walk silently skips everything (broken skip
 		// logic, wrong starting path), the absence of failures is meaningless.
 		// Phase 1 ships at least 4 production files (doc.go, errors.go,
@@ -232,6 +233,7 @@ func TestNoInitOrGlobalState(t *testing.T) {
 	})
 
 	t.Run("no_init_and_no_unexpected_package_vars", func(t *testing.T) {
+		t.Parallel()
 		assert.Empty(t, failures,
 			"CLIENT-10 violation(s) detected; see RESEARCH.md Pitfall 6 / Validation Architecture: %v",
 			failures)
