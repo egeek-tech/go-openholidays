@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.2](https://github.com/egeek-tech/go-openholidays/compare/v0.2.1...v0.2.2) (2026-05-29)
+
+
+### Bug Fixes
+
+* **release:** drop unsupported trimPrefix template + adopt formats plural ([ddd8664](https://github.com/egeek-tech/go-openholidays/commit/ddd86644e05f4670d722be5a7cc8284783a868d2))
+* **release:** drop unsupported trimPrefix template + adopt formats plural ([cde05f0](https://github.com/egeek-tech/go-openholidays/commit/cde05f00547602ab70ec61e3983932554f64c1ef))
+
 ## [0.2.1](https://github.com/egeek-tech/go-openholidays/compare/v0.2.0...v0.2.1) (2026-05-28)
 
 
