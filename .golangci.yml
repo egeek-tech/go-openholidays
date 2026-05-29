@@ -20,6 +20,14 @@ linters:
     - revive
     - godox
     - gocritic
+    # godoclint — added 2026-05-29. Enforces godoc conventions: only one
+    # canonical package godoc per package (`single-pkg-doc`), every
+    # stdlib type reference uses the Go 1.19+ doclink syntax
+    # `[pkg.Type]` for clickable pkg.go.dev rendering
+    # (`require-stdlib-doclink`), and basic safeguards from the `basic`
+    # rule set. See settings.godoclint for the exact rule list and
+    # rationale on what's intentionally NOT enabled.
+    - godoclint
     # HTTP-client SDK criticals — added 2026-05-28. Without bodyclose a
     # missing `defer resp.Body.Close()` leaks sockets in long-lived consumer
     # processes (the SDK is, by design, long-lived). Without noctx an
@@ -61,6 +69,34 @@ linters:
     # upstream (camel) — and the latter adds no value over "match upstream
     # verbatim." See Phase 5 RESEARCH.md Pitfall 4.
   settings:
+    godoclint:
+      # `basic` set = pkg-doc + single-pkg-doc + start-with-name + deprecated.
+      # All four are universal Go godoc conventions; turning them off would
+      # only make sense for a non-library binary.
+      default: basic
+      enable:
+        # require-stdlib-doclink — flags bare `pkg.Type` references in
+        # godoc comments that should be the Go 1.19+ doclink form
+        # `[pkg.Type]`. pkg.go.dev renders the bracketed form as a
+        # clickable link to the type's documentation; the bare form
+        # renders as plain text. Worth ~100 small edits for the UX win.
+        - require-stdlib-doclink
+        # no-unused-link — flags `[link]` references in godoc that point
+        # at nothing. Cheap insurance against future copy-paste rot.
+        - no-unused-link
+      # NOT enabled and the reasons:
+      #
+      #   max-len — defaults to 77 chars/line in godoc. Go community
+      #     convention is closer to 80-100. Our codebase regularly sits
+      #     at 78-89. Enabling at the default would produce ~13 noise
+      #     findings with no readability gain.
+      #
+      #   require-doc — would force a doc comment on every exported
+      #     symbol. revive (which we have on) already enforces the same
+      #     contract via the `exported` rule for production code. The
+      #     `require-doc` add-on additionally fires on Test* functions
+      #     in test files, which we explicitly do NOT require (Gold
+      #     Rule 3 covers TestXxx structure, not godoc presence).
     usetesting:
       # Enable Go 1.24+ replacements. The default usetesting config is
       # conservative — `context-background` is OFF by default. We bumped

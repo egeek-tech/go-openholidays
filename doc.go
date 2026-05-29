@@ -10,8 +10,8 @@
 //
 // Design principles:
 //   - Zero runtime dependencies (no non-stdlib import outside *_test.go).
-//   - Full context.Context propagation on every exported call.
-//   - Typed errors inspectable via errors.Is / errors.As.
+//   - Full [context.Context] propagation on every exported call.
+//   - Typed errors inspectable via [errors.Is] / [errors.As].
 //
 // Quickstart:
 //

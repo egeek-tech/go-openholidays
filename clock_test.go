@@ -58,7 +58,7 @@ func (f *fakeClock) Advance(d time.Duration) {
 
 // Sleep advances the fake clock by d and returns nil, unless ctx is already
 // cancelled, in which case it returns ctx.Err() immediately without
-// advancing the clock. The signature `func(context.Context, time.Duration) error`
+// advancing the clock. The signature `func(context.Context, [time.Duration]) error`
 // matches Client.sleepFunc verbatim (D-94) so it can be assigned directly to
 // that field by downstream tests without a conversion.
 func (f *fakeClock) Sleep(ctx context.Context, d time.Duration) error {

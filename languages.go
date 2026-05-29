@@ -1,4 +1,4 @@
-// Package openholidays — Languages endpoint method.
+// Languages endpoint method.
 //
 // This file ships only the Languages endpoint method and its associated
 // LanguagesRequest type. The HTTP-and-decode pipeline lives in request.go
@@ -10,6 +10,7 @@
 // LanguagesRequest{} reproduces the upstream's unfiltered /Languages
 // response verbatim and is the recommended call shape when no filter
 // is needed.
+
 package openholidays
 
 import (
@@ -54,10 +55,10 @@ type LanguagesRequest struct {
 // restricts the returned Language.Name entries to that language only.
 //
 // Per-request timeout: when the Client was constructed with WithTimeout(d)
-// and d > 0, Languages wraps ctx via context.WithTimeout(ctx, d) before
+// and d > 0, Languages wraps ctx via [context.WithTimeout](ctx, d) before
 // dispatching. Cancellation of the caller's ctx interrupts the in-flight
-// HTTP within ≤ 100 ms (CLIENT-09); errors.Is(err, context.Canceled) holds
-// through the fmt.Errorf %w wrap returned on transport-level failures.
+// HTTP within ≤ 100 ms (CLIENT-09); [errors.Is](err, [context.Canceled]) holds
+// through the [fmt.Errorf] %w wrap returned on transport-level failures.
 //
 // Error handling:
 //
@@ -67,11 +68,11 @@ type LanguagesRequest struct {
 //   - 4xx and 5xx upstream responses produce *APIError with the StatusCode,
 //     a parsed Message (RFC 7807 ProblemDetails priority: detail → title →
 //     error), and the raw response body capped at 4 KiB (Phase 1 D-17).
-//     Use errors.As(err, &apiErr) to recover the populated value.
-//   - 2xx with an empty body returns an error that errors.Is matches against
+//     Use [errors.As](err, &apiErr) to recover the populated value.
+//   - 2xx with an empty body returns an error that [errors.Is] matches against
 //     ErrEmptyResponse.
 //   - Upstream responses exceeding the 10 MiB cap return an error that
-//     errors.Is matches against ErrResponseTooLarge.
+//     [errors.Is] matches against ErrResponseTooLarge.
 //   - JSON decode failures wrap the underlying error with the
 //     "openholidays: decode /Languages: " prefix.
 //

@@ -15,18 +15,18 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// trackedReader is a test-only io.Reader that counts how many times Read is
+// trackedReader is a test-only [io.Reader] that counts how many times Read is
 // invoked. It is used by the OBS-01 invariant assertion: loggingTransport
 // must NOT read the response body inside RoundTrip. The Read counter must
-// remain at zero after RoundTrip returns. Read returns io.EOF immediately
+// remain at zero after RoundTrip returns. Read returns [io.EOF] immediately
 // without producing any bytes — the test does not care about the content,
 // only about whether anything tried to consume it.
 type trackedReader struct {
 	reads atomic.Int64
 }
 
-// Read increments the read counter and returns io.EOF. The counter uses
-// atomic.Int64 because RoundTrip and the assertion run on the same
+// Read increments the read counter and returns [io.EOF]. The counter uses
+// [atomic.Int64] because RoundTrip and the assertion run on the same
 // goroutine in this test, but t.Parallel sibling subtests could otherwise
 // concurrently mutate a shared trackedReader (each subtest constructs its
 // own here, but the atomic is defense-in-depth).
@@ -38,7 +38,7 @@ func (r *trackedReader) Read(_ []byte) (int, error) {
 // TestLoggingTransport_RoundTrip locks the four documented branches of
 // loggingTransport.RoundTrip:
 //
-//  1. A single slog.LevelDebug record with all six OBS-02 fields is
+//  1. A single [slog.LevelDebug] record with all six OBS-02 fields is
 //     emitted (D-31).
 //  2. resp.ContentLength == -1 (HTTP/2 chunked, the live OpenHolidays
 //     wire shape) is forwarded as bytes_in == -1, NOT coerced to 0.
@@ -49,7 +49,7 @@ func (r *trackedReader) Read(_ []byte) (int, error) {
 //     OBS-1 invariant, asserted mechanically via a trackedReader whose
 //     Read counter must remain at zero.
 //
-// Each subtest constructs its own bytes.Buffer + slog.Logger so subtests can
+// Each subtest constructs its own [bytes.Buffer] + [slog.Logger] so subtests can
 // safely t.Parallel without contending on a shared sink.
 func TestLoggingTransport_RoundTrip(t *testing.T) {
 	t.Parallel()

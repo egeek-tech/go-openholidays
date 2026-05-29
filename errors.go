@@ -1,10 +1,11 @@
-// Package openholidays — error surface.
+// error surface.
 //
 // This file ships the seven exported sentinel error values plus the *APIError
 // leaf type. Phase 1 shipped the original five sentinels; Phase 2 added
 // ErrResponseTooLarge (CL-07); Phase 3 appends ErrMalformedResponse (CL-12,
 // D-66) for post-decode Holiday schema-drift detection by validateHolidays
 // in request.go.
+
 package openholidays
 
 import (
@@ -43,7 +44,7 @@ var ErrEmptyResponse = errors.New("openholidays: empty response body")
 // ErrResponseTooLarge is returned when an upstream response exceeds the
 // 10 MiB cap. Both boundary-truncation (Decode finishes on a valid JSON
 // boundary, sentinel-byte read detects extra bytes) and mid-truncation
-// (Decode surfaces io.ErrUnexpectedEOF, sentinel-byte read confirms the
+// (Decode surfaces [io.ErrUnexpectedEOF], sentinel-byte read confirms the
 // body has more bytes) cases produce this sentinel — see RESEARCH.md
 // Pitfall 5 and Plan 02-03 deviation 1.
 var ErrResponseTooLarge = errors.New("openholidays: response too large")
@@ -56,8 +57,8 @@ var ErrResponseTooLarge = errors.New("openholidays: response too large")
 //   - Holiday.EndDate must be non-zero.
 //   - Holiday.EndDate must not be strictly before Holiday.StartDate.
 //
-// The sentinel is wrapped via fmt.Errorf with the %w verb from
-// validateHolidays so errors.Is(err, ErrMalformedResponse) holds through
+// The sentinel is wrapped via [fmt.Errorf] with the %w verb from
+// validateHolidays so [errors.Is](err, ErrMalformedResponse) holds through
 // the endpoint method's caller-facing wrap. This is the seventh exported
 // sentinel in the package (D-65, D-66, CL-12). It closes Pitfall JSON-4
 // (time.Time zero value masquerading as a valid Date) — callers can
@@ -71,16 +72,16 @@ var ErrMalformedResponse = errors.New("openholidays: malformed response")
 // construction (reading resp.Body, parsing Message) lands in Phase 2
 // alongside the first endpoint method.
 //
-// Callers match by status code with errors.Is:
+// Callers match by status code with [errors.Is]:
 //
-//	if errors.Is(err, &openholidays.APIError{StatusCode: 404}) { ... }
+//	if [errors.Is](err, &openholidays.APIError{StatusCode: 404}) { ... }
 //
 // The wildcard form (zero StatusCode) matches any *APIError, allowing
 // callers to ask "was this an API error at all?":
 //
-//	if errors.Is(err, &openholidays.APIError{}) { ... }
+//	if [errors.Is](err, &openholidays.APIError{}) { ... }
 //
-// Use errors.As to recover the populated value:
+// Use [errors.As] to recover the populated value:
 //
 //	var apiErr *openholidays.APIError
 //	if errors.As(err, &apiErr) { _ = apiErr.StatusCode }
@@ -110,7 +111,7 @@ func (e *APIError) Error() string {
 	return fmt.Sprintf("openholidays: api error %d at %s: %s", e.StatusCode, e.Path, e.Message)
 }
 
-// Is supports errors.Is(err, &APIError{StatusCode: N}) status-code matching.
+// Is supports [errors.Is](err, &APIError{StatusCode: N}) status-code matching.
 //
 // Semantics:
 //

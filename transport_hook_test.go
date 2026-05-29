@@ -217,7 +217,7 @@ func TestHookTransport_FiresPerAttempt(t *testing.T) {
 
 // TestHookTransport_PanicPropagates locks D-90 explicit: a panicking hook
 // propagates the panic to the caller. The library does NOT use defer/recover
-// (mirrors stdlib http.Handler convention — silent recovery would hide bugs
+// (mirrors stdlib [http.Handler] convention — silent recovery would hide bugs
 // and is the documented "consumer responsibility" path).
 //
 // testify's assert.PanicsWithValue catches the panic without letting it
@@ -253,7 +253,7 @@ func TestHookTransport_PanicPropagates(t *testing.T) {
 }
 
 // TestHookTransport_NilSafeOnTransportError documents the nil-resp contract
-// at the hook side: on a transport error the hook receives a nil *http.Response
+// at the hook side: on a transport error the hook receives a nil *[http.Response]
 // and a non-nil error. Implementations MUST nil-check resp before
 // dereferencing. The RequestHookFunc godoc in config.go states this contract;
 // this test locks it mechanically.

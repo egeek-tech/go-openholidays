@@ -56,7 +56,7 @@ func findFirstWithChildren(t *testing.T, tree []Subdivision) (string, string) {
 //
 //   - empty code → (false, nil) no HTTP
 //   - h.Nationwide → (true, nil) no HTTP
-//   - flat strings.EqualFold match → (true, nil) no HTTP (case-insensitive)
+//   - flat [strings.EqualFold] match → (true, nil) no HTTP (case-insensitive)
 //   - no flat match + empty Subdivisions → (false, nil) no HTTP
 //   - hierarchical descendant match against DE fixture's DE-BY/Augsburg pair
 //   - hierarchical miss on an unknown code → (false, nil)

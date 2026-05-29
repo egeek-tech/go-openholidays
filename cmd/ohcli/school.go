@@ -1,4 +1,4 @@
-// Package main — ohcli `school` subcommand handler.
+// ohcli `school` subcommand handler.
 //
 // This file implements the `school` subcommand: `ohcli school <country>
 // <year> [--region CC-RR] [--lang xx] [--format text|json|csv] [--json]
@@ -7,6 +7,7 @@
 // passes SubdivisionCode through to the upstream verbatim with no
 // client-side shape check (D-56), so the CLI does no extra validation on
 // --region beyond forwarding the string.
+
 package main
 
 import (

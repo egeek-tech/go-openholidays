@@ -1,11 +1,12 @@
-// Package main — ohcli version resolution.
+// ohcli version resolution.
 //
 // This file implements the `ohcli version` resolution chain documented in
 // RESEARCH §Pitfall 8: prefer the module-stamped version that
-// runtime/debug.ReadBuildInfo exposes (set by `go install`, `go build`, and
+// [runtime/debug.ReadBuildInfo] exposes (set by `go install`, `go build`, and
 // goreleaser's ldflags), fall back to the library's openholidays.Version
 // constant when ReadBuildInfo reports "(devel)" or no version (the common
 // case when the binary is built from inside the module's working tree).
+
 package main
 
 import (
@@ -19,7 +20,7 @@ import (
 //
 // Resolution order (Pitfall 8):
 //
-//  1. runtime/debug.ReadBuildInfo().Main.Version when it is set and not the
+//  1. [runtime/debug.ReadBuildInfo]().Main.Version when it is set and not the
 //     "(devel)" sentinel — populated by `go install ...@<tag>` and by
 //     goreleaser via -ldflags.
 //  2. openholidays.Version — the library's own version constant; used

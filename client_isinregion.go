@@ -1,4 +1,4 @@
-// Package openholidays — hierarchical region-membership helper.
+// hierarchical region-membership helper.
 //
 // This file ships Client.IsInRegion (D-59 / CL-09) and its two unexported
 // support functions splitCountryFromSubdivision and buildParentIndex.
@@ -24,6 +24,7 @@
 // and returns (false, nil) instead of looping forever. Per RESEARCH.md
 // Pitfall 4 and ASVS V5.1.4. The cap is regression-locked by the
 // cycle-enforcement subtest in TestClient_IsInRegion.
+
 package openholidays
 
 import (
@@ -44,7 +45,7 @@ import (
 //     everywhere, including the empty-string code (WR-06).
 //  2. code == "" → returns (false, nil) — defensive guard on non-nationwide
 //     holidays only.
-//  3. Flat strings.EqualFold match against h.Subdivisions[].Code → returns
+//  3. Flat [strings.EqualFold] match against h.Subdivisions[].Code → returns
 //     (true, nil).
 //  4. len(h.Subdivisions) == 0 (and not Nationwide) → returns (false, nil) —
 //     there is no country context to fetch a tree for.
@@ -53,7 +54,7 @@ import (
 // HTTP GET to /Subdivisions for the country implied by the prefix of
 // h.Subdivisions[0].Code (e.g. "PL" from "PL-SL", "DE" from "DE-BY"). It
 // then builds a child→parent index from the recursive Subdivision.Children
-// shape and walks upward from code until either a strings.EqualFold match
+// shape and walks upward from code until either a [strings.EqualFold] match
 // against an entry in h.Subdivisions is found (returns (true, nil)) or the
 // root is reached (returns (false, nil)). Any error from c.Subdivisions is
 // surfaced verbatim as (false, err).
@@ -127,7 +128,7 @@ func (c *Client) IsInRegion(ctx context.Context, h Holiday, code string) (bool, 
 // segment is taken). Returns ("", false) when the input has no hyphen or the
 // hyphen is at position 0.
 //
-// The function uses strings.IndexByte rather than strings.Split because only
+// The function uses [strings.IndexByte] rather than [strings.Split] because only
 // the first segment is needed and IndexByte allocates nothing.
 func splitCountryFromSubdivision(code string) (string, bool) {
 	if i := strings.IndexByte(code, '-'); i > 0 {

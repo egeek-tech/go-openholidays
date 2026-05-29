@@ -1,9 +1,9 @@
-// Package main — ohcli output renderers (text/json/csv).
+// ohcli output renderers (text/json/csv).
 //
 // This file ships the three Holiday renderers and the render dispatcher
 // every subcommand handler uses to emit results to stdout. All renderers
 // take an io.Writer (not *os.File) so Plan 02's table-driven tests can
-// capture output into *bytes.Buffer and assert against it byte-for-byte.
+// capture output into *[bytes.Buffer] and assert against it byte-for-byte.
 //
 // Format inventory (D-03):
 //
@@ -18,6 +18,7 @@
 // All three renderers share the same lang argument so Holiday.NameFor can
 // resolve the localized name with the same language preference used by the
 // upstream filter (--lang xx flag in every subcommand).
+
 package main
 
 import (

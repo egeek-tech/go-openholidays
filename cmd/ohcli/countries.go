@@ -1,4 +1,4 @@
-// Package main — ohcli `countries` subcommand handler.
+// ohcli `countries` subcommand handler.
 //
 // This file implements the `countries` subcommand: `ohcli countries
 // [--lang xx] [--format text|json|csv] [--json] [--csv]`. Unlike cmdPublic
@@ -9,6 +9,7 @@
 // returns []openholidays.Country (NOT []Holiday). Rendering therefore
 // flows through renderCountries (declared in format.go) rather than the
 // Holiday-specific render dispatcher.
+
 package main
 
 import (

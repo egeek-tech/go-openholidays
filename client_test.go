@@ -160,16 +160,16 @@ func TestNewClient(t *testing.T) {
 //     spawns a sweeper; Close cancels its context and the goroutine exits.
 //
 // WR-02 + WR-03 follow-up: previously a separate top-level
-// TestClient_CloseStopsSweeper used runtime.NumGoroutine() + a fixed sleep
+// TestClient_CloseStopsSweeper used [runtime.NumGoroutine]() + a fixed sleep
 // — process-wide and flake-prone. Demoted here as the "stops cache sweeper"
 // subtest, replaced with a deterministic observation of MemoryCache.sweepDone
 // (the sweepLoop closes that channel via `defer close(m.sweepDone)` on exit,
 // so a successful select-recv on it within a bounded wait is the load-bearing
 // invariant — no process-global goroutine counter required).
 //
-// IN-02 (re-review) follow-up: the previously-asserted `closed atomic.Bool`
+// IN-02 (re-review) follow-up: the previously-asserted `closed [atomic.Bool]`
 // flag was removed from Client. The race-safety invariant is now carried
-// exclusively by the sync.Once-guarded cache.Close call inside Client.Close
+// exclusively by the [sync.Once]-guarded cache.Close call inside Client.Close
 // (no production endpoint reader ever consulted the flag).
 func TestClient_Close(t *testing.T) {
 	t.Parallel()
@@ -247,8 +247,8 @@ func TestClient_Close(t *testing.T) {
 // TestClient_ConcurrentAccess verifies CLIENT-07 + TEST-04: 50 parallel
 // Countries calls under -race must complete with identical payloads and
 // no data-race reports. Client is immutable after NewClient (Close is
-// not exercised here, and the sync.Once that previously guarded the
-// atomic.Bool `closed` flag now guards only cache.Close — no field on
+// not exercised here, and the [sync.Once] that previously guarded the
+// [atomic.Bool] `closed` flag now guards only cache.Close — no field on
 // the Client struct is mutated by endpoint dispatch), so concurrent
 // reads of every field are race-safe by definition.
 func TestClient_ConcurrentAccess(t *testing.T) {
@@ -297,7 +297,7 @@ func TestClient_ConcurrentAccess(t *testing.T) {
 
 // TestClient_ConcurrentRetry_RaceClean locks the CR-01 fix: concurrent
 // endpoint calls with WithRetry enabled must NOT race on Client.rand.
-// math/rand/v2.Rand is documented as NOT safe for concurrent use — its
+// [math/rand/v2.Rand] is documented as NOT safe for concurrent use — its
 // stdlib docs state "The methods of Rand are not safe for concurrent use
 // by multiple goroutines". Before the fix, the retry loop in doJSONGet
 // called computeBackoff(..., c.rand) without synchronization, so two
@@ -306,15 +306,15 @@ func TestClient_ConcurrentAccess(t *testing.T) {
 // single Int64N call.
 //
 // The test fires N parallel Countries calls against a flaky server that
-// returns 503 on its first response and 200 thereafter. With WithRetry
-// enabled, every goroutine hits at least one 503, triggering a
+// returns 503 for the first N requests it sees and 200 thereafter. With
+// WithRetry enabled, every goroutine hits at least one 503, triggering a
 // computeBackoff (and therefore an rnd.Int64N). Under `go test -race`
 // the test fails immediately if c.rand is accessed without
 // synchronization. Under non-race builds the assertion is just "all
 // calls succeed" — the race detector is the load-bearing signal.
 //
 // Mirrors TestClient_ConcurrentAccess in shape but ADDS WithRetry +
-// uses the per-server-attempt counter to guarantee every goroutine
+// uses the first-N-fail server pattern to guarantee every goroutine
 // drives at least one retry path. The fakeClock seam is intentionally
 // NOT used here because the race occurs in the retry loop independent
 // of the sleep mechanism, and using a real sleepFunc with a short
@@ -326,20 +326,31 @@ func TestClient_ConcurrentRetry_RaceClean(t *testing.T) {
 	body, err := os.ReadFile(filepath.Join("testdata", "countries.json"))
 	require.NoError(t, err, "fixture missing — re-capture per Plan 02-03 Task 2")
 
-	// Server returns 503 on odd-numbered global attempts and 200 on
-	// even-numbered attempts. With maxAttempts=8 every goroutine
-	// eventually lands on an even-numbered attempt and succeeds, and
-	// most goroutines drive at least one 503 → retry → backoff cycle.
-	// The combination guarantees the race-sensitive code path
-	// (computeBackoff → c.rand.Int64N inside the c.randMu critical
-	// section) is exercised by concurrent goroutines. Under
-	// `go test -race`, an unsynchronized access to c.rand would be
-	// flagged immediately.
+	// Server returns 503 for the first N global requests and 200 for
+	// every request after that. Under N concurrent goroutine spawns +
+	// 1 ms baseDelay backoffs, the N first attempts arrive within
+	// microseconds (httptest round-trip on localhost is sub-millisecond)
+	// — well before any backoff timer elapses. So every goroutine
+	// deterministically sees 503 on its first attempt, retries through
+	// computeBackoff (exercising the race-sensitive c.rand.Int64N inside
+	// the c.randMu critical section), and observes 200 on its second
+	// attempt. Exhaustion of the 8-attempt budget for any single
+	// goroutine would require that goroutine to make 8 round trips
+	// before the other N-1 goroutines even queue their first — which
+	// the Go runtime scheduler does not produce under this workload.
+	//
+	// The previous odd-503/even-200 alternation was statistically flaky
+	// because the global counter advanced unpredictably during a
+	// goroutine's backoff (i.e. the parity it observed on its retry
+	// was effectively random), giving each attempt a ~50 % chance of
+	// 503 and a ~17 % per-run chance that SOME goroutine exhausted its
+	// 8-attempt budget. The first-N-fail design removes the random
+	// walk entirely.
 	const N = 50
 	var attempts atomic.Int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		n := attempts.Add(1)
-		if n%2 == 1 {
+		if n <= int32(N) {
 			w.WriteHeader(http.StatusServiceUnavailable)
 			return
 		}
@@ -348,9 +359,10 @@ func TestClient_ConcurrentRetry_RaceClean(t *testing.T) {
 	}))
 	t.Cleanup(srv.Close)
 
-	// maxAttempts=8 gives every goroutine ample budget — under the
-	// odd-503/even-200 pattern, a string of all-odd attempts is
-	// vanishingly unlikely past 4-5 tries. baseDelay 1 ms keeps the
+	// maxAttempts=8 gives every goroutine ample budget. Under the
+	// first-N-fail pattern only 2 attempts are needed in the steady
+	// state; the remaining budget is defensive headroom against any
+	// future scheduling pessimization on CI. baseDelay 1 ms keeps the
 	// test cheap.
 	c := NewClient(
 		WithBaseURL(srv.URL),
@@ -380,7 +392,7 @@ func TestClient_ConcurrentRetry_RaceClean(t *testing.T) {
 }
 
 // TestClient_FinalAttemptRespBodyDrained locks WR-02 defensive behavior:
-// when c.http.Do returns BOTH a non-nil *http.Response AND a non-nil
+// when c.http.Do returns BOTH a non-nil *[http.Response] AND a non-nil
 // error (the documented "CheckRedirect rejected" shape from Go 1
 // compatibility — net/http issue 3795), doJSONGet's post-loop httpErr
 // block must drain + close the response body. Prior to the fix the
@@ -399,7 +411,7 @@ func TestClient_ConcurrentRetry_RaceClean(t *testing.T) {
 //
 // The test asserts the user-visible contract: a CheckRedirect
 // rejection MUST surface as an error wrapped via %%w so callers can
-// errors.Is to it. A direct "did the drain run" assertion is not
+// [errors.Is] to it. A direct "did the drain run" assertion is not
 // possible from outside the package because the stdlib hides the body
 // behind its own *bodyEOFSignal wrapper; the structural fix is
 // verified by reading request.go and confirming the drain block runs
@@ -516,8 +528,8 @@ func TestCtxSleep(t *testing.T) {
 // when WithRetry(N, _) is configured with N > 1.
 //
 // The httpErr branch is exercised via a custom RoundTripper that
-// returns a non-retryable error (a plain errors.New is neither a
-// net.Error.Timeout nor a syscall.ECONNRESET, so shouldRetry classifies
+// returns a non-retryable error (a plain [errors.New] is neither a
+// net.Error.Timeout nor a [syscall.ECONNRESET], so shouldRetry classifies
 // it as non-retryable). The loop breaks on attempt 0 via !shouldRetry
 // after exactly one round trip; the post-loop wrap must NOT prepend
 // "retry exhausted (5 attempts):".
@@ -577,8 +589,8 @@ func TestClient_RetryExhaustedPrefix(t *testing.T) {
 
 // TestClient_ContextCancel verifies CLIENT-09 + D-48: ctx cancellation
 // interrupts in-flight HTTP within ≤ 100 ms (asserted at the 200 ms ceiling
-// for 2x CI slack); errors.Is(err, context.Canceled) holds through
-// countries.go's fmt.Errorf("openholidays: GET /Countries: %w", err) wrap.
+// for 2x CI slack); [errors.Is](err, [context.Canceled]) holds through
+// countries.go's [fmt.Errorf]("openholidays: GET /Countries: %w", err) wrap.
 func TestClient_ContextCancel(t *testing.T) {
 	t.Parallel()
 
@@ -620,7 +632,7 @@ func TestClient_ContextCancel(t *testing.T) {
 	})
 }
 
-// countriesServer returns an httptest.Server that responds 200 with the
+// countriesServer returns an [httptest.Server] that responds 200 with the
 // supplied body and increments hits on every request. Shared helper for
 // the Plan 04 cache composition tests below.
 func countriesServer(t *testing.T, body []byte) (*httptest.Server, *atomic.Int32) {

@@ -1,9 +1,9 @@
-// Package main — ohcli `public` subcommand handler.
+// ohcli `public` subcommand handler.
 //
 // This file implements the `public` subcommand: `ohcli public <country>
 // <year> [--lang xx] [--format text|json|csv] [--json] [--csv]` per
 // RESEARCH §"CLI subcommand handler". The handler owns its own
-// flag.FlagSet so its flag-parsing errors flow to stderr (D-05) and never
+// [flag.FlagSet] so its flag-parsing errors flow to stderr (D-05) and never
 // leak into the other subcommands' state.
 //
 // Exit code conventions (D-06):
@@ -15,6 +15,7 @@
 //     ErrInvalidCountry / ErrInvalidLanguage / ErrInvalidDateRange /
 //     ErrDateRangeTooLarge — these are caller-shape problems, not
 //     runtime failures)
+
 package main
 
 import (

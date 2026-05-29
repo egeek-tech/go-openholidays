@@ -1,4 +1,4 @@
-// Package openholidays — functional Option constructors and the Option type.
+// functional Option constructors and the Option type.
 //
 // This file declares Option (the functional-option signature) and the five
 // public WithX constructors that callers compose at NewClient time. Options
@@ -7,6 +7,7 @@
 //
 // No init() and no package-level vars — keeps the CLIENT-10 AST audit in
 // internal_test.go green without modification to its allowlist.
+
 package openholidays
 
 import (
@@ -23,18 +24,18 @@ import (
 // have no effect by design (no setter exists).
 type Option func(*clientConfig)
 
-// WithHTTPClient supplies a pre-configured *http.Client. The SDK
+// WithHTTPClient supplies a pre-configured *[http.Client]. The SDK
 // shallow-copies the supplied client inside composeHTTPClient and replaces
 // the copy's Transport with the SDK's RoundTripper chain (D-37 / Pitfall
-// HTTP-1); caller mutations of the supplied *http.Client after NewClient
+// HTTP-1); caller mutations of the supplied *[http.Client] after NewClient
 // returns therefore do not affect the SDK.
 //
 // A nil argument is a no-op — the SDK retains its zero-valued default
-// *http.Client. To suppress all SDK middleware, supply an *http.Client
-// whose Transport is set to a caller-owned http.RoundTripper and accept
+// *[http.Client]. To suppress all SDK middleware, supply an *[http.Client]
+// whose Transport is set to a caller-owned [http.RoundTripper] and accept
 // that buildTransport will wrap it with the documented chain.
 //
-// NOTE: setting Timeout on the supplied *http.Client may cause spurious
+// NOTE: setting Timeout on the supplied *[http.Client] may cause spurious
 // "context canceled" errors on body close (see golang/go#49521); prefer
 // WithTimeout(d) to bound per-request duration via context (D-26).
 func WithHTTPClient(c *http.Client) Option {
@@ -82,7 +83,7 @@ func WithBaseURL(u string) Option {
 // An empty string is treated as "use the default" — the library never
 // sends an empty User-Agent (D-38) because some CDNs reject empty-UA
 // requests as bot traffic (Pitfall HTTP-5). To suppress the User-Agent
-// entirely, the caller must supply a custom http.RoundTripper via
+// entirely, the caller must supply a custom [http.RoundTripper] via
 // WithHTTPClient.
 func WithUserAgent(s string) Option {
 	return func(cfg *clientConfig) {
@@ -92,11 +93,11 @@ func WithUserAgent(s string) Option {
 	}
 }
 
-// WithLogger injects a structured logger. The SDK emits one slog.LevelDebug
+// WithLogger injects a structured logger. The SDK emits one [slog.LevelDebug]
 // record per HTTP round trip via loggingTransport (transport.go) with the
 // six OBS-02 fields (method, path, status, duration_ms, attempt, bytes_in).
 //
-// A nil argument falls back to slog.Default() (D-39). The library NEVER
+// A nil argument falls back to [slog.Default]() (D-39). The library NEVER
 // mutates the process-wide default logger — this preserves the consuming
 // application's global logger configuration.
 func WithLogger(l *slog.Logger) Option {
@@ -109,7 +110,7 @@ func WithLogger(l *slog.Logger) Option {
 	}
 }
 
-// WithTimeout sets the per-request timeout applied via context.WithTimeout
+// WithTimeout sets the per-request timeout applied via [context.WithTimeout]
 // inside every endpoint method (D-26 / D-27). The default is fifteen
 // seconds (CLIENT-06 / D-28).
 //
@@ -129,7 +130,7 @@ func WithTimeout(d time.Duration) Option {
 }
 
 // WithStrictDecoding enables strict JSON decoding via
-// json.Decoder.DisallowUnknownFields (D-91 / D-92 / CL-15). When strict is
+// [json.Decoder.DisallowUnknownFields] (D-91 / D-92 / CL-15). When strict is
 // true, every JSON response decoded by the SDK rejects payloads
 // containing fields absent from the destination Go struct — useful for
 // surfacing upstream schema drift loudly during integration tests or in
@@ -177,9 +178,9 @@ func WithStrictDecoding(strict bool) Option {
 // Retryable conditions (D-75):
 //
 //   - HTTP statuses 408, 429, 500, 502, 503, 504 (Pitfall RETRY-1).
-//   - net.Error with Timeout() == true (transport timeout).
-//   - errors wrapping syscall.ECONNRESET (connection reset).
-//   - context.Canceled and context.DeadlineExceeded are NEVER retried
+//   - [net.Error] with Timeout() == true (transport timeout).
+//   - errors wrapping [syscall.ECONNRESET] (connection reset).
+//   - [context.Canceled] and [context.DeadlineExceeded] are NEVER retried
 //     — they propagate as ctx.Err() immediately.
 //
 // Retry-After handling (D-76): when an upstream response carries a
@@ -193,7 +194,7 @@ func WithStrictDecoding(strict bool) Option {
 //
 // Placement (D-77 + RESIL-05): the retry loop lives inside
 // doJSONGet (the endpoint layer), NOT a RoundTripper. Consumers who
-// supply their own retrying *http.Client via WithHTTPClient therefore
+// supply their own retrying *[http.Client] via WithHTTPClient therefore
 // do NOT see double-firing of attempts. Retry is an opt-in SDK feature;
 // callers wanting it disable in their custom transport (or just don't
 // call WithRetry) will see exactly one round trip per endpoint method.
@@ -244,7 +245,7 @@ func WithRetry(maxAttempts int, baseDelay time.Duration) Option {
 // cumulative retry budget (CONTEXT.md `<specifics>` 5). However, this
 // does NOT mean the SDK is unbounded across retries by default:
 // WithTimeout supplies the cumulative ceiling. Under the default
-// WithTimeout(15*time.Second), the per-request context.WithTimeout
+// WithTimeout(15*time.Second), the per-request [context.WithTimeout]
 // applied in doJSONGet bounds the whole request — every c.http.Do
 // attempt AND every inter-attempt sleep — to 15s total, so the retry
 // sequence is in practice capped by WithTimeout. Callers who want
@@ -283,7 +284,7 @@ func WithMaxRetryWait(d time.Duration) Option {
 
 // WithCache enables the default in-memory TTL cache with the supplied TTL
 // (D-79 / D-80 / D-83 / RESIL-06..09). When ttl > 0, the option constructs
-// a *MemoryCache via newMemoryCacheWithClock(ttl, time.Now) and stores it
+// a *MemoryCache via newMemoryCacheWithClock(ttl, [time.Now]) and stores it
 // on the internal Cache field; the Client's RoundTripper chain inserts a
 // cacheTransport layer that consults this cache for the three reference
 // endpoints (/Countries, /Languages, /Subdivisions). Holiday endpoints
@@ -305,7 +306,7 @@ func WithMaxRetryWait(d time.Duration) Option {
 // per D-80). The default Client has NO cache — opt in via WithCache or
 // WithCacheBackend.
 //
-// Clock seam (D-86): WithCache uses time.Now literally because options
+// Clock seam (D-86): WithCache uses [time.Now] literally because options
 // run BEFORE Client construction; the Client's internal nowFunc cannot
 // be picked up retroactively by the cache. Tests that need a fake clock
 // route through WithCacheBackend(newMemoryCacheWithClock(ttl, fc.Now))
@@ -351,7 +352,7 @@ func WithCacheBackend(c Cache) Option {
 
 // WithRequestHook supplies an observability hook function invoked after
 // every HTTP round trip the Client performs (D-87 / D-88 / D-89 / D-90 /
-// TRANS-05). The hook receives the (*http.Request, *http.Response, error)
+// TRANS-05). The hook receives the (*http.Request, *[http.Response], error)
 // triple produced by the RoundTripper chain. Use it to wire metrics
 // counters, distributed-tracing spans, or per-request audit logs into the
 // SDK without modifying it — the hook is the single observability seam
@@ -365,7 +366,7 @@ func WithCacheBackend(c Cache) Option {
 //     invocations).
 //   - Fires on cache-hit synthetic responses too (D-88). cacheTransport
 //     stores cached bytes for /Countries, /Languages, /Subdivisions; on a
-//     hit it builds a synthetic *http.Response and the hook above sees it.
+//     hit it builds a synthetic *[http.Response] and the hook above sees it.
 //     Distinguish hits from real round trips via
 //     req.Context().Value(openholidays.CacheHitContextKey) — the value is
 //     the untyped boolean true on a hit, and absent (nil) on a miss.
@@ -383,7 +384,7 @@ func WithCacheBackend(c Cache) Option {
 // Async-hook support (background queue with bounded buffer) is explicitly
 // deferred (CONTEXT.md `<deferred>`).
 //
-// Panic propagation (D-90 / mirrors stdlib http.Handler): a panicking hook
+// Panic propagation (D-90 / mirrors stdlib [http.Handler]): a panicking hook
 // propagates the panic to the caller. The library does NOT use
 // defer/recover — silent recovery would hide bugs in consumer hooks.
 // Consumers wanting recovery wrap their hook body with their own
@@ -392,7 +393,7 @@ func WithCacheBackend(c Cache) Option {
 // Body invariant (Pitfall LOG-1 / OBS-01): the hook MUST NOT read resp.Body
 // — doing so depletes bytes before the downstream decoder runs in
 // doJSONGet. The hook also MUST NOT log resp.Body content above
-// slog.LevelDebug because that would leak payload data into operator logs
+// [slog.LevelDebug] because that would leak payload data into operator logs
 // (PROJECT.md). Log method, URL, status, duration, attempt counters,
 // trace-context — never the body content.
 //
