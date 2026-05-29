@@ -15,7 +15,6 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"sort"
 	"sync/atomic"
 	"testing"
 
@@ -96,23 +95,27 @@ func TestClient_Countries(t *testing.T) {
 		c := NewClient(WithBaseURL(srv.URL))
 		countries, err := c.Countries(t.Context(), CountriesRequest{})
 		require.NoError(t, err)
-		require.Len(t, countries, 2)
+		// Fixture mirrors the full live /Countries response (36 entries
+		// as of 2026-05-29). The test asserts on PL + DE specifically
+		// because the wider Phase 3 suite depends on them; the precise
+		// total is upstream's call and would drift again the moment a
+		// new country was added.
+		require.GreaterOrEqual(t, len(countries), 2)
 
-		// Sort by IsoCode for deterministic assertions regardless of
-		// upstream ordering.
-		sort.Slice(countries, func(i, j int) bool {
-			return countries[i].IsoCode < countries[j].IsoCode
-		})
-		assert.Equal(t, "DE", countries[0].IsoCode)
-		assert.Equal(t, "PL", countries[1].IsoCode)
+		byIso := make(map[string]Country, len(countries))
+		for _, c := range countries {
+			byIso[c.IsoCode] = c
+		}
+		require.Contains(t, byIso, "PL")
+		require.Contains(t, byIso, "DE")
 
 		// Fixture uses uppercase Language codes ("PL", "DE", "EN").
 		// Country.NameFor matches case-insensitively (strings.EqualFold).
-		assert.Equal(t, "Polska", countries[1].NameFor("PL"))
-		assert.Equal(t, "Polska", countries[1].NameFor("pl"))
-		assert.Equal(t, "Deutschland", countries[0].NameFor("de"))
-		assert.NotEmpty(t, countries[0].OfficialLanguages)
-		assert.NotEmpty(t, countries[1].OfficialLanguages)
+		assert.Equal(t, "Polska", byIso["PL"].NameFor("PL"))
+		assert.Equal(t, "Polska", byIso["PL"].NameFor("pl"))
+		assert.Equal(t, "Deutschland", byIso["DE"].NameFor("de"))
+		assert.NotEmpty(t, byIso["DE"].OfficialLanguages)
+		assert.NotEmpty(t, byIso["PL"].OfficialLanguages)
 	})
 
 	t.Run("4xx returns *APIError with detail Message", func(t *testing.T) {

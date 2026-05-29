@@ -74,8 +74,16 @@ func TestDoJSONGet(t *testing.T) {
 		c := NewClient(WithBaseURL(srv.URL))
 		got, err := doJSONGet[[]Country](t.Context(), c, "/Countries", nil)
 		require.NoError(t, err)
-		require.Len(t, got, 2)
-		isoCodes := []string{got[0].IsoCode, got[1].IsoCode}
+		// The committed fixture is now the full live /Countries response
+		// (36 entries as of 2026-05-29). The decoder contract under test
+		// is "decodes an unbounded array of Country", so any length ≥ 2
+		// proves the codec; PL and DE are spot-checked because the rest
+		// of the suite depends on them.
+		require.GreaterOrEqual(t, len(got), 2)
+		isoCodes := make([]string, 0, len(got))
+		for _, c := range got {
+			isoCodes = append(isoCodes, c.IsoCode)
+		}
 		assert.Contains(t, isoCodes, "PL")
 		assert.Contains(t, isoCodes, "DE")
 	})
