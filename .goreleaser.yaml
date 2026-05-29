@@ -18,15 +18,19 @@
 # no `signs:` (cosign — attestations cover provenance), no `source:` (source
 # tarball), no `sboms:` block.
 #
-# W-05 fix on ldflags Version inject — version.go declares
-# `var Version = "0.1.0"` with NO leading `v`. The release tag is `v0.1.0`
-# with the leading `v`. Without the `trimPrefix "v" .Version` template
-# function, a goreleaser-built binary would emit
-# `User-Agent: go-openholidays/v0.1.0` while a `go build` / `go install`
-# binary (which reads version.go directly) emits
-# `User-Agent: go-openholidays/0.1.0` — a silent divergence. The template
-# `{{ trimPrefix "v" .Version }}` strips the leading `v` from the tag so
-# the injected literal matches version.go exactly.
+# W-05 ldflags Version inject — version.go declares
+# `var Version = "0.X.Y"` with NO leading `v`. Goreleaser's `.Version`
+# template variable is documented to be the current tag with the `v`
+# prefix already stripped (https://goreleaser.com/customization/templates/:
+# ".Version — Current Git tag without v prefix"), so plain `{{ .Version }}`
+# matches the literal in version.go exactly and there is no User-Agent
+# divergence between a goreleaser-built binary and a local `go build`.
+#
+# Earlier revisions wrapped this in `{{ trimPrefix "v" .Version }}`, which
+# is BOTH redundant (nothing to trim) AND broken — `trimPrefix` is not a
+# registered goreleaser template function. The v0.2.1 release (workflow
+# run 26605628217) aborted with `template: function "trimPrefix" not
+# defined`, which is why that tag and v0.2.0 carry zero binary assets.
 version: 2
 
 project_name: go-openholidays
@@ -52,7 +56,7 @@ builds:
       - -trimpath
     ldflags:
       - -s -w
-      - -X github.com/egeek-tech/go-openholidays.Version={{ trimPrefix "v" .Version }}
+      - -X github.com/egeek-tech/go-openholidays.Version={{ .Version }}
     mod_timestamp: "{{ .CommitTimestamp }}"
 
 archives:
@@ -60,7 +64,7 @@ archives:
     name_template: "ohcli_{{.Version}}_{{.Os}}_{{.Arch}}"
     format_overrides:
       - goos: windows
-        format: zip
+        formats: [zip]
     files:
       - LICENSE
       - README.md
