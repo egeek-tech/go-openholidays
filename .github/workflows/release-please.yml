@@ -2,26 +2,48 @@
 #
 # Single job, two phases, in the same workflow run:
 #
-#   Phase 1 — Release Please:
+#   Phase 1 — Release Please (PR + tag only, NO GitHub Release):
 #     On every push to master, scans Conventional Commits since the
 #     last release tag and either:
 #       a) opens/updates a "Release PR" (when there are release-worthy
 #          commits since the last tag, but no Release PR is open yet),
-#       b) cuts the release when a Release PR is merged (creates the
-#          `vX.Y.Z` annotated tag + GitHub Release with auto-generated
-#          notes), `version.go` is rewritten via the
-#          `// x-release-please-version` marker, `CHANGELOG.md` is
-#          updated, `.release-please-manifest.json` is bumped.
+#       b) when a Release PR is merged: pushes the `vX.Y.Z` annotated
+#          tag, rewrites `version.go` via the
+#          `// x-release-please-version` marker, updates `CHANGELOG.md`
+#          and `.release-please-manifest.json`. With `skip-github-
+#          release: true`, the action does NOT create the GitHub Release
+#          object — that's goreleaser's job in Phase 2.
 #
-#   Phase 2 — Build + attest (gated on `release_created`):
-#     When Phase 1 cut a release in THIS run, the same job continues
-#     with goreleaser + attest-build-provenance. Phase 2 lives in
-#     the same job DELIBERATELY: a tag pushed by GITHUB_TOKEN does
-#     NOT trigger downstream workflows (GitHub anti-loop guard for
-#     GITHUB_TOKEN). Putting goreleaser in a separate workflow keyed
-#     on `push:tags:v*` therefore SILENTLY DROPS — observed during
-#     the v0.2.0 release: tag landed but no binaries were ever built.
-#     Same-job execution sidesteps the cascade entirely.
+#     Why skip GitHub Release here: this repo auto-marks published
+#     Releases as immutable (observed on v0.2.0..v0.2.3). An immutable
+#     release blocks POST /releases/:id/assets, which is exactly what
+#     goreleaser does next. Letting goreleaser create the release fresh
+#     means the whole draft → upload → publish lifecycle stays inside
+#     one mutable window.
+#
+#     Earlier attempt to use release-please's draft=true also failed —
+#     in draft mode the action ALSO skips pushing the tag (only creates
+#     a draft GH Release), leaving v0.2.4 / v0.3.0 as zombie drafts
+#     with no tag and the Phase 2 checkout step failing.
+#
+#   Phase 2 — Build + create release + attest (gated on `release_created`):
+#     When Phase 1 cut a tag in THIS run, the same job continues:
+#       - Check out the new tag (it exists because Phase 1 pushed it).
+#       - Goreleaser builds 6 binaries + checksums.txt, then creates a
+#         DRAFT GitHub Release (`release.draft: true` in
+#         .goreleaser.yaml) and uploads all 7 assets to it.
+#       - actions/attest-build-provenance signs ./dist/checksums.txt
+#         and attaches the attestation to the draft release.
+#       - Final step: `gh release edit vX.Y.Z --draft=false` flips the
+#         draft bit, which is the moment GitHub auto-marks the release
+#         immutable. By then every asset + attestation is already in
+#         place.
+#
+#     Phase 2 lives in the same job DELIBERATELY: a tag pushed by
+#     GITHUB_TOKEN does NOT trigger downstream workflows (GitHub anti-
+#     loop guard). The App token (Phase 1) DOES cascade, but keeping
+#     Phase 2 inline avoids the dependency on cascade-vs-no-cascade
+#     and keeps the release lifecycle in one journal.
 #
 # GitHub App identity (`egeek-tech-release-bot`, see docs/release-bot.md):
 #     release-please-action is given a token minted from the
@@ -75,6 +97,16 @@ name: Release
 on:
   push:
     branches: [master]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to (re)release, e.g. v0.4.0'
+        required: true
+        type: string
+      sha:
+        description: 'Commit SHA the tag should point at (only used if the tag does not already exist on origin)'
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -100,18 +132,85 @@ jobs:
           client-id: ${{ secrets.RELEASE_BOT_APP_CLIENT_ID }}
           private-key: ${{ secrets.RELEASE_BOT_APP_PRIVATE_KEY }}
 
-      # PHASE 1 — release-please scans commits + manages tag/Release.
-      # The `token:` input swaps in the App-minted token so Release PRs
-      # are authored by `egeek-tech-release-bot[bot]` instead of
-      # github-actions[bot]. Without this swap, branch protection blocks
-      # merging because ci.yml never fires on the Release PR (anti-loop
-      # guard on GITHUB_TOKEN).
-      - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7  # v5.0.0
+      # PHASE 1 — release-please opens Release PRs and, on PR merge,
+      # pushes the tag + creates a DRAFT GH Release. The combination is
+      # configured in release-please-config.json:
+      #   "draft": true              → release created as draft
+      #   "force-tag-creation": true → tag pushed to origin via git/refs
+      #                                BEFORE the draft release is created
+      #
+      # Verified in release-please core (github-api.ts:667-695): with
+      # forceTag: true, octokit.git.createRef pushes refs/tags/vX.Y.Z to
+      # origin first, then repos.createRelease creates the draft release
+      # attached to that tag. Outputs release_created + tag_name are set
+      # in both cases (drafted and non-drafted) — see manifest.ts:1322-1341.
+      #
+      # Why this combination, and not the alternatives:
+      #   * draft: false alone → release publishes immediately → GitHub
+      #     auto-marks it immutable on this repo → goreleaser asset upload
+      #     returns 422 (observed v0.2.0..v0.2.3, run 26632385497 log).
+      #   * draft: true alone → "lazy tag creation": per release-please's
+      #     own JSON schema, "GitHub does not create a Git tag for draft
+      #     releases until they are published" → Phase 2 checkout fails
+      #     (observed v0.2.4 / v0.3.0).
+      #   * skip-github-release: true → action.yml says "do not try to
+      #     tag releases"; src/index.ts:130-144 confirms createReleases()
+      #     is skipped entirely, no tag pushed, no outputs set. Phase 2
+      #     gate would always be false.
+      #
+      # `token:` swaps in the App-minted token so the tag push + Release
+      # PR creation cascade ci.yml correctly (default GITHUB_TOKEN does
+      # NOT cascade per GitHub's anti-loop guard).
+      - name: release-please
         id: release
+        if: github.event_name == 'push'
+        uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7  # v5.0.0
         with:
           token: ${{ steps.app-token.outputs.token }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
+
+      # ─────────────────────────────────────────────────────────────
+      # Dispatch-triggered recovery path: push the missing tag, then
+      # let Phase 2 below run against it. Used for drafts created by
+      # the previous broken pipeline (v0.2.4 / v0.3.0 / v0.4.0) that
+      # never had their tags pushed.
+      # ─────────────────────────────────────────────────────────────
+      - name: Push tag for dispatch recovery
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          TAG: ${{ inputs.tag }}
+          SHA: ${{ inputs.sha }}
+        run: |
+          set -euo pipefail
+          if gh api "repos/$GITHUB_REPOSITORY/git/refs/tags/$TAG" --silent 2>/dev/null; then
+            echo "Tag $TAG already exists on origin — skipping creation."
+          else
+            echo "Creating tag $TAG -> $SHA on origin via git/refs API."
+            gh api -X POST "repos/$GITHUB_REPOSITORY/git/refs" \
+              -f "ref=refs/tags/$TAG" \
+              -f "sha=$SHA"
+          fi
+
+      # Compute the tag Phase 2 should run against, from whichever
+      # entry point fired.
+      - name: Resolve target tag
+        id: tag
+        if: |
+          (github.event_name == 'push' && steps.release.outputs.release_created == 'true') ||
+          github.event_name == 'workflow_dispatch'
+        env:
+          PUSH_TAG: ${{ steps.release.outputs.tag_name }}
+          DISPATCH_TAG: ${{ inputs.tag }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT" = "push" ]; then
+            echo "name=$PUSH_TAG" >> "$GITHUB_OUTPUT"
+          else
+            echo "name=$DISPATCH_TAG" >> "$GITHUB_OUTPUT"
+          fi
 
       # PHASE 2 — runs ONLY when release-please cut a new release in
       # this run. `release_created` is the string "true" when a tag
@@ -122,57 +221,59 @@ jobs:
       # this, goreleaser's `git describe` can fail to see the tag
       # release-please just pushed via API (the initial checkout was
       # before the tag existed).
-      - name: Check out at the new tag
-        if: ${{ steps.release.outputs.release_created }}
+      # ─────────────────────────────────────────────────────────────
+      # PHASE 2 — build, attest, publish. Runs for both entry points
+      # (push that produced a tag, OR workflow_dispatch).
+      # Gating: every Phase 2 step uses `steps.tag.outputs.name != ''`
+      # so the steps only run when the previous Resolve-target-tag step
+      # actually produced a tag to operate on.
+      # ─────────────────────────────────────────────────────────────
+      - name: Check out at the target tag
+        if: steps.tag.outputs.name != ''
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
-          ref: ${{ steps.release.outputs.tag_name }}
+          ref: ${{ steps.tag.outputs.name }}
           fetch-depth: 0
 
       - name: Set up Go
-        if: ${{ steps.release.outputs.release_created }}
+        if: steps.tag.outputs.name != ''
         uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c  # v6.4.0
         with:
           go-version: stable
 
+      # goreleaser adopts the existing draft GH Release for this tag
+      # (per .goreleaser.yaml: use_existing_draft: true + mode: replace),
+      # builds 6 binaries + checksums.txt, uploads them as assets, and
+      # overwrites the draft's body with its own changelog (bounded by
+      # the previous git tag on origin, filtered per changelog.filters
+      # in .goreleaser.yaml).
       - name: Run goreleaser
-        if: ${{ steps.release.outputs.release_created }}
+        if: steps.tag.outputs.name != ''
         uses: goreleaser/goreleaser-action@5daf1e915a5f0af01ddbcd89a43b8061ff4f1a89  # v7.2.2
         with:
           distribution: goreleaser
           version: "~> v2"
           args: release --clean
         env:
-          # Use the App token so the asset uploads are attributed to
-          # the bot, matching the principal that drafted the release in
-          # Phase 1.
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
 
       # Sign the checksums manifest, not each binary — checksums.txt
       # SHA-256-fingerprints every released archive, so attesting the
-      # manifest transitively attests every binary. Cheaper than a
-      # per-binary attestation step.
+      # manifest transitively covers every binary in one attestation.
       - name: Attest binaries via subject-checksums
-        if: ${{ steps.release.outputs.release_created }}
+        if: steps.tag.outputs.name != ''
         uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32  # v4.1.0
         with:
           subject-checksums: ./dist/checksums.txt
 
-      # Publish the release — release-please-config.json sets draft:true
-      # so the release stays mutable while goreleaser uploads assets +
-      # attest signs the checksums manifest. GitHub flips published
-      # releases to immutable automatically on this repo (observed on
-      # v0.2.0/v0.2.1/v0.2.2: the existing release returned 422 to every
-      # POST /assets), so the upload phase has to finish against a draft.
-      # After attestation lands we flip draft=false here, which is the
-      # transition that lets the release surface on the public Releases
-      # tab. Idempotent — `gh release edit --draft=false` on an already-
-      # published release is a no-op.
+      # Final un-draft. By here: tag exists on origin, 7 assets uploaded
+      # to the draft, attestation written to the attestations API. The
+      # moment we un-draft, GitHub auto-marks the release immutable —
+      # by then everything that needed to write is done. `gh release
+      # edit --draft=false` on an already-published release is a no-op.
       - name: Publish release (draft → published)
-        if: ${{ steps.release.outputs.release_created }}
+        if: steps.tag.outputs.name != ''
         env:
-          # App token keeps the un-draft transition attributed to the
-          # same principal as the rest of the release.
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
-          TAG: ${{ steps.release.outputs.tag_name }}
+          TAG: ${{ steps.tag.outputs.name }}
         run: gh release edit "$TAG" --draft=false --repo "$GITHUB_REPOSITORY"
