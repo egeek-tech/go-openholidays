@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.5.1](https://github.com/egeek-tech/go-openholidays/compare/v0.5.0...v0.5.1) (2026-05-30)
+
+
+### Documentation
+
+* document release-binary attestation verification (+ Phase 05 UAT) ([b89f81a](https://github.com/egeek-tech/go-openholidays/commit/b89f81a4f894700c8717c60271c4754ba16547d4))
+* **quick-260530-dc9:** add "Verifying release binaries" section to README ([e442ad6](https://github.com/egeek-tech/go-openholidays/commit/e442ad68ff371602df13105326206a2b544d6e32))
+* **quick-260530-dc9:** clarify REL-03 attestation row — verify the archive, not the binary ([09811ca](https://github.com/egeek-tech/go-openholidays/commit/09811ca0520c9239e287b8e543754088924fceaa))
+* **quick-260530-dc9:** document release-binary attestation verification (README + runbook §3) ([ab63ba8](https://github.com/egeek-tech/go-openholidays/commit/ab63ba8fdca34280ce7c9ceaa21277ad842c50e8))
+
 ## [0.5.0](https://github.com/egeek-tech/go-openholidays/compare/v0.4.0...v0.5.0) (2026-05-29)
 
 
