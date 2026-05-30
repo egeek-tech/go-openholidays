@@ -126,6 +126,25 @@ Once a release tag (`vX.Y.Z`) has been pushed to origin, it is **frozen**. Once 
 - `v0.2.4` is a stray draft created by an aborted release run
 - **None of these have been deleted or rewritten**. `v0.2.3`, `v0.2.5+` are the fix-forward responses; the broken releases remain on the Releases tab as audit trail.
 
+### Rule 5 — `audit:ok` marks certify reviewed logic; modifying a function invalidates its mark
+
+A production function may carry a single `// audit:ok YYYY-MM-DD` comment line directly above it, certifying that its logic was deliberately reviewed and found correct on that date (correct behavior matching its name/doc, sound error handling, no flaggable hardcoded values, follows these Gold Rules). The mark sits *above* the function and is separated from the godoc doc comment by a blank line, so it never renders on `pkg.go.dev`:
+
+```go
+// audit:ok 2026-05-30
+
+// NameFor returns the localized holiday name ...
+func (h Holiday) NameFor(lang string) string {
+```
+
+**Required**: any change to a function's code or behavior MUST delete that function's `// audit:ok` line in the same commit. The function must be re-audited before a new mark is added.
+
+**Exempt**: pure doc-comment / typo fixes that do not change behavior.
+
+**Why**: the mark is a *freshness* signal, not a permanent badge. Its entire value rests on the invariant that a marked function's logic is exactly what was reviewed. The moment the body changes, a retained mark falsely certifies logic that was never reviewed in its current form — worse than no mark at all.
+
+**Enforcement**: by convention today (this rule + code review). A CI / pre-commit guard that fails when a changed function still carries its prior mark is a noted future follow-up, not yet wired.
+
 ## Style
 
 ### Em-dashes ("—", U+2014) in godoc and Markdown are deliberate
@@ -155,4 +174,4 @@ across every file or to ship a lint rule that prevents re-introduction.
 These conventions are the floor, not the ceiling. New conventions discovered during implementation (idioms, lint rules, fixture patterns, naming schemes) belong in this file. Update freely and commit.
 
 ---
-*Last updated: 2026-05-29 — Rule 4 added: published releases and tags are immutable; fix forward only.*
+*Last updated: 2026-05-30 — Rule 5 added: `audit:ok` marks certify reviewed logic; modifying a function invalidates its mark.*
