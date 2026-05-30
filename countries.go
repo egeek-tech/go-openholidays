@@ -42,6 +42,8 @@ type CountriesRequest struct {
 	LanguageIsoCode string
 }
 
+// audit:ok 2026-05-30
+
 // Countries fetches the list of supported countries from the upstream
 // OpenHolidays API. Each returned Country carries an IsoCode, a per-language
 // localized Name array (look up a specific language via Country.NameFor),

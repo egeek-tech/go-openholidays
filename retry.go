@@ -88,6 +88,8 @@ type retryConfig struct {
 	maxWait     time.Duration
 }
 
+// audit:ok 2026-05-30
+
 // shouldRetry reports whether the supplied (resp, err) pair from a
 // preceding c.http.Do(req) call qualifies for another attempt per the
 // D-75 retryable-conditions matrix (RESIL-02). The function is pure —
@@ -171,6 +173,8 @@ func shouldRetry(resp *http.Response, err error) bool {
 	return false
 }
 
+// audit:ok 2026-05-30
+
 // parseRetryAfter parses an HTTP Retry-After header per RFC 7231
 // §7.1.1.1 and returns the corresponding sleep duration relative to the
 // supplied now (D-76). The header accepts two forms in the wild:
@@ -227,6 +231,8 @@ func parseRetryAfter(h string, now time.Time) (time.Duration, bool) {
 	}
 	return 0, false
 }
+
+// audit:ok 2026-05-30
 
 // computeBackoff returns the per-attempt sleep duration applied between
 // retry attempts per D-76 + RESIL-01. The formula composes three

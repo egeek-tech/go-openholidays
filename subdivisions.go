@@ -44,6 +44,8 @@ type SubdivisionsRequest struct {
 	LanguageIsoCode string
 }
 
+// audit:ok 2026-05-30
+
 // Subdivisions fetches the administrative subdivisions of the country named by
 // req.CountryIsoCode from the upstream OpenHolidays API. Each returned
 // Subdivision carries a Code (e.g. "PL-SL"), a per-language localized Name

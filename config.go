@@ -119,6 +119,8 @@ func defaultConfig() *clientConfig {
 	}
 }
 
+// audit:ok 2026-05-30
+
 // composeHTTPClient shallow-copies cfg.httpClient so that caller mutations of
 // the original *[http.Client] after NewClient returns do not affect the SDK
 // (Pitfall HTTP-1 / D-37). The Transport on the copy is replaced with the
@@ -133,6 +135,8 @@ func composeHTTPClient(cfg *clientConfig) *http.Client {
 	cp.Transport = buildTransport(cfg)
 	return &cp
 }
+
+// audit:ok 2026-05-30
 
 // buildTransport composes the RoundTripper chain. The full Phase 4 chain
 // per D-89 (revised — retry moved to the endpoint layer per RESIL-05) is:

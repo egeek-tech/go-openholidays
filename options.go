@@ -24,6 +24,8 @@ import (
 // have no effect by design (no setter exists).
 type Option func(*clientConfig)
 
+// audit:ok 2026-05-30
+
 // WithHTTPClient supplies a pre-configured *[http.Client]. The SDK
 // shallow-copies the supplied client inside composeHTTPClient and replaces
 // the copy's Transport with the SDK's RoundTripper chain (D-37 / Pitfall
@@ -45,6 +47,8 @@ func WithHTTPClient(c *http.Client) Option {
 		}
 	}
 }
+
+// audit:ok 2026-05-30
 
 // WithBaseURL overrides the default base URL. A trailing slash, if present,
 // is trimmed so endpoint paths (always beginning with "/") concatenate
@@ -77,6 +81,8 @@ func WithBaseURL(u string) Option {
 	}
 }
 
+// audit:ok 2026-05-30
+
 // WithUserAgent overrides the default User-Agent header
 // ("go-openholidays/<Version>") sent on every HTTP request.
 //
@@ -92,6 +98,8 @@ func WithUserAgent(s string) Option {
 		}
 	}
 }
+
+// audit:ok 2026-05-30
 
 // WithLogger injects a structured logger. The SDK emits one [slog.LevelDebug]
 // record per HTTP round trip via loggingTransport (transport.go) with the
@@ -109,6 +117,8 @@ func WithLogger(l *slog.Logger) Option {
 		cfg.logger = l
 	}
 }
+
+// audit:ok 2026-05-30
 
 // WithTimeout sets the per-request timeout applied via [context.WithTimeout]
 // inside every endpoint method (D-26 / D-27). The default is fifteen
@@ -128,6 +138,8 @@ func WithTimeout(d time.Duration) Option {
 		cfg.timeout = d
 	}
 }
+
+// audit:ok 2026-05-30
 
 // WithStrictDecoding enables strict JSON decoding via
 // [json.Decoder.DisallowUnknownFields] (D-91 / D-92 / CL-15). When strict is
@@ -154,6 +166,8 @@ func WithStrictDecoding(strict bool) Option {
 		cfg.strictDecoding = strict
 	}
 }
+
+// audit:ok 2026-05-30
 
 // WithRetry enables retry with exponential backoff + full jitter for
 // every endpoint method on the constructed Client (D-73 / D-74 / D-75 /
@@ -227,6 +241,8 @@ func WithRetry(maxAttempts int, baseDelay time.Duration) Option {
 	}
 }
 
+// audit:ok 2026-05-30
+
 // WithMaxRetryWait sets the per-attempt sleep ceiling applied by the
 // retry loop (D-74 default 60s). A non-positive duration falls back to
 // defaultMaxRetryWait (60s) per D-74 — calling
@@ -282,6 +298,8 @@ func WithMaxRetryWait(d time.Duration) Option {
 	}
 }
 
+// audit:ok 2026-05-30
+
 // WithCache enables the default in-memory TTL cache with the supplied TTL
 // (D-79 / D-80 / D-83 / RESIL-06..09). When ttl > 0, the option constructs
 // a *MemoryCache via newMemoryCacheWithClock(ttl, [time.Now]) and stores it
@@ -326,6 +344,8 @@ func WithCache(ttl time.Duration) Option {
 	}
 }
 
+// audit:ok 2026-05-30
+
 // WithCacheBackend supplies a custom Cache implementation; supersedes any
 // prior WithCache(ttl) per the D-80 last-wins functional-options
 // convention. A nil argument is a no-op (mirrors WithHTTPClient(nil)).
@@ -349,6 +369,8 @@ func WithCacheBackend(c Cache) Option {
 		}
 	}
 }
+
+// audit:ok 2026-05-30
 
 // WithRequestHook supplies an observability hook function invoked after
 // every HTTP round trip the Client performs (D-87 / D-88 / D-89 / D-90 /

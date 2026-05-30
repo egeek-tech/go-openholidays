@@ -92,6 +92,8 @@ type APIError struct {
 	Message    string // Best-effort message parsed from upstream JSON; empty when unparseable.
 }
 
+// audit:ok 2026-05-30
+
 // Error returns a human-readable description of the API error.
 //
 // When Message is empty:
@@ -110,6 +112,8 @@ func (e *APIError) Error() string {
 	}
 	return fmt.Sprintf("openholidays: api error %d at %s: %s", e.StatusCode, e.Path, e.Message)
 }
+
+// audit:ok 2026-05-30
 
 // Is supports [errors.Is](err, &APIError{StatusCode: N}) status-code matching.
 //

@@ -33,6 +33,8 @@ const maxResponseBytes = 10 << 20
 // preserving enough context for diagnostics.
 const apiErrorBodyCap = 4 << 10
 
+// audit:ok 2026-05-30
+
 // doJSONGet performs a GET to c.baseURL+path with the supplied query
 // parameters, decodes the JSON response body into a value of type T, and
 // returns it. It encapsulates the Phase 2 D-41..D-45 + D-24 pipeline:
@@ -277,6 +279,8 @@ func doJSONGet[T any](ctx context.Context, c *Client, path string, q url.Values)
 	return out, nil
 }
 
+// audit:ok 2026-05-30
+
 // buildAPIError constructs an *APIError from a non-2xx *[http.Response]. The
 // upstream body is read via [io.LimitReader] so APIError.Body never exceeds
 // apiErrorBodyCap (4 KiB, Phase 1 D-17). Message is parsed best-effort via
@@ -295,6 +299,8 @@ func buildAPIError(resp *http.Response, path string) *APIError {
 		Message:    msg,
 	}
 }
+
+// audit:ok 2026-05-30
 
 // validateHolidays runs the post-decode Holiday schema-drift checks
 // mandated by D-65 / CL-12 / Pitfall JSON-4. The function returns nil when
@@ -353,6 +359,8 @@ func validateHolidays(hs []Holiday, path string) error {
 	}
 	return nil
 }
+
+// audit:ok 2026-05-30
 
 // parseAPIMessage best-effort extracts a human-readable message from an
 // upstream error body. The OpenHolidays API returns RFC 7807 ProblemDetails

@@ -62,6 +62,8 @@ type PublicHolidaysRequest struct {
 	SubdivisionCode string
 }
 
+// audit:ok 2026-05-30
+
 // PublicHolidays fetches the list of public (statutory) holidays for a
 // country in a date window from the upstream OpenHolidays API. Each
 // returned Holiday carries an ID, a StartDate/EndDate pair (Date.Equal for

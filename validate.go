@@ -13,6 +13,8 @@ import (
 	"strings"
 )
 
+// audit:ok 2026-05-30
+
 // validateCountry canonicalizes a country ISO 3166-1 alpha-2 code to uppercase
 // and verifies it is exactly 2 ASCII letters in [A-Z]. Returns the canonical
 // (uppercase) form, which is what the OpenHolidays API expects on the wire.
@@ -104,6 +106,8 @@ func validateDateRange(from, to Date) error {
 	}
 	return nil
 }
+
+// audit:ok 2026-05-30
 
 // isTwoASCIILetters reports whether s is exactly 2 bytes and each byte is
 // an ASCII letter (A-Z or a-z). Byte arithmetic (rather than [unicode.IsLetter])
