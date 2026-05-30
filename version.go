@@ -9,4 +9,4 @@ package openholidays
 //	go build -ldflags '-X github.com/egeek-tech/go-openholidays.Version=0.1.1-rc1'
 //
 // Release Please updates the literal on the next line at each Release PR.
-var Version = "0.5.3" // x-release-please-version
+var Version = "0.5.4" // x-release-please-version
