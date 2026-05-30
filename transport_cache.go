@@ -82,6 +82,8 @@ type cacheTransport struct {
 	next          http.RoundTripper
 }
 
+// audit:ok 2026-05-30
+
 // isCacheablePath returns true iff path is in the D-83 exact-match
 // allow-list: /Countries, /Languages, /Subdivisions. The OpenHolidays API
 // uses query parameters (not subpaths) for variation, so exact equality
@@ -96,6 +98,8 @@ func isCacheablePath(path string) bool {
 	return false
 }
 
+// audit:ok 2026-05-30
+
 // cacheKey encodes the request into the D-82 cache key:
 // req.Method + " " + req.URL.Path + "?" + req.URL.Query().Encode(). The
 // query encoding is deterministic (stdlib sorts keys) so two requests
@@ -104,6 +108,8 @@ func isCacheablePath(path string) bool {
 func cacheKey(req *http.Request) string {
 	return req.Method + " " + req.URL.Path + "?" + req.URL.Query().Encode()
 }
+
+// audit:ok 2026-05-30
 
 // RoundTrip implements [http.RoundTripper]. The branches:
 //

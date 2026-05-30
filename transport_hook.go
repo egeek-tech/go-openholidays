@@ -60,6 +60,8 @@ type hookTransport struct {
 	next http.RoundTripper
 }
 
+// audit:ok 2026-05-30
+
 // RoundTrip delegates to t.next, then invokes t.hook(req, resp, err)
 // synchronously on the calling goroutine, then returns the next
 // RoundTripper's (resp, err) verbatim.

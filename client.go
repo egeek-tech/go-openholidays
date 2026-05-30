@@ -69,6 +69,8 @@ type Client struct {
 	closeOnce sync.Once                                  // D-85; guards cache.Close inside Close()
 }
 
+// audit:ok 2026-05-30
+
 // NewClient constructs an *openholidays.Client by applying the supplied
 // Options to a fresh internal configuration and returning the resulting
 // immutable client. NewClient never returns an error: all Options either
@@ -110,6 +112,8 @@ func NewClient(opts ...Option) *Client {
 	}
 }
 
+// audit:ok 2026-05-30
+
 // Close is the idempotent shutdown hook. It best-effort calls cache.Close
 // when a cache backend was wired via WithCache or WithCacheBackend
 // (D-85). Safe to call from any goroutine; subsequent calls return nil
@@ -133,6 +137,8 @@ func (c *Client) Close() error {
 	})
 	return nil
 }
+
+// audit:ok 2026-05-30
 
 // ctxSleep is the default Client.sleepFunc — a ctx-aware sleep helper that
 // returns immediately on context cancellation. D-94 / Pitfall RETRY-3:
@@ -164,6 +170,8 @@ func ctxSleep(ctx context.Context, d time.Duration) error {
 		return nil
 	}
 }
+
+// audit:ok 2026-05-30
 
 // newClientRand seeds a per-Client *[math/rand/v2.Rand] via crypto/rand
 // (D-78) so two Clients in the same process — and across a fleet — do not

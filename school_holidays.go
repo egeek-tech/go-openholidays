@@ -84,6 +84,8 @@ type SchoolHolidaysRequest struct {
 	GroupCode string
 }
 
+// audit:ok 2026-05-30
+
 // SchoolHolidays fetches the list of school holidays (e.g. Polish ferie
 // zimowe, ferie letnie, wiosenna/zimowa przerwa świąteczna) for a country
 // in a date window from the upstream OpenHolidays API. Each returned

@@ -32,6 +32,8 @@ import (
 	"strings"
 )
 
+// audit:ok 2026-05-30
+
 // IsInRegion reports whether the holiday h applies to the administrative
 // subdivision identified by code, accounting for hierarchical subdivision
 // nesting (CL-09 / D-59). Where Holiday.IsInRegion only performs a flat
@@ -122,6 +124,8 @@ func (c *Client) IsInRegion(ctx context.Context, h Holiday, code string) (bool, 
 	return false, nil // cycle defense — should never trigger in practice
 }
 
+// audit:ok 2026-05-30
+
 // splitCountryFromSubdivision extracts the country prefix from a subdivision
 // code by splitting on the first '-' byte. Returns ("PL", true) for "PL-SL",
 // ("DE", true) for "DE-BY", ("DE", true) for "DE-BY-AU" (only the first
@@ -136,6 +140,8 @@ func splitCountryFromSubdivision(code string) (string, bool) {
 	}
 	return "", false
 }
+
+// audit:ok 2026-05-30
 
 // buildParentIndex walks the recursive Subdivision tree depth-first and
 // returns a child→parent map keyed by the uppercase Subdivision.Code.

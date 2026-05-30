@@ -54,6 +54,8 @@ type headerTransport struct {
 	next      http.RoundTripper
 }
 
+// audit:ok 2026-05-30
+
 // RoundTrip clones the inbound request, sets the SDK's default Accept and
 // User-Agent headers when absent, and delegates to the next RoundTripper.
 // See the headerTransport godoc for the full contract.
@@ -102,6 +104,8 @@ type loggingTransport struct {
 	next   http.RoundTripper
 }
 
+// audit:ok 2026-05-30
+
 // RoundTrip delegates to the next RoundTripper, then emits exactly one
 // Debug-level slog record with the six OBS-02 fields. See the
 // loggingTransport godoc for the full contract.
@@ -119,6 +123,8 @@ func (l *loggingTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 	return resp, err
 }
 
+// audit:ok 2026-05-30
+
 // statusOf returns resp.StatusCode when resp != nil, else -1.
 //
 // Nil-safety rationale: on a network-level failure the next RoundTripper
@@ -133,6 +139,8 @@ func statusOf(resp *http.Response) int {
 	}
 	return resp.StatusCode
 }
+
+// audit:ok 2026-05-30
 
 // bytesIn returns resp.ContentLength when resp != nil, else -1.
 //

@@ -15,6 +15,8 @@ import (
 	openholidays "github.com/egeek-tech/go-openholidays"
 )
 
+// audit:ok 2026-05-30
+
 // ohcliVersion resolves the version string printed by `ohcli version` and
 // embedded in the User-Agent ("ohcli/<version>") sent by newClient.
 //

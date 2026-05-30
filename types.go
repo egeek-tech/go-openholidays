@@ -39,6 +39,8 @@ const (
 	HolidayTypeEndOfLessons HolidayType = "EndOfLessons"
 )
 
+// audit:ok 2026-05-30
+
 // IsKnown reports whether t matches one of the six HolidayType constants
 // declared by this package.
 //
@@ -192,6 +194,8 @@ type Country struct {
 	OfficialLanguages []string `json:"officialLanguages"`
 }
 
+// audit:ok 2026-05-30
+
 // NameFor returns the localized country name for the given ISO 639-1
 // language code. Language matching is case-insensitive (strings.EqualFold)
 // so "PL" matches a "pl" entry. When the requested language is not found,
@@ -216,6 +220,8 @@ type Language struct {
 	// per language the API can describe the language in).
 	Name []LocalizedText `json:"name"`
 }
+
+// audit:ok 2026-05-30
 
 // NameFor returns the localized language name for the given ISO 639-1
 // language code. See Country.NameFor for the matching semantics.
@@ -257,11 +263,15 @@ type Subdivision struct {
 	Groups []GroupRef `json:"groups,omitempty"`
 }
 
+// audit:ok 2026-05-30
+
 // NameFor returns the localized subdivision name for the given ISO 639-1
 // language code. See Country.NameFor for the matching semantics.
 func (s Subdivision) NameFor(lang string) string {
 	return pickLocalized(s.Name, lang)
 }
+
+// audit:ok 2026-05-30
 
 // pickLocalized is the shared, unexported helper backing the three NameFor
 // accessors. It walks entries linearly and returns the Text of the first

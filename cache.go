@@ -48,6 +48,20 @@ import (
 // that exercise eviction; production TTLs are minutes or hours).
 const minSweeperInterval = 30 * time.Second
 
+// sweeperIntervalDivisor sets the sweeper's tick cadence relative to the
+// cache TTL: the loop ticks at ttl/sweeperIntervalDivisor, floored at
+// minSweeperInterval (D-84). A divisor of 4 means the sweeper wakes about
+// four times per TTL window — frequent enough to bound memory growth from
+// expired entries without burning CPU on a tight loop.
+const sweeperIntervalDivisor = 4
+
+// closeSweeperWait caps how long Close blocks waiting for the sweeper
+// goroutine to acknowledge cancellation (D-85). If the sweeper is mid-evict
+// holding the write lock, Close still returns within this window rather than
+// blocking indefinitely; the sweeper exits shortly after when it observes
+// ctx.Done. This is best-effort cleanup per the Cache interface contract.
+const closeSweeperWait = time.Millisecond
+
 // entry is the unexported value type stored under each key. value is the
 // raw response bytes captured by cacheTransport (Plan 04 Task 2); expiresAt
 // is the absolute instant at which Get must report a miss (D-81).
@@ -87,6 +101,8 @@ type MemoryCache struct {
 	closeOnce   sync.Once
 }
 
+// audit:ok 2026-05-30
+
 // NewMemoryCache constructs a *MemoryCache backed by an in-memory map with
 // the supplied TTL (D-79 / D-81). The cache uses [time.Now] as its clock; for
 // fake-clock tests, use newMemoryCacheWithClock through a
@@ -113,6 +129,8 @@ func NewMemoryCache(ttl time.Duration) *MemoryCache {
 	return newMemoryCacheWithClock(ttl, time.Now)
 }
 
+// audit:ok 2026-05-30
+
 // newMemoryCacheWithClock is the unexported constructor used by tests that
 // need to drive the cache from a deterministic clock (TEST-06 / D-86). The
 // supplied nowFn is invoked on every Put (to compute expiresAt), every Get
@@ -132,6 +150,8 @@ func newMemoryCacheWithClock(ttl time.Duration, nowFn func() time.Time) *MemoryC
 		sweepDone:   make(chan struct{}),
 	}
 }
+
+// audit:ok 2026-05-30
 
 // Get returns the cached bytes for key and true on a hit, or (nil, false)
 // on a miss or expired entry (D-81 lazy-expiration-on-read). Safe for
@@ -163,6 +183,8 @@ func (m *MemoryCache) Get(key string) ([]byte, bool) {
 	return out, true
 }
 
+// audit:ok 2026-05-30
+
 // Put stores value under key with an expiresAt of now + ttl. The first
 // successful Put lazily starts the sweeper goroutine (D-84) — a
 // constructed-but-unused MemoryCache spawns no goroutines until something
@@ -185,16 +207,20 @@ func (m *MemoryCache) Put(key string, value []byte) {
 	m.startOnce.Do(m.startSweeper)
 }
 
+// audit:ok 2026-05-30
+
 // startSweeper spawns the eviction goroutine using a tick interval of
 // max(ttl/4, minSweeperInterval) (D-84). Called exactly once via
 // startOnce.Do from the first Put.
 func (m *MemoryCache) startSweeper() {
-	interval := m.ttl / 4
+	interval := m.ttl / sweeperIntervalDivisor
 	if interval < minSweeperInterval {
 		interval = minSweeperInterval
 	}
 	go m.sweepLoop(interval)
 }
+
+// audit:ok 2026-05-30
 
 // sweepLoop is the eviction goroutine body. It runs until sweepCtx is
 // cancelled by Close, at which point defer close(sweepDone) signals Close
@@ -219,6 +245,8 @@ func (m *MemoryCache) sweepLoop(interval time.Duration) {
 	}
 }
 
+// audit:ok 2026-05-30
+
 // evict scans the entries map and deletes any expired entries. Called once
 // per sweeper tick.
 func (m *MemoryCache) evict() {
@@ -231,6 +259,8 @@ func (m *MemoryCache) evict() {
 	}
 	m.mu.Unlock()
 }
+
+// audit:ok 2026-05-30
 
 // Close cancels the sweeper context and waits briefly for the sweeper
 // goroutine to exit. Idempotent under closeOnce (D-85): concurrent Close
@@ -252,7 +282,7 @@ func (m *MemoryCache) Close() error {
 		m.sweepCancel()
 		select {
 		case <-m.sweepDone:
-		case <-time.After(time.Millisecond):
+		case <-time.After(closeSweeperWait):
 		}
 	})
 	return nil

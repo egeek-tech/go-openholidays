@@ -44,12 +44,16 @@ Environment:
   OPENHOLIDAYS_BASE_URL  override upstream base URL (test seam; Plan 02)
 `
 
+// audit:ok 2026-05-30
+
 // main is the binary entrypoint. It delegates to run so the integration
 // tests in Plan 02 can drive the full subcommand-dispatch pipeline with a
 // custom args slice and captured stdout/stderr without calling [os.Exit].
 func main() {
 	os.Exit(run(os.Args, os.Stdout, os.Stderr))
 }
+
+// audit:ok 2026-05-30
 
 // run is the testable entrypoint. It performs subcommand dispatch on
 // args[1] and returns the process exit code (0/1/2 per D-06). stdout and
@@ -109,6 +113,8 @@ func newClient() *openholidays.Client {
 // files (public.go / school.go / countries.go) so each subcommand keeps a
 // small, focused implementation with its own [flag.FlagSet], validation
 // chain, request construction, and renderer dispatch.
+
+// audit:ok 2026-05-30
 
 // reorderArgs splits argv into flags-first form so stdlib [flag.Parse] can
 // consume `ohcli public PL 2025 --json` as well as the equivalent
@@ -173,6 +179,8 @@ func reorderArgs(args []string, boolFlags map[string]struct{}) []string {
 	return append(flags, positionals...)
 }
 
+// audit:ok 2026-05-30
+
 // hasByte reports whether s contains the byte b. Inlined here to keep
 // reorderArgs free of strings/bytes imports in the dispatcher file.
 func hasByte(s string, b byte) bool {
@@ -183,6 +191,8 @@ func hasByte(s string, b byte) bool {
 	}
 	return false
 }
+
+// audit:ok 2026-05-30
 
 // libErrExitCode maps an error returned by the openholidays library to the
 // ohcli exit-code policy (D-06). Library validation sentinels are usage

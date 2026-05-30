@@ -33,6 +33,22 @@ import (
 	openholidays "github.com/egeek-tech/go-openholidays"
 )
 
+// Shared renderer formatting constants. Both the Holiday and Country renderer
+// sets reference these so the two-space JSON indent and the ';' list separator
+// stay identical across every format function in this file.
+const (
+	// jsonIndent is the per-level indent the JSON renderers apply via
+	// [json.Encoder.SetIndent] so output is human-readable and jq-friendly.
+	jsonIndent = "  "
+	// csvListSep joins multi-value CSV fields (subdivision codes, official
+	// languages) into a single field. Semicolon is chosen over comma so the
+	// value stays one field and round-trips through spreadsheet importers
+	// without requiring quoting.
+	csvListSep = ";"
+)
+
+// audit:ok 2026-05-30
+
 // render dispatches to the per-format renderer for a []Holiday payload. It
 // is the single entry point every Holiday-producing subcommand handler
 // calls. format must be one of "text", "json", or "csv"; the subcommand
@@ -72,6 +88,8 @@ func renderText(w io.Writer, hs []openholidays.Holiday, lang string) error {
 	return tw.Flush()
 }
 
+// audit:ok 2026-05-30
+
 // renderJSON writes the JSON view of a []Holiday using encoding/json
 // (RESEARCH §3.2 Pattern 2). Output is two-space-indented so the result is
 // readable on a terminal and pipes cleanly into jq. The encoder appends a
@@ -83,9 +101,11 @@ func renderText(w io.Writer, hs []openholidays.Holiday, lang string) error {
 // API and through the library's own Holiday decoder.
 func renderJSON(w io.Writer, hs []openholidays.Holiday) error {
 	enc := json.NewEncoder(w)
-	enc.SetIndent("", "  ")
+	enc.SetIndent("", jsonIndent)
 	return enc.Encode(hs)
 }
+
+// audit:ok 2026-05-30
 
 // renderCSV writes the CSV view of a []Holiday using encoding/csv
 // (RESEARCH §3.2 Pattern 2). Output is RFC 4180 compliant with a
@@ -113,7 +133,7 @@ func renderCSV(w io.Writer, hs []openholidays.Holiday, lang string) error {
 			h.NameFor(lang),
 			strconv.FormatBool(h.Nationwide),
 			string(h.Type),
-			strings.Join(codes, ";"),
+			strings.Join(codes, csvListSep),
 		}); err != nil {
 			return err
 		}
@@ -121,6 +141,8 @@ func renderCSV(w io.Writer, hs []openholidays.Holiday, lang string) error {
 	cw.Flush()
 	return cw.Error()
 }
+
+// audit:ok 2026-05-30
 
 // renderCountries dispatches the per-format renderer for a []Country
 // payload — the parallel of render for Country values. The countries
@@ -160,13 +182,17 @@ func renderCountriesText(w io.Writer, cs []openholidays.Country, lang string) er
 	return tw.Flush()
 }
 
+// audit:ok 2026-05-30
+
 // renderCountriesJSON writes the JSON view of a []Country with two-space
 // indent so output pipes cleanly into jq.
 func renderCountriesJSON(w io.Writer, cs []openholidays.Country) error {
 	enc := json.NewEncoder(w)
-	enc.SetIndent("", "  ")
+	enc.SetIndent("", jsonIndent)
 	return enc.Encode(cs)
 }
+
+// audit:ok 2026-05-30
 
 // renderCountriesCSV writes the CSV view of a []Country using
 // encoding/csv. Header row: iso_code, name, official_languages.
@@ -182,7 +208,7 @@ func renderCountriesCSV(w io.Writer, cs []openholidays.Country, lang string) err
 		if err := cw.Write([]string{
 			c.IsoCode,
 			c.NameFor(lang),
-			strings.Join(c.OfficialLanguages, ";"),
+			strings.Join(c.OfficialLanguages, csvListSep),
 		}); err != nil {
 			return err
 		}
