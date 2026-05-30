@@ -336,14 +336,14 @@ func TestClient_PublicHolidays(t *testing.T) {
 		require.NoError(t, err)
 	})
 
-	t.Run("optional LanguageIsoCode is canonicalized to lowercase on the wire", func(t *testing.T) {
+	t.Run("optional LanguageIsoCode is canonicalized to uppercase on the wire", func(t *testing.T) {
 		t.Parallel()
 		body, err := os.ReadFile(filepath.Join("testdata", "public_holidays_pl_2025.json"))
 		require.NoError(t, err)
 
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			assert.Equal(t, "pl", r.URL.Query().Get("languageIsoCode"),
-				"LanguageIsoCode must be canonicalized to lowercase per validateLanguage")
+			assert.Equal(t, "PL", r.URL.Query().Get("languageIsoCode"),
+				"LanguageIsoCode must be canonicalized to uppercase per validateLanguage")
 			w.Header().Set("Content-Type", "application/json")
 			_, _ = w.Write(body)
 		}))
@@ -354,7 +354,7 @@ func TestClient_PublicHolidays(t *testing.T) {
 			CountryIsoCode:  "PL",
 			ValidFrom:       NewDate(2025, time.January, 1),
 			ValidTo:         NewDate(2025, time.December, 31),
-			LanguageIsoCode: "PL", // uppercase input → lowercase wire form
+			LanguageIsoCode: "PL", // uppercase input → uppercase wire form
 		})
 		require.NoError(t, err)
 	})

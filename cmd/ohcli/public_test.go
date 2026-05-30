@@ -212,14 +212,14 @@ func TestCmdPublic(t *testing.T) {
 			"validation error must leave stdout empty")
 	})
 
-	t.Run("--lang reaches the wire as lowercase canonical form", func(t *testing.T) {
+	t.Run("--lang reaches the wire as uppercase canonical form", func(t *testing.T) {
 		body, err := os.ReadFile(filepath.Join("..", "..", "testdata", "public_holidays_pl_2025.json"))
 		require.NoError(t, err)
 
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// Library canonicalizes the language code to lowercase.
-			assert.Equal(t, "pl", r.URL.Query().Get("languageIsoCode"),
-				"--lang must reach the upstream as lowercase per validateLanguage")
+			// Library canonicalizes the language code to uppercase.
+			assert.Equal(t, "PL", r.URL.Query().Get("languageIsoCode"),
+				"--lang must reach the upstream as uppercase per validateLanguage")
 			w.Header().Set("Content-Type", "application/json")
 			_, _ = w.Write(body)
 		}))
@@ -227,7 +227,7 @@ func TestCmdPublic(t *testing.T) {
 		t.Setenv("OPENHOLIDAYS_BASE_URL", srv.URL)
 
 		var stdout, stderr bytes.Buffer
-		code := run([]string{"ohcli", "public", "PL", "2025", "--lang", "pl"}, &stdout, &stderr)
+		code := run([]string{"ohcli", "public", "PL", "2025", "--lang", "PL"}, &stdout, &stderr)
 		require.Equal(t, 0, code, "stderr=%q", stderr.String())
 	})
 }

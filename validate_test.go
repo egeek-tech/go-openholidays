@@ -94,7 +94,7 @@ func TestValidateCountry(t *testing.T) {
 }
 
 // TestValidateLanguage covers VALID-04 (case-insensitive accept, canonicalize
-// to lowercase, reject empty/short/long/digit/non-ASCII). Symmetric with
+// to uppercase, reject empty/short/long/digit/non-ASCII). Symmetric with
 // TestValidateCountry against ErrInvalidLanguage.
 func TestValidateLanguage(t *testing.T) {
 	t.Parallel()
@@ -105,11 +105,11 @@ func TestValidateLanguage(t *testing.T) {
 		canonOK string
 	}
 	successCases := []successCase{
-		{name: "lowercase passes through", input: "pl", canonOK: "pl"},
-		{name: "uppercase canonicalizes", input: "PL", canonOK: "pl"},
-		{name: "mixed case canonicalizes", input: "Pl", canonOK: "pl"},
-		{name: "additional happy case en", input: "en", canonOK: "en"},
-		{name: "additional happy case uppercase DE", input: "DE", canonOK: "de"},
+		{name: "uppercase passes through", input: "PL", canonOK: "PL"},
+		{name: "lowercase canonicalizes", input: "pl", canonOK: "PL"},
+		{name: "mixed case canonicalizes", input: "Pl", canonOK: "PL"},
+		{name: "additional happy case uppercase EN", input: "EN", canonOK: "EN"},
+		{name: "additional happy case lowercase de", input: "de", canonOK: "DE"},
 	}
 	for _, tc := range successCases {
 		t.Run("accept/"+tc.name, func(t *testing.T) {

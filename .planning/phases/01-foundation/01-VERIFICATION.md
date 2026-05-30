@@ -172,7 +172,7 @@ All 6 CL-XX rows are recorded in the Key Decisions table per the phase-closeout 
 | D-18 | Error() format (with/without Message) | `errors.go:76-81` matches; `TestAPIError_Error` 3 cases |
 | D-19 | APIError construction from `*http.Response` deferred to Phase 2 | Phase 1 ships type + methods only; matches plan must_haves |
 | D-20 | validateCountry canonicalizes to uppercase | `validate.go:28-34` matches |
-| D-21 | validateLanguage canonicalizes to lowercase | `validate.go:49-55` matches |
+| D-21 | validateLanguage canonicalizes to lowercase — REVERSED to uppercase 2026-05-30 (quick 260530-dvc); API is case-sensitive, lowercase returned English | `validate.go` matches (now `strings.ToUpper`) |
 | D-22 | validateDateRange uses `time.AddDate` (corrected to backward-anchored per CL-06) | `validate.go:91` matches |
 | D-23 | Validator errors quote offending value with %q / include from=/to= dates | `validate.go:31,52,84,93` matches; `TestValidators_NoSensitiveData` locks the no-transport-leak invariant |
 
