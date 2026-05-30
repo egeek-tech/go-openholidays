@@ -212,7 +212,7 @@ gofmt -l retry.go retry_test.go options.go options_test.go request.go config.go
                                                           -> (no output — clean)
 go test -race -count=1 ./...                              -> ok 1.815s
 go test -race -count=1 -run TestNoInitOrGlobalState ./... -> ok 1.025s
-go test -race -count=1 -run 'TestShouldRetry|TestParseRetryAfter|TestComputeBackoff|TestRetry_E2E|TestRetry_HonorsRetryAfter|TestRetry_CtxCancel|TestRetry_NeverRetriesCtxErrors|TestRetry_DeterministicClock|TestRetry_NotARoundTripper' ./...
+go test -race -count=1 -run 'TestShouldRetry|TestParseRetryAfter|TestComputeBackoff|TestRetry_E2E|TestRetry_HonorsRetryAfter|TestRetry_CtxCancel|TestRetry_DeterministicClock|TestRetry_NotARoundTripper' ./...
                                                           -> ok 1.026s
 find . -maxdepth 2 -name 'transport_retry.go'             -> (no output — RESIL-05 confirmed)
 grep -RIn --include='*.go' 'type retryTransport' .        -> only retry_test.go (audit code itself)
