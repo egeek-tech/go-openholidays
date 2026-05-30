@@ -36,7 +36,7 @@ const subdivisionsPLFixtureCapturedAt = "2026-05-27"
 //     hierarchical shape Plan 7's Client.IsInRegion consumes)
 //   - empty CountryIsoCode → ErrInvalidCountry without HTTP (D-56)
 //   - invalid LanguageIsoCode → ErrInvalidLanguage without HTTP (D-56)
-//   - LanguageIsoCode canonicalized to lowercase on the wire (D-55)
+//   - LanguageIsoCode canonicalized to uppercase on the wire (D-55)
 //   - 4xx → *APIError with Path "/Subdivisions"
 //   - 5xx → *APIError with title-fallback Message
 //   - malformed JSON → decode error (not a sentinel)
@@ -134,7 +134,7 @@ func TestClient_Subdivisions(t *testing.T) {
 			"expected ErrInvalidLanguage via errors.Is, got %v", err)
 	})
 
-	t.Run("lowercased languageIsoCode reaches the wire", func(t *testing.T) {
+	t.Run("uppercase languageIsoCode reaches the wire", func(t *testing.T) {
 		t.Parallel()
 
 		body, err := os.ReadFile(filepath.Join("testdata", "subdivisions_pl.json"))
@@ -142,9 +142,9 @@ func TestClient_Subdivisions(t *testing.T) {
 
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// The caller passes "EN" (uppercase); validateLanguage must
-			// canonicalize to lowercase before url.Values.Set runs.
-			assert.Equal(t, "en", r.URL.Query().Get("languageIsoCode"),
-				"languageIsoCode must be canonicalized to lowercase before reaching the wire")
+			// canonicalize to uppercase before url.Values.Set runs.
+			assert.Equal(t, "EN", r.URL.Query().Get("languageIsoCode"),
+				"languageIsoCode must be canonicalized to uppercase before reaching the wire")
 			assert.Equal(t, "PL", r.URL.Query().Get("countryIsoCode"))
 			w.Header().Set("Content-Type", "application/json")
 			_, _ = w.Write(body)

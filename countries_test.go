@@ -339,13 +339,13 @@ func TestClient_Countries(t *testing.T) {
 		t.Parallel()
 		// Use the existing committed fixture body so the response shape is
 		// stable. The handler asserts that the URL builder sent
-		// languageIsoCode=pl (lowercased canonical form per validateLanguage).
+		// languageIsoCode=PL (uppercase canonical form per validateLanguage).
 		body, err := os.ReadFile(filepath.Join("testdata", "countries.json"))
 		require.NoError(t, err, "fixture missing — re-capture per Plan 03-01 Task 3")
 
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			assert.Equal(t, "pl", r.URL.Query().Get("languageIsoCode"),
-				"expected canonicalized lowercase languageIsoCode in query")
+			assert.Equal(t, "PL", r.URL.Query().Get("languageIsoCode"),
+				"expected canonicalized uppercase languageIsoCode in query")
 			assert.Equal(t, "/Countries", r.URL.Path)
 			w.Header().Set("Content-Type", "application/json")
 			_, _ = w.Write(body)

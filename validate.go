@@ -37,9 +37,9 @@ func validateCountry(code string) (string, error) {
 	return strings.ToUpper(code), nil
 }
 
-// validateLanguage canonicalizes a language ISO 639-1 alpha-2 code to lowercase
-// and verifies it is exactly 2 ASCII letters in [a-z]. Returns the canonical
-// (lowercase) form.
+// validateLanguage canonicalizes a language ISO 639-1 alpha-2 code to uppercase
+// and verifies it is exactly 2 ASCII letters in [A-Z]. Returns the canonical
+// (uppercase) form, which is what the OpenHolidays API expects on the wire.
 //
 // This is a SHAPE-ONLY check — no allowlist is enforced. The set of languages
 // the OpenHolidays API supports is the authoritative source; the /Languages
@@ -47,18 +47,21 @@ func validateCountry(code string) (string, error) {
 // hard-coded list here would silently drift from upstream and produce
 // false-negative rejections.
 //
-// Accepts any input case ("pl", "PL", "Pl" all map to "pl") per D-21.
+// Accepts any input case ("pl", "PL", "Pl" all map to "PL"). This reverses
+// decision D-21, which originally chose lowercase: the OpenHolidays API is
+// case-sensitive and a lowercase languageIsoCode silently returns English-only
+// names, so uppercase is the proven-correct wire form (mirrors validateCountry).
 // Returns an empty string and an error wrapping ErrInvalidLanguage on
 // malformed input.
 func validateLanguage(code string) (string, error) {
 	// ASCII-shape check on ORIGINAL bytes BEFORE any case canonicalization
 	// (W-01 fix: mirror of validateCountry; rejects U+212A Kelvin sign,
 	// U+0130 Latin capital I with dot above, and similar fold-to-ASCII
-	// characters BEFORE strings.ToLower canonicalizes them.)
+	// characters BEFORE strings.ToUpper canonicalizes them.)
 	if !isTwoASCIILetters(code) {
 		return "", fmt.Errorf("%w: %q", ErrInvalidLanguage, code)
 	}
-	return strings.ToLower(code), nil
+	return strings.ToUpper(code), nil
 }
 
 // validateDateRange enforces two invariants on a [from, to] date window

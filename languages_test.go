@@ -32,7 +32,7 @@ const languagesFixtureCapturedAt = "2026-05-27"
 // for the Languages endpoint:
 //
 //   - happy path (httptest fixture replay; ≥ 14 entries per D-70 floor)
-//   - optional LanguageIsoCode query-param contract (canonicalized lowercase)
+//   - optional LanguageIsoCode query-param contract (canonicalized uppercase)
 //   - invalid LanguageIsoCode short-circuit (no HTTP issued)
 //   - 4xx → *APIError with Path /Languages
 //   - 5xx with RFC 7807 title fallback
@@ -84,8 +84,8 @@ func TestClient_Languages(t *testing.T) {
 		// the assertion under test is the outbound query-param contract,
 		// not the response shape.
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			assert.Equal(t, "en", r.URL.Query().Get("languageIsoCode"),
-				"expected canonicalized lowercase languageIsoCode in query")
+			assert.Equal(t, "EN", r.URL.Query().Get("languageIsoCode"),
+				"expected canonicalized uppercase languageIsoCode in query")
 			assert.Equal(t, "/Languages", r.URL.Path)
 			w.Header().Set("Content-Type", "application/json")
 			_, _ = w.Write([]byte(`[{"isoCode":"en","name":[{"language":"EN","text":"English"}]}]`))
@@ -93,8 +93,8 @@ func TestClient_Languages(t *testing.T) {
 		t.Cleanup(srv.Close)
 
 		c := NewClient(WithBaseURL(srv.URL))
-		// Uppercase input → validateLanguage canonicalizes to lowercase
-		// "en" before the query param is set.
+		// Uppercase input → validateLanguage canonicalizes to uppercase
+		// "EN" before the query param is set.
 		got, err := c.Languages(t.Context(), LanguagesRequest{LanguageIsoCode: "EN"})
 		require.NoError(t, err)
 		assert.NotEmpty(t, got)
