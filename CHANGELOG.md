@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.5.4](https://github.com/egeek-tech/go-openholidays/compare/v0.5.3...v0.5.4) (2026-05-30)
+
+
+### Documentation
+
+* **retry:** drop stale test reference in computeBackoff doc ([4485993](https://github.com/egeek-tech/go-openholidays/commit/44859934b7fcdd0a200f96a6989cc0b72f75d7af))
+* **retry:** drop stale test reference in computeBackoff doc ([be20b26](https://github.com/egeek-tech/go-openholidays/commit/be20b26783d90e26a5c465b85ae24bd8d9c49e7d))
+
 ## [0.5.3](https://github.com/egeek-tech/go-openholidays/compare/v0.5.2...v0.5.3) (2026-05-30)
 
 
