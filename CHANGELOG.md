@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.3](https://github.com/egeek-tech/go-openholidays/compare/v0.5.2...v0.5.3) (2026-05-30)
+
+
+### Bug Fixes
+
+* **test:** resolve all 11 test-audit findings (127/127 sound, 3 redundant deleted) ([7714fe1](https://github.com/egeek-tech/go-openholidays/commit/7714fe17d3c2048cf47d74aaa7d9c06c63b078e8))
+
 ## [0.5.2](https://github.com/egeek-tech/go-openholidays/compare/v0.5.1...v0.5.2) (2026-05-30)
 
 
