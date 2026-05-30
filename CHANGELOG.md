@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.5.2](https://github.com/egeek-tech/go-openholidays/compare/v0.5.1...v0.5.2) (2026-05-30)
+
+
+### Bug Fixes
+
+* **validate:** canonicalize language ISO code to uppercase (was silently returning English) ([6942d75](https://github.com/egeek-tech/go-openholidays/commit/6942d7596c6effccf9b1666abd38731bcc1fa77d))
+* **validate:** canonicalize language ISO code to uppercase to match OpenHolidays API ([075ce4e](https://github.com/egeek-tech/go-openholidays/commit/075ce4e2af0dc60ebb5901eefddda40419f70965))
+
+
+### Documentation
+
+* **audit:** add Gold Rule 5 (audit:ok marks) + function-audit design spec ([5220c84](https://github.com/egeek-tech/go-openholidays/commit/5220c84d6a0108170d1b84395b933367b0211711))
+* **quick-260530-dvc:** plan + summary for validateLanguage uppercase fix ([2d5df09](https://github.com/egeek-tech/go-openholidays/commit/2d5df0902c814beb514f1cd446ffea87c25a367e))
+
 ## [0.5.1](https://github.com/egeek-tech/go-openholidays/compare/v0.5.0...v0.5.1) (2026-05-30)
 
 
