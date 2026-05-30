@@ -45,7 +45,7 @@ import (
 //   - ValidTo is the required inclusive upper bound of the date window
 //     (YYYY-MM-DD; UTC midnight). See ValidFrom.
 //   - LanguageIsoCode is an optional ISO 639-1 two-letter language code
-//     (case-insensitive; canonicalized to lowercase before being sent on
+//     (case-insensitive; canonicalized to uppercase before being sent on
 //     the wire). When non-empty, restricts the localized Holiday.Name
 //     entries upstream returns to that language only. When empty, the
 //     parameter is omitted (D-55 / D-56) and the upstream returns all

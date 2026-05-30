@@ -43,6 +43,12 @@ import (
 // allowlist update is required.
 const defaultBaseURL = "https://openholidaysapi.org"
 
+// defaultTimeout is the per-request timeout applied when the caller does not
+// override it via WithTimeout. Fifteen seconds per CLIENT-06 / D-28 /
+// PROJECT.md. Named (rather than inlined in defaultConfig) so test code and
+// the demo CLI can pin against the same source of truth.
+const defaultTimeout = 15 * time.Second
+
 // clientConfig is the internal builder state filled by Options between
 // NewClient's start and Client construction. Unexported — never escapes the
 // package. Field-by-field semantics mirror the public WithX godoc.
@@ -94,6 +100,8 @@ type Cache interface {
 // LOG-1).
 type RequestHookFunc func(*http.Request, *http.Response, error)
 
+// audit:ok 2026-05-30
+
 // defaultConfig returns a fresh *clientConfig populated with every Phase 2
 // default:
 //
@@ -115,7 +123,7 @@ func defaultConfig() *clientConfig {
 		baseURL:    defaultBaseURL,
 		userAgent:  "go-openholidays/" + Version,
 		logger:     slog.Default(),
-		timeout:    15 * time.Second,
+		timeout:    defaultTimeout,
 	}
 }
 

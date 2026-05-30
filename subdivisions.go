@@ -27,7 +27,7 @@ import (
 //     network (D-56).
 //
 //   - LanguageIsoCode is OPTIONAL. It is the ISO 639-1 two-letter language
-//     code (case-insensitive; canonicalized to lowercase before being sent
+//     code (case-insensitive; canonicalized to uppercase before being sent
 //     on the wire). When non-empty, the upstream returns only the localized
 //     Subdivision.Name / Subdivision.Category / Subdivision.Comment entries
 //     in that language. When empty, the parameter is omitted and the
