@@ -49,6 +49,17 @@ const (
 
 // audit:ok 2026-05-30
 
+// newTabWriter returns a [text/tabwriter.Writer] with the column layout shared
+// by every text renderer in this file: minwidth=0, tabwidth=0, padding=2,
+// padchar=' ', flags=0 — two-space padding between columns, no leading
+// indent. Centralizing it keeps renderText and renderCountriesText from
+// drifting on the padding tunable.
+func newTabWriter(w io.Writer) *tabwriter.Writer {
+	return tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
+}
+
+// audit:ok 2026-05-30
+
 // render dispatches to the per-format renderer for a []Holiday payload. It
 // is the single entry point every Holiday-producing subcommand handler
 // calls. format must be one of "text", "json", or "csv"; the subcommand
@@ -68,6 +79,8 @@ func render(w io.Writer, hs []openholidays.Holiday, lang, format string) error {
 	}
 }
 
+// audit:ok 2026-05-30
+
 // renderText writes the column-aligned text view of a []Holiday using
 // text/tabwriter (RESEARCH §3.2 Pattern 2). Column order matches the
 // research reference: DATE, END, NAME, NATIONWIDE, TYPE. Holiday.NameFor
@@ -75,11 +88,12 @@ func render(w io.Writer, hs []openholidays.Holiday, lang, format string) error {
 // the first entry when lang is not present (matches the library's
 // pickLocalized behavior).
 //
-// The tabwriter is constructed with minwidth=0, tabwidth=0, padding=2,
-// padchar=' ', flags=0 — the standard "two-space padding between columns,
-// no leading indent" form used throughout the stdlib examples.
+// The tabwriter comes from the shared newTabWriter helper (minwidth=0,
+// tabwidth=0, padding=2, padchar=' ', flags=0 — the standard "two-space
+// padding between columns, no leading indent" form used throughout the
+// stdlib examples).
 func renderText(w io.Writer, hs []openholidays.Holiday, lang string) error {
-	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
+	tw := newTabWriter(w)
 	fmt.Fprintln(tw, "DATE\tEND\tNAME\tNATIONWIDE\tTYPE")
 	for _, h := range hs {
 		fmt.Fprintf(tw, "%s\t%s\t%s\t%t\t%s\n",
@@ -168,12 +182,14 @@ func renderCountries(w io.Writer, cs []openholidays.Country, lang, format string
 	}
 }
 
+// audit:ok 2026-05-30
+
 // renderCountriesText writes the column-aligned text view of a []Country
 // using text/tabwriter. Columns: ISO_CODE, NAME (localized via
 // Country.NameFor), OFFICIAL_LANGUAGES (comma-joined for the human
 // reader; CSV uses ';' for parser-friendly separation).
 func renderCountriesText(w io.Writer, cs []openholidays.Country, lang string) error {
-	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
+	tw := newTabWriter(w)
 	fmt.Fprintln(tw, "ISO_CODE\tNAME\tOFFICIAL_LANGUAGES")
 	for _, c := range cs {
 		fmt.Fprintf(tw, "%s\t%s\t%s\n",

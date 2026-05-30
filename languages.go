@@ -26,7 +26,7 @@ import (
 // Fields:
 //
 //   - LanguageIsoCode is an optional ISO 639-1 two-letter language code
-//     (case-insensitive; canonicalized to lowercase before being sent on
+//     (case-insensitive; canonicalized to uppercase before being sent on
 //     the wire). When non-empty, the request includes the corresponding
 //     languageIsoCode query parameter and the upstream returns only the
 //     localized Language.Name entries in that language. When empty, the
@@ -42,9 +42,11 @@ type LanguagesRequest struct {
 	LanguageIsoCode string
 }
 
+// audit:ok 2026-05-30
+
 // Languages fetches the list of supported languages from the upstream
 // OpenHolidays API. Each returned Language carries an IsoCode (ISO 639-1
-// lowercase on the wire) and a per-language localized Name array (look
+// uppercase on the wire) and a per-language localized Name array (look
 // up a specific language via Language.NameFor).
 //
 // Request shape: Languages takes a LanguagesRequest second argument so its

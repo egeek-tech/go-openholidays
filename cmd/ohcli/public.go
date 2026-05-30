@@ -29,6 +29,8 @@ import (
 	openholidays "github.com/egeek-tech/go-openholidays"
 )
 
+// audit:ok 2026-05-30
+
 // cmdPublic implements `ohcli public <country> <year> [flags]`. It returns
 // the process exit code per the contract documented above.
 //
@@ -68,7 +70,7 @@ func cmdPublic(ctx context.Context, args []string, stdout, stderr io.Writer) int
 	}
 	country := fs.Arg(0)
 	year, err := strconv.Atoi(fs.Arg(1))
-	if err != nil || year < 1900 || year > 2100 {
+	if err != nil || year < minYear || year > maxYear {
 		fmt.Fprintf(stderr, "ohcli: invalid year %q\n", fs.Arg(1))
 		return 2
 	}

@@ -39,6 +39,8 @@ func validateCountry(code string) (string, error) {
 	return strings.ToUpper(code), nil
 }
 
+// audit:ok 2026-05-30
+
 // validateLanguage canonicalizes a language ISO 639-1 alpha-2 code to uppercase
 // and verifies it is exactly 2 ASCII letters in [A-Z]. Returns the canonical
 // (uppercase) form, which is what the OpenHolidays API expects on the wire.
@@ -65,6 +67,14 @@ func validateLanguage(code string) (string, error) {
 	}
 	return strings.ToUpper(code), nil
 }
+
+// maxDateRangeYears is the maximum width, in calendar years, of a [from, to]
+// holiday-listing window. validateDateRange rejects any window wider than
+// this (anchored at to, stepping backward). The value is also stated in the
+// doc prose and the ErrDateRangeTooLarge message below.
+const maxDateRangeYears = 3
+
+// audit:ok 2026-05-30
 
 // validateDateRange enforces two invariants on a [from, to] date window
 // passed to a holiday-listing endpoint:
@@ -100,9 +110,9 @@ func validateDateRange(from, to Date) error {
 	// AddDate (D-22, Pitfall 3, TZ-2 mitigation) handles leap-year
 	// boundaries correctly without the forward-overflow asymmetry that
 	// from.AddDate(3, 0, 1) exhibits for leap-day from values.
-	lowerBound := Date{to.AddDate(-3, 0, 0)}
+	lowerBound := Date{to.AddDate(-maxDateRangeYears, 0, 0)}
 	if from.Before(lowerBound) {
-		return fmt.Errorf("%w: from=%s to=%s spans more than 3 years", ErrDateRangeTooLarge, from, to)
+		return fmt.Errorf("%w: from=%s to=%s spans more than %d years", ErrDateRangeTooLarge, from, to, maxDateRangeYears)
 	}
 	return nil
 }

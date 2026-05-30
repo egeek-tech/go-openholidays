@@ -214,7 +214,7 @@ func (c Country) NameFor(lang string) string {
 // OpenHolidays API. Use Language.NameFor to look up the localized language
 // name for a given language code.
 type Language struct {
-	// IsoCode is the ISO 639-1 two-letter language code (lowercase).
+	// IsoCode is the ISO 639-1 two-letter language code (uppercase).
 	IsoCode string `json:"isoCode"`
 	// Name is the per-language localized language name (e.g. one entry
 	// per language the API can describe the language in).
