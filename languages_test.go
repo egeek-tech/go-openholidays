@@ -28,6 +28,8 @@ import (
 // the live API is.
 const languagesFixtureCapturedAt = "2026-05-27"
 
+// audit:ok 2026-05-30
+
 // TestClient_Languages covers ENDPT-02 + TEST-01 (the 4 error-path floor)
 // for the Languages endpoint:
 //

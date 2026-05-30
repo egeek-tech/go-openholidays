@@ -28,6 +28,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// audit:ok 2026-05-30
+
 // TestRenderText exercises renderText — the tab-aligned default output
 // view written via text/tabwriter. Asserts the header row and that each
 // Holiday emits one row containing the start date, localized name,
@@ -101,6 +103,8 @@ func TestRenderText(t *testing.T) {
 	})
 }
 
+// audit:ok 2026-05-30
+
 // TestRenderJSON exercises renderJSON — encoding/json with two-space
 // indent. Asserts round-trip fidelity (the rendered bytes decode back to
 // the input slice) and that the encoder applies the documented indent.
@@ -158,6 +162,8 @@ func TestRenderJSON(t *testing.T) {
 		assert.Empty(t, got, "round-tripped empty slice must be empty")
 	})
 }
+
+// audit:ok 2026-05-30
 
 // TestRenderCSV exercises renderCSV — RFC 4180 encoding/csv output with
 // a snake_case header row. Asserts the header literal, one data row per
@@ -234,6 +240,8 @@ func TestRenderCSV(t *testing.T) {
 		assert.Equal(t, "start_date,end_date,name,nationwide,type,subdivision_codes", lines[0])
 	})
 }
+
+// audit:ok 2026-05-30
 
 // TestRenderCountries exercises renderCountries — the Country-payload
 // parallel of render. Asserts JSON round-trip, CSV header literal, and

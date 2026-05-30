@@ -31,6 +31,8 @@ import (
 	"testing"
 )
 
+// audit:ok 2026-05-30
+
 // FuzzParseLocalizedText exercises [json.Unmarshal] into []LocalizedText
 // followed by pickLocalized. Both operations must never panic, regardless
 // of input bytes. The decoder is allowed to return an error; the helper
@@ -59,6 +61,8 @@ func FuzzParseLocalizedText(f *testing.F) {
 		_ = pickLocalized(entries, "")
 	})
 }
+
+// audit:ok 2026-05-30
 
 // FuzzUnmarshalHoliday exercises [json.Unmarshal] into []Holiday. The
 // invariant is panic-freedom; errors are acceptable.

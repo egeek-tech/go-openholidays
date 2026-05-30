@@ -69,6 +69,8 @@ func (f *fakeClock) Sleep(ctx context.Context, d time.Duration) error {
 	return nil
 }
 
+// audit:ok 2026-05-30
+
 // TestFakeClock_RaceFree is the self-verifying race-detector smoke test for
 // the fakeClock helper. It exercises the three documented properties of
 // fakeClock under `go test -race`:

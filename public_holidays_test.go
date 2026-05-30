@@ -360,6 +360,8 @@ func TestClient_PublicHolidays(t *testing.T) {
 	})
 }
 
+// audit:ok 2026-05-30
+
 // TestValidateHolidays exercises the validateHolidays helper in request.go
 // in isolation from the HTTP pipeline (Gold Rule 3 dedicated function per
 // exported / package-internal production function under test). The

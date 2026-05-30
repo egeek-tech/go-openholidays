@@ -18,6 +18,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// audit:ok 2026-05-30
+
 // TestWithHTTPClient covers CLIENT-02: nil = no-op, non-nil shallow-copies
 // so caller mutations don't leak, and CheckRedirect is preserved across
 // the shallow copy (RESEARCH OQ-2).
@@ -62,6 +64,8 @@ func TestWithHTTPClient(t *testing.T) {
 	})
 }
 
+// audit:ok 2026-05-30
+
 // TestWithBaseURL covers CLIENT-03 and the trailing-slash trim from
 // RESEARCH OQ-4 (single + multiple trailing slashes), plus the empty =
 // no-op fallback.
@@ -95,6 +99,8 @@ func TestWithBaseURL(t *testing.T) {
 		})
 	}
 }
+
+// audit:ok 2026-05-30
 
 // TestWithUserAgent covers CLIENT-04 and D-38 (empty = no-op so the SDK
 // never sends an empty User-Agent — Pitfall HTTP-5 mitigation).
@@ -153,6 +159,8 @@ func loggingTransportFromChain(t *testing.T, c *Client) *loggingTransport {
 	return lt
 }
 
+// audit:ok 2026-05-30
+
 // TestWithLogger covers CLIENT-05 and D-39 (nil falls back to
 // [slog.Default]()). Two explicit subtests because the nil-vs-non-nil
 // comparison is fiddly in a struct literal.
@@ -190,6 +198,8 @@ func TestWithLogger(t *testing.T) {
 	})
 }
 
+// audit:ok 2026-05-30
+
 // TestWithTimeout covers CLIENT-06 and D-28 (zero = no SDK timeout, stored
 // verbatim; negative durations are also stored verbatim per D-28).
 func TestWithTimeout(t *testing.T) {
@@ -219,6 +229,8 @@ func TestWithTimeout(t *testing.T) {
 			"negative duration must be stored verbatim per D-28 (endpoint methods treat non-positive as no-timeout)")
 	})
 }
+
+// audit:ok 2026-05-30
 
 // TestWithStrictDecoding covers D-91 / Pitfall JSON-1 + OBS-03 wire-level
 // behavior (D-92): strict-decoding is OFF by default; WithStrictDecoding(true)
@@ -306,6 +318,8 @@ func TestWithStrictDecoding(t *testing.T) {
 	})
 }
 
+// audit:ok 2026-05-30
+
 // TestWithRetry covers D-73 / D-74 / RESIL-01..05: the public WithRetry
 // option stores maxAttempts verbatim (including the <=0 disabled
 // sentinel) and applies the defaultBaseDelay fallback when the supplied
@@ -387,6 +401,8 @@ func TestWithRetry(t *testing.T) {
 	})
 }
 
+// audit:ok 2026-05-30
+
 // TestWithMaxRetryWait covers D-74: positive duration stored verbatim;
 // non-positive duration falls back to defaultMaxRetryWait. The cap is
 // per-attempt, NOT cumulative (godoc-documented; not mechanically
@@ -418,6 +434,8 @@ func TestWithMaxRetryWait(t *testing.T) {
 			"negative d must fall back to defaultMaxRetryWait per D-74 (treat non-positive uniformly)")
 	})
 }
+
+// audit:ok 2026-05-30
 
 // TestWithCache covers D-79 / D-80: positive ttl populates cfg.cache (a
 // real *MemoryCache); ttl <= 0 disables (cfg.cache stays nil).
@@ -476,6 +494,8 @@ func TestWithCache_NonPositiveTTLDisables(t *testing.T) {
 	})
 }
 
+// audit:ok 2026-05-30
+
 // TestWithCacheBackend covers D-80 last-wins + nil-no-op convention.
 func TestWithCacheBackend(t *testing.T) {
 	t.Parallel()
@@ -513,6 +533,8 @@ func TestWithCacheBackend(t *testing.T) {
 			"WithCacheBackend after WithCache must overwrite cfg.cache (D-80 last-wins)")
 	})
 }
+
+// audit:ok 2026-05-30
 
 // TestWithRequestHook covers D-87: non-nil fn causes buildTransport to
 // install a hookTransport layer; nil fn is a no-op (no hookTransport

@@ -60,6 +60,8 @@ func newTestRequest(t *testing.T, path string, query url.Values) *http.Request {
 	return req
 }
 
+// audit:ok 2026-05-30
+
 // TestCacheTransport_PathAllowlist locks the D-83 cacheability gate: only
 // /Countries, /Languages, /Subdivisions are cacheable. Everything else
 // bypasses the cache entirely.
@@ -116,6 +118,8 @@ func TestCacheTransport_PathAllowlist(t *testing.T) {
 	}
 }
 
+// audit:ok 2026-05-30
+
 // TestCacheTransport_HolidayPathsBypass is the explicit RESIL-07 lock:
 // holiday endpoints are NEVER cached by default. This duplicates one row
 // from TestCacheTransport_PathAllowlist intentionally — duplication
@@ -142,6 +146,8 @@ func TestCacheTransport_HolidayPathsBypass(t *testing.T) {
 		})
 	}
 }
+
+// audit:ok 2026-05-30
 
 // TestCacheTransport_HitMissBehavior locks the miss-then-hit cycle: first
 // call is a cache miss (forwards to next, caches the bytes); second call
@@ -223,6 +229,8 @@ func TestCacheTransport_HitMissBehavior(t *testing.T) {
 			"503 responses must NOT be cached — both calls must hit the next handler (Pitfall CACHE-1)")
 	})
 }
+
+// audit:ok 2026-05-30
 
 // TestCacheTransport_RawBytesKey locks D-82: cache key is
 // method + " " + URL.Path + "?" + URL.Query().Encode(). Two requests with

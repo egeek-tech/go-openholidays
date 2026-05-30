@@ -31,6 +31,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// audit:ok 2026-05-30
+
 // TestCmdSchool exercises every code path of cmdSchool: --region happy
 // path with subdivisionCode wire assertion, --region empty-result with
 // the parenthesized D-07 wording, no-region happy path (subdivisionCode

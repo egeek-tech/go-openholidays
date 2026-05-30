@@ -73,6 +73,8 @@ func newTestRand() *rand.Rand {
 	return rand.New(rand.NewChaCha8(seed)) //nolint:gosec // G404: deterministic test RNG, not cryptographic
 }
 
+// audit:ok 2026-05-30
+
 // TestShouldRetry locks the D-75 retryable-conditions matrix verbatim.
 // Eight+ cases: HTTP statuses (true and false branches), [net.Error]
 // timeout (true), [syscall.ECONNRESET] (true), raw ctx errors (false —
@@ -122,6 +124,8 @@ func TestShouldRetry(t *testing.T) {
 		})
 	}
 }
+
+// audit:ok 2026-05-30
 
 // TestParseRetryAfter locks D-76 + Pitfall 9 past-date guard + IN-05
 // integer-seconds overflow guard. Eight cases cover integer seconds,
@@ -223,6 +227,8 @@ func TestParseRetryAfter(t *testing.T) {
 		})
 	}
 }
+
+// audit:ok 2026-05-30
 
 // TestComputeBackoff locks the full-jitter formula at three attempt
 // counts: attempt=0 (capped at baseDelay), attempt=3 (capped at
@@ -338,6 +344,8 @@ func TestComputeBackoff_HonorsRetryAfter(t *testing.T) {
 	})
 }
 
+// audit:ok 2026-05-30
+
 // TestRetry_E2E_429Then500Then200 is the marquee TEST-05 case: a
 // fake transport sequences 429 → 500 → 200; the endpoint method
 // returns the decoded payload without error and the handler observes
@@ -379,6 +387,8 @@ func TestRetry_E2E_429Then500Then200(t *testing.T) {
 	})
 }
 
+// audit:ok 2026-05-30
+
 // TestRetry_HonorsRetryAfterSeconds locks D-76 integer-seconds
 // branch: when an upstream sends Retry-After: 2, the per-attempt
 // sleep computed by computeBackoff is at least 2 seconds of fake-
@@ -414,6 +424,8 @@ func TestRetry_HonorsRetryAfterSeconds(t *testing.T) {
 			"Retry-After: 2 must produce at least 2s of fake-clock advance (D-76); got %v", fc.Now().Sub(fcStart))
 	})
 }
+
+// audit:ok 2026-05-30
 
 // TestRetry_HonorsRetryAfterDate locks D-76 HTTP-date branch:
 // Retry-After can also be an RFC 7231 date (RFC 1123 + RFC 850 +
@@ -455,6 +467,8 @@ func TestRetry_HonorsRetryAfterDate(t *testing.T) {
 			fc.Now().Sub(fcStart))
 	})
 }
+
+// audit:ok 2026-05-30
 
 // TestRetry_CtxCancel verifies RESIL-04 + CLIENT-09 ≤ 100 ms
 // cancellation contract: a ctx canceled BEFORE the retry loop runs

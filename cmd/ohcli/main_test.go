@@ -21,6 +21,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// audit:ok 2026-05-30
+
 // TestRun exercises the run dispatcher's pre-subcommand paths: missing
 // argv, unknown command, version, and the three help spellings.
 func TestRun(t *testing.T) {

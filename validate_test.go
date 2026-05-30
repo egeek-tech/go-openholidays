@@ -16,6 +16,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// audit:ok 2026-05-30
+
 // TestValidateCountry covers VALID-01 and CL-02 (case-insensitive accept,
 // canonicalize to uppercase, reject empty/short/long/digit/whitespace/
 // non-ASCII).
@@ -93,6 +95,8 @@ func TestValidateCountry(t *testing.T) {
 	}
 }
 
+// audit:ok 2026-05-30
+
 // TestValidateLanguage covers VALID-04 (case-insensitive accept, canonicalize
 // to uppercase, reject empty/short/long/digit/non-ASCII). Symmetric with
 // TestValidateCountry against ErrInvalidLanguage.
@@ -168,6 +172,8 @@ func TestValidateLanguage(t *testing.T) {
 		})
 	}
 }
+
+// audit:ok 2026-05-30
 
 // TestValidateDateRange covers VALID-02 (from > to rejected with
 // ErrInvalidDateRange) and VALID-03 (>3-year window rejected with
@@ -270,6 +276,8 @@ func TestValidateDateRange(t *testing.T) {
 		})
 	}
 }
+
+// audit:ok 2026-05-30
 
 // TestValidators_NoSensitiveData is the ERR-04 regression guard. It asserts
 // the invariant that validator error messages contain ONLY the offending

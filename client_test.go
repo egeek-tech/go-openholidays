@@ -50,6 +50,8 @@ func newClientForTest(now func() time.Time, sleep func(context.Context, time.Dur
 	return c
 }
 
+// audit:ok 2026-05-30
+
 // TestNewClient covers CLIENT-01: defaults applied when no Option supplied,
 // option composition (later Options override earlier ones for the same
 // field), and the combined-options happy path. The four "newClientForTest
@@ -150,6 +152,8 @@ func TestNewClient(t *testing.T) {
 			"newClientForTest must forward Options to NewClient (WithStrictDecoding(true) reached the Client)")
 	})
 }
+
+// audit:ok 2026-05-30
 
 // TestClient_Close covers CLIENT-08 / D-40 + D-96 / RESIL-08:
 //
@@ -391,6 +395,8 @@ func TestClient_ConcurrentRetry_RaceClean(t *testing.T) {
 	})
 }
 
+// audit:ok 2026-05-30
+
 // TestClient_FinalAttemptRespBodyDrained locks WR-02 defensive behavior:
 // when c.http.Do returns BOTH a non-nil *[http.Response] AND a non-nil
 // error (the documented "CheckRedirect rejected" shape from Go 1
@@ -452,6 +458,8 @@ func TestClient_FinalAttemptRespBodyDrained(t *testing.T) {
 			"path must appear in the error message (WR-05 path-carrying contract)")
 	})
 }
+
+// audit:ok 2026-05-30
 
 // TestCtxSleep locks WR-04: ctxSleep checks ctx.Err() BEFORE the
 // d <= 0 short-circuit so its semantics match fakeClock.Sleep
@@ -521,6 +529,8 @@ func TestCtxSleep(t *testing.T) {
 	})
 }
 
+// audit:ok 2026-05-30
+
 // TestClient_RetryExhaustedPrefix locks WR-03: the "retry exhausted
 // (N attempts)" wrap fires only when retries ACTUALLY ran. A
 // non-retryable transport error on attempt 0 must produce the plain
@@ -587,6 +597,8 @@ func TestClient_RetryExhaustedPrefix(t *testing.T) {
 	})
 }
 
+// audit:ok 2026-05-30
+
 // TestClient_ContextCancel verifies CLIENT-09 + D-48: ctx cancellation
 // interrupts in-flight HTTP within ≤ 100 ms (asserted at the 200 ms ceiling
 // for 2x CI slack); [errors.Is](err, [context.Canceled]) holds through
@@ -646,6 +658,8 @@ func countriesServer(t *testing.T, body []byte) (*httptest.Server, *atomic.Int32
 	return srv, &hits
 }
 
+// audit:ok 2026-05-30
+
 // TestCache_StrictDecodingComposes locks D-93: strict-decoding applies to
 // cached bytes on every read. The first call caches the bytes (cache
 // transport sees err==nil && status==200, caches happily) and surfaces the
@@ -689,6 +703,8 @@ func TestCache_StrictDecodingComposes(t *testing.T) {
 	})
 }
 
+// audit:ok 2026-05-30
+
 // TestClient_NoCache_AllCallsHitNetwork locks the default-off invariant:
 // a Client constructed WITHOUT WithCache hits the server on every call.
 func TestClient_NoCache_AllCallsHitNetwork(t *testing.T) {
@@ -712,6 +728,8 @@ func TestClient_NoCache_AllCallsHitNetwork(t *testing.T) {
 			"default Client (no WithCache) must hit the network on every call (TEST-06 default-off)")
 	})
 }
+
+// audit:ok 2026-05-30
 
 // TestCache_PerClientIsolation locks D-82 / Pitfall CACHE-2: two Clients
 // with their own caches and different baseURLs do not share cache. Each
@@ -743,6 +761,8 @@ func TestCache_PerClientIsolation(t *testing.T) {
 			"Client B must have hit its own server exactly once (per-Client cache isolation)")
 	})
 }
+
+// audit:ok 2026-05-30
 
 // TestHook_FiresOnRetryAttempts locks TRANS-05 + D-88 composition with the
 // retry loop (Plan 04-03): each c.http.Do invocation re-enters the
@@ -797,6 +817,8 @@ func TestHook_FiresOnRetryAttempts(t *testing.T) {
 			"hook must fire once per retry attempt (TRANS-05 — three round trips → three hook calls)")
 	})
 }
+
+// audit:ok 2026-05-30
 
 // TestHook_SeesCacheHits locks D-88 + Plan 04 cache composition: the hook
 // fires on cache-hit synthetic responses too. Consumers can detect the
@@ -854,6 +876,8 @@ func TestHook_SeesCacheHits(t *testing.T) {
 			"server must see exactly 1 round trip — second call served from cache")
 	})
 }
+
+// audit:ok 2026-05-30
 
 // TestHook_DoesNotFireOnDecodeError locks the negative side of D-88:
 //

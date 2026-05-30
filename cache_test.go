@@ -50,6 +50,8 @@ func TestCacheInterface_Conformance(t *testing.T) {
 	})
 }
 
+// audit:ok 2026-05-30
+
 // TestNewMemoryCache covers the constructor: returns a non-nil *MemoryCache
 // configured with the supplied TTL. The "no goroutines spawned yet"
 // lazy-start invariant is locked separately in TestMemoryCache_SweeperLazyStart
@@ -66,6 +68,8 @@ func TestNewMemoryCache(t *testing.T) {
 		t.Cleanup(func() { _ = nc.Close() })
 	})
 }
+
+// audit:ok 2026-05-30
 
 // TestMemoryCache_GetPut covers the Get + Put storage cycle: Get on empty
 // returns (nil, false); Put then Get returns the stored value.
@@ -136,6 +140,8 @@ func TestMemoryCache_GetPut(t *testing.T) {
 	})
 }
 
+// audit:ok 2026-05-30
+
 // TestMemoryCache_SweeperLazyStart locks the D-84 lazy-start invariant: the
 // sweeper goroutine is NOT spawned by NewMemoryCache, NOT spawned by Get,
 // and IS spawned by the first Put. Close stops it.
@@ -196,6 +202,8 @@ func TestMemoryCache_SweeperLazyStart(t *testing.T) {
 	})
 }
 
+// audit:ok 2026-05-30
+
 // TestMemoryCache_TTLEviction covers TEST-06: TTL expiration is observable
 // via Get (lazy-on-read path) under a deterministic fakeClock — no real
 // wall-clock sleep.
@@ -222,6 +230,8 @@ func TestMemoryCache_TTLEviction(t *testing.T) {
 			"entry must be unreachable via Get after fake clock advances past TTL (D-81 lazy-expiration-on-read)")
 	})
 }
+
+// audit:ok 2026-05-30
 
 // TestMemoryCache_CloseIdempotent covers D-85 + Pitfall CONC-2: Close is
 // idempotent under sequential and concurrent invocations from many
