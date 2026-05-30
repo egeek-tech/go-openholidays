@@ -24,7 +24,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"time"
 
 	openholidays "github.com/egeek-tech/go-openholidays"
 )
@@ -43,6 +42,16 @@ Commands:
 Environment:
   OPENHOLIDAYS_BASE_URL  override upstream base URL (test seam; Plan 02)
 `
+
+// minYear and maxYear bound the <year> positional the public and school
+// subcommands accept. The OpenHolidays dataset carries no holidays outside
+// this window; the check rejects typos (e.g. "20255") with a usage error
+// (exit 2) before any network call. Shared by cmdPublic (public.go) and
+// cmdSchool (school.go) so the two handlers cannot drift apart.
+const (
+	minYear = 1900
+	maxYear = 2100
+)
 
 // audit:ok 2026-05-30
 
@@ -87,11 +96,16 @@ func run(args []string, stdout, stderr io.Writer) int {
 	}
 }
 
+// audit:ok 2026-05-30
+
 // newClient constructs the openholidays.Client every subcommand handler
-// uses. It applies the canonical CLI defaults — User-Agent
+// uses. It applies the canonical CLI defaults — a User-Agent
 // "ohcli/<version>" so server-side log greps can distinguish CLI traffic
-// from library-direct traffic, and a 15-second per-request timeout
-// (matches the library's documented default).
+// from library-direct traffic. The per-request timeout is left to the
+// library's own default (15 s; see the openholidays defaultConfig /
+// defaultTimeout) rather than pinned here, so the CLI tracks the library
+// default instead of carrying a second copy of the value that could
+// silently diverge.
 //
 // The OPENHOLIDAYS_BASE_URL environment variable, when set non-empty, is
 // forwarded to openholidays.WithBaseURL — this is the test seam Plan 02
@@ -101,7 +115,6 @@ func run(args []string, stdout, stderr io.Writer) int {
 func newClient() *openholidays.Client {
 	opts := []openholidays.Option{
 		openholidays.WithUserAgent("ohcli/" + ohcliVersion()),
-		openholidays.WithTimeout(15 * time.Second),
 	}
 	if u := os.Getenv("OPENHOLIDAYS_BASE_URL"); u != "" {
 		opts = append(opts, openholidays.WithBaseURL(u))

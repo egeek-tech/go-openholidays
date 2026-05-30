@@ -26,7 +26,7 @@ import (
 // Fields:
 //
 //   - LanguageIsoCode is an optional ISO 639-1 two-letter language code
-//     (case-insensitive; canonicalized to lowercase before being sent on
+//     (case-insensitive; canonicalized to uppercase before being sent on
 //     the wire). When non-empty, the request includes the corresponding
 //     languageIsoCode query parameter and the upstream returns only the
 //     localized Country.Name entries in that language. When empty, the

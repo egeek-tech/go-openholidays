@@ -21,6 +21,8 @@ import (
 	openholidays "github.com/egeek-tech/go-openholidays"
 )
 
+// audit:ok 2026-05-30
+
 // cmdCountries implements `ohcli countries [flags]`. It returns the
 // process exit code per the same 0/1/2 contract cmdPublic documents.
 //
@@ -30,8 +32,11 @@ import (
 // optional language filter from --lang.
 //
 // On an empty result the handler writes "ohcli: no countries found" to
-// stderr and returns 0 (D-07 — empty is a valid outcome). Library errors
-// and render errors emit "ohcli: %v" on stderr and return exit code 1.
+// stderr and returns 0 (D-07 — empty is a valid outcome). On error the
+// handler emits "ohcli: %v" on stderr; the exit code follows the CR-02
+// split via libErrExitCode — library validation sentinels (e.g. a
+// malformed --lang wrapping ErrInvalidLanguage) yield exit 2, while other
+// library errors and render errors yield exit 1.
 func cmdCountries(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("countries", flag.ContinueOnError)
 	fs.SetOutput(stderr)

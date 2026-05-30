@@ -135,3 +135,35 @@ Behavior-preserving, mechanical fixes applied in-branch (verified by build + exi
 - **cache.go** — extracted the inlined `time.Millisecond` `Close`-wait cap into a named, documented `const closeSweeperWait = time.Millisecond`.
 - **cmd/ohcli/format.go** — extracted the duplicated two-space JSON indent literal `"  "` (used by `renderJSON` and `renderCountriesJSON`) into `const jsonIndent = "  "`; rewired both `SetIndent` call sites (`TestRenderJSON` asserts the exact `"\n  "` indent bytes).
 - **cmd/ohcli/format.go** — extracted the duplicated semicolon list-separator `";"` (used by `renderCSV` and `renderCountriesCSV`) into `const csvListSep = ";"`; rewired both `strings.Join` call sites (`TestRenderCSV` asserts `"PL-SL;PL-WP"`, `TestRenderCountries` asserts `"pl;de"`).
+
+## Resolution — branch `chore/audit-findings` (2026-05-30)
+
+All 12 findings are now resolved. After fixing each behavior- or doc-defect the
+re-audited function was re-stamped per Gold Rule 5; doc-only fixes on
+already-stamped functions retain their existing mark (Rule 5 exempts doc edits).
+Final state: **96/96 production functions marked `audit:ok 2026-05-30`** (the 10
+previously-withheld functions + the new `newTabWriter` helper). Gates: `go test
+-race ./...` green, `golangci-lint run ./...` 0 issues, `gofmt` clean, 0 godoc
+mark leaks (`go doc -all` shows none).
+
+| Finding | Disposition |
+|---|---|
+| `validateLanguage` (high) | Fixed by **PR #32** (`ToUpper`); re-audited + **stamped** here. |
+| `cmdPublic` / `cmdSchool` (med/low) | Added shared `const ( minYear = 1900; maxYear = 2100 )` in `main.go`; rewired both year-bound checks; **both stamped**. |
+| `defaultConfig` (low) | Extracted `const defaultTimeout = 15 * time.Second` (beside `defaultBaseURL`); rewired; **stamped**. |
+| `validateDateRange` (low) | Extracted `const maxDateRangeYears = 3`; rewired `AddDate` **and** templated the `ErrDateRangeTooLarge` message (`%d years`); **stamped**. |
+| `Languages` (low) | Field + method docs lowercase→uppercase; **stamped**. |
+| `renderText` / `renderCountriesText` (low) | Extracted shared `func newTabWriter(io.Writer) *tabwriter.Writer`; rewired both; **both stamped**; `newTabWriter` **stamped**. |
+| `newClient` (low) | Dropped the redundant explicit `WithTimeout(15s)` (identical to the library default — verified `config.go`); removed the now-unused `time` import; doc updated; **stamped**. |
+| `cmdCountries` (low) | Exit-code doc corrected to the CR-02 split (validation sentinels → exit 2, other library/render errors → exit 1); **stamped**. |
+| `ohcliVersion` (low) | Doc "constant" → "variable" (×2: package + func doc); mark **retained** (doc-only). |
+| `PublicHolidays` (low) | Optional timeout-attribution reword **accepted as-is**: the caller-facing wording is accurate and is shared verbatim by 5 sibling endpoint docs the audit accepted; rewording one alone would desync them. Mark **retained** (doc-only, no edit). |
+
+Additional remediation tied to the high finding: PR #32 corrected only
+`validate.go`'s own doc, leaving the `LanguageIsoCode` field docs in
+`countries.go`, `subdivisions.go`, `public_holidays.go`, `school_holidays.go`,
+`languages.go` and the returned-`Language.IsoCode` doc in `types.go` still
+asserting "lowercase". All six were corrected to "uppercase" here (verified
+against `testdata/languages.json`, which returns uppercase `isoCode`). Those
+functions were already stamped; the doc edits are Rule-5-exempt, so marks
+remain valid.
