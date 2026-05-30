@@ -71,6 +71,19 @@ ohcli school PL 2025 --region PL-SL
 ohcli countries --json
 ```
 
+## Verifying release binaries
+
+Released `ohcli` archives carry SLSA build-provenance attestations, signed via GitHub's keyless (Sigstore/Fulcio) flow, and verifiable with the [`gh` CLI](https://cli.github.com/) (≥ 2.49). Exit 0 means verified:
+
+```sh
+gh release download v0.5.0 --repo egeek-tech/go-openholidays --pattern 'ohcli_*_linux_amd64.tar.gz'
+gh attestation verify ohcli_0.5.0_linux_amd64.tar.gz --repo egeek-tech/go-openholidays
+```
+
+> **Verify the archive, not the binary.** The attested subjects are the released `.tar.gz`/`.zip` archives listed in `checksums.txt` — not the unpacked `ohcli` binary and not `checksums.txt` itself. Verifying either of those returns `HTTP 404: Not Found`. Likewise, a binary built locally with `go install …@latest` or `go build` is never attested, so a 404 there is expected.
+
+For a hardened check, pin the signing workflow with `--signer-workflow egeek-tech/go-openholidays/.github/workflows/release-please.yml`. Note that `--source-ref refs/tags/…` would fail, because the signing ref is `refs/heads/master`.
+
 ## Architecture
 
 See [docs/design.md](./docs/design.md) for the RoundTripper chain, cache architecture, retry semantics, and error model.

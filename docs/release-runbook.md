@@ -113,10 +113,12 @@ CLI that CI cannot reliably poll.
 | Check | Command / URL | Expected | When |
 |-------|---------------|----------|------|
 | REL-03: GitHub Release artifacts present | `gh release view vX.Y.Z --repo egeek-tech/go-openholidays --json assets \| jq '.assets \| length'` | `7` (6 binary archives + 1 `checksums.txt`); asset names match `ohcli_X.Y.Z_*` | Immediately after `release-please.yml` green |
-| REL-03: Attestation verifiable from CLI | Download one binary, then `gh attestation verify <archive> --repo egeek-tech/go-openholidays` | Exit 0; output reports the archive verified against this repo's workflow | Immediately after `release-please.yml` green |
+| REL-03: Attestation verifiable from CLI | Download a release ARCHIVE (`.tar.gz`/`.zip`), then verify the ARCHIVE itself with `gh attestation verify <archive> --repo egeek-tech/go-openholidays` — NOT the extracted `ohcli` binary and NOT `checksums.txt` (both return `HTTP 404: Not Found`; the attested subjects are the archives listed in `checksums.txt`) | Exit 0; output reports the archive verified against this repo's workflow | Immediately after `release-please.yml` green |
 | REL-01: `pkg.go.dev` renders the package | Visit `https://pkg.go.dev/github.com/egeek-tech/go-openholidays@vX.Y.Z` | HTTP 200; no "no documentation" banner; every exported symbol renders; `Example_*` functions attached to their target symbols; `[pkg.Type]` doclinks render as clickable | Within 30 min of merge (proxy lag — see Section 4) |
 | REL-02: Go Report Card grade A | Visit `https://goreportcard.com/report/github.com/egeek-tech/go-openholidays`; for badge only: `curl -fsS https://goreportcard.com/badge/github.com/egeek-tech/go-openholidays` | Grade A; green badge | Within 24 h of merge (first scan can be slow) |
 | DOC-07: pkg.go.dev godoc audit | On the pkg.go.dev page above, spot-check at least three exported symbols (e.g. `NewClient`, `Holiday.NameFor`, `HolidayType.IsKnown`) | Each section renders; no "Documentation: no" warnings; opening godoc line starts with the symbol name | Within 30 min of merge |
+
+> REL-03 hardened-verify gotcha: the signing ref is `refs/heads/master`, so pin the workflow with `--signer-workflow egeek-tech/go-openholidays/.github/workflows/release-please.yml` rather than `--source-ref refs/tags/…` (which would fail).
 
 ---
 
