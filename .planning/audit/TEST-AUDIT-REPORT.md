@@ -109,3 +109,23 @@ Special cases and intentional structures recorded during the audit:
 - **Intentional multi-`TestXxx`-per-method groupings (stamped, not findings).** `transport_hook_test.go` (4 tests for one unexported `RoundTrip`), `transport_cache_test.go` (per-decision-ID split), and `cmd/ohcli/format_test.go` (4 tests over `package main` lowercase renderers) all document deliberate per-concern splits in their file headers and were stamped, since Rule 3's 1:1 binds exported functions.
 
 - **Coverage gaps noted but not mark-blocking.** `transport_hook_test.go` never exercises the `resp.Request` (D-88 cache-hit) branch — the asserted value is correct (weak, not wrong), so no mark was withheld; a follow-up to set a distinct `resp.Request` and assert it is suggested. `school_holidays_test.go`'s malformed-JSON subtest is negative-space only (asserts no sentinel matches) — meaningful as the contract under test, but a positive decode-error-shape assertion would strengthen it.
+
+## Resolution — same branch, follow-up commit (2026-05-30)
+
+All 11 findings are fixed in this branch. The suite now carries **127 `audit:ok 2026-05-30` marks** (the 119 originally-sound + 8 newly-sound), with **3 redundant tests deleted** after confirming their cases live verbatim in the canonical test. Coverage was preserved on every deletion. Gates after the fix: `go test -race ./...` green · `golangci-lint run ./...` 0 issues · `gofmt` clean · `go vet -tags=integration` / `-tags=fuzz` clean.
+
+| Finding | Resolution |
+|---|---|
+| `TestCmdPublic` (high) | Subtest input `--lang PL` → `pl` (keeps the `=="PL"` wire assertion), so it now fails if `validateLanguage`'s `ToUpper` were dropped. **Stamped.** |
+| `TestClient_PublicHolidays` (low) | Same canonicalization fix: `LanguageIsoCode:"PL"` → `"pl"`. **Stamped.** |
+| `TestWithCache_NonPositiveTTLDisables` (med) | **Deleted** — its zero/negative-ttl cases already lived in `TestWithCache`; the RESIL-07/D-80 anchor was carried onto those subtests. |
+| `TestComputeBackoff_HonorsRetryAfter` (med) | **Folded** into `TestComputeBackoff` as `t.Run` cases (its mark re-cycled per Rule 5); standalone func deleted. |
+| `TestRetry_NeverRetriesCtxErrors` (med) | **Deleted** — the two ctx-error cases already exist in `TestShouldRetry` (`context.Canceled`/`DeadlineExceeded` → `want:false`). |
+| `TestCacheHitContextKey_OnHit` (med) | Miss subtest now captures the forwarded request and asserts unconditionally that it carries no `CacheHitContextKey` (was gated behind an always-nil `resp.Request`). **Stamped.** |
+| `TestCacheInterface_Conformance` (low) | Now exercises `Put`/`Get`/`Close` through the `Cache` interface var (round-trip + `Close`), not just `NotNil`. **Stamped.** |
+| `TestClient_ConcurrentAccess` (low) | Outer-body `require` + goroutine dispatch + `wg.Wait()` moved inside the `t.Run`. **Stamped.** |
+| `TestClient_ConcurrentRetry_RaceClean` (low) | Same outer-body relocation. **Stamped.** |
+| `TestRetry_DeterministicClock` (low) | Tautological `elapsed >= 0` strengthened to `elapsed > 0` (proves the inter-attempt sleeps advanced the fake clock). **Stamped.** |
+| `TestRetry_NotARoundTripper` (low) | `findRepoRoot()` + its `require` moved into each subtest (no outer-body assertion). **Stamped.** |
+
+Net: 130 audited functions → **127** (3 redundant deleted), all 127 stamped; **0 open findings**.

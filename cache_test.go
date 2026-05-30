@@ -33,20 +33,30 @@ import (
 // not see an unexpected package-level blank-identifier var in production code.
 var _ Cache = (*MemoryCache)(nil)
 
+// audit:ok 2026-05-30
+
 // TestCacheInterface_Conformance documents the interface conformance check.
 // The compile-time assertion at file top is the load-bearing proof; this
-// test exists so `go test -run TestCacheInterface_Conformance` produces a
-// named pass in CI output.
+// test exercises all three Cache methods (Put, Get, Close) THROUGH the
+// interface variable so each is proven reachable via dynamic dispatch, not
+// merely that a non-nil pointer satisfies the type.
 func TestCacheInterface_Conformance(t *testing.T) {
 	t.Parallel()
 
-	t.Run("MemoryCache satisfies Cache at runtime via type assertion", func(t *testing.T) {
+	t.Run("all three Cache methods dispatch through the interface variable", func(t *testing.T) {
 		t.Parallel()
 		nc := NewMemoryCache(time.Hour)
 		require.NotNil(t, nc)
-		t.Cleanup(func() { _ = nc.Close() })
 		var c Cache = nc // assignment proves runtime conformance
-		assert.NotNil(t, c, "MemoryCache assigned to Cache interface variable must be non-nil")
+
+		// Put then Get must round-trip through the interface dispatch.
+		c.Put("k", []byte("v"))
+		v, ok := c.Get("k")
+		require.True(t, ok, "Get via the Cache interface must return ok=true after Put via the interface")
+		assert.Equal(t, []byte("v"), v, "Get via the Cache interface must return the bytes stored via Put")
+
+		// Close must dispatch through the interface and return nil.
+		assert.NoError(t, c.Close(), "Close via the Cache interface must return nil")
 	})
 }
 

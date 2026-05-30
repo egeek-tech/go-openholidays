@@ -457,40 +457,26 @@ func TestWithCache(t *testing.T) {
 		assert.Equal(t, 2*time.Hour, mc.ttl, "MemoryCache.ttl must reflect the WithCache argument")
 	})
 
+	// RESIL-07 / D-80 lock: zero ttl is treated as disabled. (Formerly the
+	// separate TestWithCache_NonPositiveTTLDisables; folded here to honor
+	// one-TestXxx-per-prod-function — the requirement is documented by this
+	// subtest rather than a duplicate top-level test.)
 	t.Run("ttl == 0 disables (cfg.cache stays nil)", func(t *testing.T) {
 		t.Parallel()
 		c := NewClient(WithCache(0))
 		require.NotNil(t, c)
 		assert.Nil(t, c.cache,
-			"WithCache(0) must NOT populate the cache field (D-80 ttl <= 0 disables)")
+			"WithCache(0) must NOT populate the cache field (D-80 ttl <= 0 disables; RESIL-07)")
 	})
 
+	// RESIL-07 / D-80 lock: negative ttl is treated as disabled (defensive
+	// symmetry with the zero case above).
 	t.Run("negative ttl disables (cfg.cache stays nil)", func(t *testing.T) {
 		t.Parallel()
 		c := NewClient(WithCache(-time.Hour))
 		require.NotNil(t, c)
 		assert.Nil(t, c.cache,
-			"WithCache(<0) must NOT populate the cache field (D-80 defensive symmetry)")
-	})
-}
-
-// TestWithCache_NonPositiveTTLDisables is the explicit RESIL-07/D-80 lock
-// — duplication intentional (named test documenting the requirement).
-func TestWithCache_NonPositiveTTLDisables(t *testing.T) {
-	t.Parallel()
-
-	t.Run("zero ttl is treated as disabled", func(t *testing.T) {
-		t.Parallel()
-		c := NewClient(WithCache(0))
-		require.NotNil(t, c)
-		assert.Nil(t, c.cache, "WithCache(0) must NOT enable caching")
-	})
-
-	t.Run("negative ttl is treated as disabled", func(t *testing.T) {
-		t.Parallel()
-		c := NewClient(WithCache(-5 * time.Minute))
-		require.NotNil(t, c)
-		assert.Nil(t, c.cache, "WithCache(<0) must NOT enable caching")
+			"WithCache(<0) must NOT populate the cache field (D-80 defensive symmetry; RESIL-07)")
 	})
 }
 

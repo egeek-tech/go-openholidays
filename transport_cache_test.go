@@ -289,6 +289,8 @@ func TestCacheTransport_RawBytesKey(t *testing.T) {
 	})
 }
 
+// audit:ok 2026-05-30
+
 // TestCacheHitContextKey_OnHit locks <specifics> 2: synthetic cache-hit
 // responses carry CacheHitContextKey == true in
 // resp.Request.Context().Value(...). Cache miss responses do NOT carry the
@@ -298,21 +300,38 @@ func TestCacheHitContextKey_OnHit(t *testing.T) {
 
 	t.Run("miss response carries no CacheHitContextKey", func(t *testing.T) {
 		t.Parallel()
-		tr, _ := newTestCacheTransport(t, []byte(`[]`), http.StatusOK)
-		req := newTestRequest(t, "/Countries", nil)
 
+		// Capture the *http.Request the next handler actually receives on a
+		// miss. The miss path forwards req to next unchanged (transport_cache.go
+		// RoundTrip miss branch) and never injects CacheHitContextKey, so the
+		// request the next handler sees must NOT carry the key. Capturing it
+		// directly makes the negative contract unconditional and observable —
+		// unlike asserting on resp.Request, which the next handler never sets
+		// (so it is always nil on the miss path and an asserted-on-nil guard
+		// never executes).
+		var gotReq *http.Request
+		next := roundTripperFunc(func(r *http.Request) (*http.Response, error) {
+			gotReq = r
+			return &http.Response{
+				StatusCode:    http.StatusOK,
+				Status:        http.StatusText(http.StatusOK),
+				Header:        make(http.Header),
+				Body:          io.NopCloser(bytes.NewReader([]byte(`[]`))),
+				ContentLength: 2,
+			}, nil
+		})
+		nc := NewMemoryCache(time.Hour)
+		t.Cleanup(func() { _ = nc.Close() })
+		tr := &cacheTransport{cache: nc, cacheablePath: isCacheablePath, next: next}
+
+		req := newTestRequest(t, "/Countries", nil)
 		resp, err := tr.RoundTrip(req)
 		require.NoError(t, err)
 		t.Cleanup(func() { _ = resp.Body.Close() })
 
-		// On a cache miss the response's req.Context() is the next
-		// handler's untouched context — it does NOT carry the key.
-		// (resp.Request may be nil on the miss path because the synthetic
-		// handler did not set it; treat nil as "no key present".)
-		if resp.Request != nil {
-			v := resp.Request.Context().Value(CacheHitContextKey)
-			assert.Nil(t, v, "cache-miss response must NOT carry CacheHitContextKey")
-		}
+		require.NotNil(t, gotReq, "next handler must have been invoked on a cache miss")
+		v := gotReq.Context().Value(CacheHitContextKey)
+		assert.Nil(t, v, "cache-miss request must NOT carry CacheHitContextKey")
 	})
 
 	t.Run("hit response carries CacheHitContextKey == true", func(t *testing.T) {
