@@ -274,8 +274,8 @@ func parseRetryAfter(h string, now time.Time) (time.Duration, bool) {
 //
 // min is a Go 1.21+ builtin and is safe across the project's Go 1.23
 // floor (Constraints in PROJECT.md). Unit-tested by TestComputeBackoff
-// (range checks) and TestComputeBackoff_HonorsRetryAfter (Retry-After
-// promotion + cap) in retry_test.go.
+// (range checks plus the Retry-After promotion + cap cases) in
+// retry_test.go.
 func computeBackoff(attempt int, retryAfter time.Duration, cfg retryConfig, rnd *rand.Rand) time.Duration {
 	capped := cfg.maxWait
 	// WR-01: [time.Duration] is int64; baseDelay << attempt overflows the
