@@ -46,15 +46,15 @@ created: 2026-05-27
 | RESIL-01 | `math/rand/v2.Int64N` produces in-range jitter delays | unit | `go test -run TestComputeBackoff -race -count=1` | ❌ W0: `retry_test.go::TestComputeBackoff_FullJitter` |
 | RESIL-02 | Retry on `{408,429,500,502,503,504}` only; not on 400/401/403/404 | unit (table) | `go test -run TestShouldRetry -race -count=1` | ❌ W0: `retry_test.go::TestShouldRetry` |
 | RESIL-02 | Retry on `net.Error{Timeout:true}` and `syscall.ECONNRESET`-wrapped errors | unit | `go test -run TestShouldRetry_TransportErrors -race -count=1` | ❌ W0: same file |
-| RESIL-02 | NEVER retry on `context.Canceled` / `context.DeadlineExceeded` | unit | `go test -run TestRetry_NeverRetriesCtxErrors -race -count=1` | ❌ W0: `retry_test.go` |
+| RESIL-02 | NEVER retry on `context.Canceled` / `context.DeadlineExceeded` | unit | `go test -run TestShouldRetry -race -count=1` | ❌ W0: `retry_test.go` (ctx-error cases live in `TestShouldRetry` since the 2026-05-30 audit folded the standalone test in) |
 | RESIL-03 | `parseRetryAfter` accepts integer seconds and HTTP-date (3 forms) | unit (table) | `go test -run TestParseRetryAfter -race -count=1` | ❌ W0: `retry_test.go::TestParseRetryAfter` |
-| RESIL-03 | `computeBackoff` returns `max(jitter, retryAfter)` capped at `maxRetryWait` | unit | `go test -run TestComputeBackoff_HonorsRetryAfter -race -count=1` | ❌ W0: same file |
+| RESIL-03 | `computeBackoff` returns `max(jitter, retryAfter)` capped at `maxRetryWait` | unit | `go test -run TestComputeBackoff -race -count=1` | ❌ W0: same file (Retry-After cases folded into `TestComputeBackoff` by the 2026-05-30 audit) |
 | RESIL-04 | Retry loop interrupted by `ctx.Done()` mid-sleep within < 100 ms | unit | `go test -run TestRetry_CtxCancel -race -count=1` | ❌ W0: `retry_test.go` — uses `fakeClock` + real ctx cancel |
 | RESIL-05 | Retry implemented in `doJSONGet`, NOT as a RoundTripper | unit (AST/structural) | `go test -run TestRetry_NotARoundTripper -race -count=1` | ❌ W0: assert no `retryTransport` type exists (`internal_test.go` ext) |
 | RESIL-06 | `Cache` interface exported with `Get/Put/Close` shape | unit | `go test -run TestCacheInterface_Conformance -race -count=1` | ❌ W0: `cache_test.go` — `var _ Cache = (*MemoryCache)(nil)` |
 | RESIL-07 | `WithCache(ttl)` caches `/Countries`, `/Languages`, `/Subdivisions` only | unit | `go test -run TestCacheTransport_PathAllowlist -race -count=1` | ❌ W0: `transport_cache_test.go` |
 | RESIL-07 | `WithCache` does NOT cache `/PublicHolidays` / `/SchoolHolidays` | unit | `go test -run TestCacheTransport_HolidayPathsBypass -race -count=1` | ❌ W0: same file |
-| RESIL-07 | `WithCache(ttl <= 0)` disables cache | unit | `go test -run TestWithCache_NonPositiveTTLDisables -race -count=1` | ❌ W0: `options_test.go` ext OR `cache_test.go` |
+| RESIL-07 | `WithCache(ttl <= 0)` disables cache | unit | `go test -run TestWithCache -race -count=1` | ❌ W0: `options_test.go` (ttl <= 0 cases live in `TestWithCache` since the 2026-05-30 audit) |
 | RESIL-08 | Sweeper starts lazily on first `Put` | unit | `go test -run TestMemoryCache_SweeperLazyStart -race -count=1` | ❌ W0: `cache_test.go` — uses `runtime.NumGoroutine()` delta |
 | RESIL-08 | `Client.Close()` stops sweeper; `runtime.NumGoroutine()` delta ≤ 0 | unit | `go test -run TestClient_CloseStopsSweeper -race -count=1` | ❌ W0: `client_test.go` ext |
 | RESIL-08 | `MemoryCache.Close()` idempotent (safe to call twice from concurrent goroutines) | unit | `go test -run TestMemoryCache_CloseIdempotent -race -count=1` | ❌ W0: `cache_test.go` |
