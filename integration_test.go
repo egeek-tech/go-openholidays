@@ -85,6 +85,28 @@ func TestIntegration_PublicHolidays_PL_2025(t *testing.T) {
 			"PL 2025 has 14 public holidays per Phase 3 golden fixture — "+
 				"if this fails the upstream schema or PL holiday list drifted")
 	})
+
+	// Regression guard for the language-code casing fix (quick task
+	// 260530-dvc): validateLanguage must canonicalize LanguageIsoCode to
+	// UPPERCASE so the case-sensitive upstream returns localized names.
+	// Before the fix it lowercased the code and the API silently returned
+	// English. Like the rest of this function, it only runs under
+	// OPENHOLIDAYS_LIVE=1 (gated at the top of the parent test).
+	t.Run("PL 2025 with LanguageIsoCode=PL returns Polish names", func(t *testing.T) {
+		hs, err := c.PublicHolidays(ctx, PublicHolidaysRequest{
+			CountryIsoCode:  "PL",
+			LanguageIsoCode: "PL",
+			ValidFrom:       NewDate(2025, time.January, 1),
+			ValidTo:         NewDate(2025, time.January, 1),
+		})
+		require.NoError(t, err)
+		require.NotEmpty(t, hs)
+		require.Equal(t, "Nowy Rok", hs[0].NameFor("PL"),
+			"library must send an uppercase languageIsoCode so upstream returns "+
+				"localized names; regression guard for quick task 260530-dvc "+
+				"(validateLanguage ToLower->ToUpper). Before the fix this was "+
+				"\"New Year's Day\".")
+	})
 }
 
 // TestIntegration_SchoolHolidays_PL_2025 exercises Client.SchoolHolidays
