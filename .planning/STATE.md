@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v0.1.0
 milestone_name: milestone
 status: executing
-last_updated: "2026-05-30T07:36:19.200Z"
+last_updated: "2026-05-30T07:59:13.591Z"
 progress:
   total_phases: 5
   completed_phases: 4
@@ -15,7 +15,7 @@ progress:
 # Project State: go-openholidays
 
 **Initialized:** 2026-05-27
-**Last updated:** 2026-05-30 — Completed quick task 260530-dc9: documented release-binary attestation verification (README + runbook §3)
+**Last updated:** 2026-05-30 — Completed quick task 260530-dvc: fixed validateLanguage to uppercase language ISO codes (was returning English for --lang PL)
 
 ## Project Reference
 
@@ -84,6 +84,7 @@ None.
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 260530-dc9 | Document release-binary attestation verification (README + runbook §3) | 2026-05-30 | 09811ca | [260530-dc9-document-release-binary-attestation-veri](./quick/260530-dc9-document-release-binary-attestation-veri/) |
+| 260530-dvc | Fix validateLanguage to uppercase language ISO codes (API requires uppercase; was returning English) | 2026-05-30 | 075ce4e | [260530-dvc-fix-validatelanguage-to-uppercase-langua](./quick/260530-dvc-fix-validatelanguage-to-uppercase-langua/) |
 
 ### Research Flags
 
