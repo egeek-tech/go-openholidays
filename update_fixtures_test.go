@@ -126,6 +126,8 @@ func readAll(t *testing.T, r io.Reader, maxBytes int) []byte {
 	return b
 }
 
+// audit:ok 2026-05-30
+
 // TestUpdateFixtures captures every Phase 3 fixture from the live upstream
 // in a single run. Operates in one of two modes per the -update flag (see
 // the file header for full semantics).

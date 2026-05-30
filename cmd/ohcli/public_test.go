@@ -39,6 +39,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// audit:ok 2026-05-30
+
 // TestCmdPublic exercises every code path of cmdPublic: happy paths for
 // each output mode, the D-07 empty-result branch, the D-06 usage-error
 // exit code 2, the runtime-error exit code 1, and the D-05 stderr
@@ -217,7 +219,11 @@ func TestCmdPublic(t *testing.T) {
 		require.NoError(t, err)
 
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// Library canonicalizes the language code to uppercase.
+			// Library canonicalizes the language code to uppercase. The
+			// input below is lowercase "pl" precisely so this assertion
+			// fails if validateLanguage's strings.ToUpper canonicalization
+			// were dropped or replaced with a passthrough — a lowercase
+			// input makes the transform observable on the wire.
 			assert.Equal(t, "PL", r.URL.Query().Get("languageIsoCode"),
 				"--lang must reach the upstream as uppercase per validateLanguage")
 			w.Header().Set("Content-Type", "application/json")
@@ -227,7 +233,7 @@ func TestCmdPublic(t *testing.T) {
 		t.Setenv("OPENHOLIDAYS_BASE_URL", srv.URL)
 
 		var stdout, stderr bytes.Buffer
-		code := run([]string{"ohcli", "public", "PL", "2025", "--lang", "PL"}, &stdout, &stderr)
+		code := run([]string{"ohcli", "public", "PL", "2025", "--lang", "pl"}, &stdout, &stderr)
 		require.Equal(t, 0, code, "stderr=%q", stderr.String())
 	})
 }

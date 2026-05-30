@@ -34,6 +34,8 @@ import (
 // fixture is not the authoritative shape — the live API is. D-69.
 const publicHolidaysPL2025FixtureCapturedAt = "2026-05-27"
 
+// audit:ok 2026-05-30
+
 // TestClient_PublicHolidays covers ENDPT-04 + TEST-01 (4 error paths per
 // endpoint) + the D-70 sanity assertions on the live PL 2025 fixture +
 // the new ErrMalformedResponse subtest gated by CL-12.
@@ -354,11 +356,13 @@ func TestClient_PublicHolidays(t *testing.T) {
 			CountryIsoCode:  "PL",
 			ValidFrom:       NewDate(2025, time.January, 1),
 			ValidTo:         NewDate(2025, time.December, 31),
-			LanguageIsoCode: "PL", // uppercase input → uppercase wire form
+			LanguageIsoCode: "pl", // lowercase input → strings.ToUpper must lift it to "PL"
 		})
 		require.NoError(t, err)
 	})
 }
+
+// audit:ok 2026-05-30
 
 // TestValidateHolidays exercises the validateHolidays helper in request.go
 // in isolation from the HTTP pipeline (Gold Rule 3 dedicated function per

@@ -50,6 +50,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// audit:ok 2026-05-30
+
 // TestIntegration_PublicHolidays_PL_2025 exercises Client.PublicHolidays
 // against the live OpenHolidays API and asserts the Phase 3 golden truth
 // that PL 2025 has exactly 14 public holidays. Drift in this count
@@ -108,6 +110,8 @@ func TestIntegration_PublicHolidays_PL_2025(t *testing.T) {
 				"\"New Year's Day\".")
 	})
 }
+
+// audit:ok 2026-05-30
 
 // TestIntegration_SchoolHolidays_PL_2025 exercises Client.SchoolHolidays
 // against the live OpenHolidays API and asserts the Phase 3 golden truth

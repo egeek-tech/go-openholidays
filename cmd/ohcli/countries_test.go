@@ -28,6 +28,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// audit:ok 2026-05-30
+
 // TestCmdCountries exercises every code path of cmdCountries: happy
 // path (default text format), --format=csv (header literal assertion),
 // the positional-args rejection (D-06 exit 2), and the D-07 empty-result

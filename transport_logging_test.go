@@ -35,6 +35,8 @@ func (r *trackedReader) Read(_ []byte) (int, error) {
 	return 0, io.EOF
 }
 
+// audit:ok 2026-05-30
+
 // TestLoggingTransport_RoundTrip locks the four documented branches of
 // loggingTransport.RoundTrip:
 //

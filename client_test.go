@@ -50,6 +50,8 @@ func newClientForTest(now func() time.Time, sleep func(context.Context, time.Dur
 	return c
 }
 
+// audit:ok 2026-05-30
+
 // TestNewClient covers CLIENT-01: defaults applied when no Option supplied,
 // option composition (later Options override earlier ones for the same
 // field), and the combined-options happy path. The four "newClientForTest
@@ -151,6 +153,8 @@ func TestNewClient(t *testing.T) {
 	})
 }
 
+// audit:ok 2026-05-30
+
 // TestClient_Close covers CLIENT-08 / D-40 + D-96 / RESIL-08:
 //
 //   - Idempotent: every call returns nil, subsequent calls still return nil.
@@ -244,6 +248,8 @@ func TestClient_Close(t *testing.T) {
 	})
 }
 
+// audit:ok 2026-05-30
+
 // TestClient_ConcurrentAccess verifies CLIENT-07 + TEST-04: 50 parallel
 // Countries calls under -race must complete with identical payloads and
 // no data-race reports. Client is immutable after NewClient (Close is
@@ -254,36 +260,37 @@ func TestClient_Close(t *testing.T) {
 func TestClient_ConcurrentAccess(t *testing.T) {
 	t.Parallel()
 
-	body, err := os.ReadFile(filepath.Join("testdata", "countries.json"))
-	require.NoError(t, err, "fixture missing — re-capture per Plan 02-03 Task 2")
-
-	// Synthetic delay simulates real network latency without flake risk.
-	// math/rand/v2.IntN (D-47 5-20 ms range) is concurrent-safe without
-	// seeding — preferred over math/rand v1 per CLAUDE.md What-NOT-to-Use.
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		time.Sleep(time.Duration(5+rand.IntN(15)) * time.Millisecond) //nolint:gosec // G404: synthetic latency jitter, not cryptographic
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write(body)
-	}))
-	t.Cleanup(srv.Close)
-
-	c := NewClient(WithBaseURL(srv.URL))
-	const N = 50
-	var wg sync.WaitGroup
-	errs := make([]error, N)
-	results := make([][]Country, N)
-
-	for i := range N {
-		wg.Add(1)
-		go func(idx int) {
-			defer wg.Done()
-			results[idx], errs[idx] = c.Countries(t.Context(), CountriesRequest{})
-		}(i)
-	}
-	wg.Wait()
-
 	t.Run("all 50 calls succeed with identical payloads", func(t *testing.T) {
 		t.Parallel()
+
+		body, err := os.ReadFile(filepath.Join("testdata", "countries.json"))
+		require.NoError(t, err, "fixture missing — re-capture per Plan 02-03 Task 2")
+
+		// Synthetic delay simulates real network latency without flake risk.
+		// math/rand/v2.IntN (D-47 5-20 ms range) is concurrent-safe without
+		// seeding — preferred over math/rand v1 per CLAUDE.md What-NOT-to-Use.
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			time.Sleep(time.Duration(5+rand.IntN(15)) * time.Millisecond) //nolint:gosec // G404: synthetic latency jitter, not cryptographic
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write(body)
+		}))
+		t.Cleanup(srv.Close)
+
+		c := NewClient(WithBaseURL(srv.URL))
+		const N = 50
+		var wg sync.WaitGroup
+		errs := make([]error, N)
+		results := make([][]Country, N)
+
+		for i := range N {
+			wg.Add(1)
+			go func(idx int) {
+				defer wg.Done()
+				results[idx], errs[idx] = c.Countries(t.Context(), CountriesRequest{})
+			}(i)
+		}
+		wg.Wait()
+
 		for i := range N {
 			require.NoError(t, errs[i], "call %d failed: %v", i, errs[i])
 			require.NotEmpty(t, results[i], "call %d returned empty", i)
@@ -294,6 +301,8 @@ func TestClient_ConcurrentAccess(t *testing.T) {
 		}
 	})
 }
+
+// audit:ok 2026-05-30
 
 // TestClient_ConcurrentRetry_RaceClean locks the CR-01 fix: concurrent
 // endpoint calls with WithRetry enabled must NOT race on Client.rand.
@@ -323,73 +332,76 @@ func TestClient_ConcurrentAccess(t *testing.T) {
 func TestClient_ConcurrentRetry_RaceClean(t *testing.T) {
 	t.Parallel()
 
-	body, err := os.ReadFile(filepath.Join("testdata", "countries.json"))
-	require.NoError(t, err, "fixture missing — re-capture per Plan 02-03 Task 2")
-
-	// Server returns 503 for the first N global requests and 200 for
-	// every request after that. Under N concurrent goroutine spawns +
-	// 1 ms baseDelay backoffs, the N first attempts arrive within
-	// microseconds (httptest round-trip on localhost is sub-millisecond)
-	// — well before any backoff timer elapses. So every goroutine
-	// deterministically sees 503 on its first attempt, retries through
-	// computeBackoff (exercising the race-sensitive c.rand.Int64N inside
-	// the c.randMu critical section), and observes 200 on its second
-	// attempt. Exhaustion of the 8-attempt budget for any single
-	// goroutine would require that goroutine to make 8 round trips
-	// before the other N-1 goroutines even queue their first — which
-	// the Go runtime scheduler does not produce under this workload.
-	//
-	// The previous odd-503/even-200 alternation was statistically flaky
-	// because the global counter advanced unpredictably during a
-	// goroutine's backoff (i.e. the parity it observed on its retry
-	// was effectively random), giving each attempt a ~50 % chance of
-	// 503 and a ~17 % per-run chance that SOME goroutine exhausted its
-	// 8-attempt budget. The first-N-fail design removes the random
-	// walk entirely.
-	const N = 50
-	var attempts atomic.Int32
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		n := attempts.Add(1)
-		if n <= int32(N) {
-			w.WriteHeader(http.StatusServiceUnavailable)
-			return
-		}
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write(body)
-	}))
-	t.Cleanup(srv.Close)
-
-	// maxAttempts=8 gives every goroutine ample budget. Under the
-	// first-N-fail pattern only 2 attempts are needed in the steady
-	// state; the remaining budget is defensive headroom against any
-	// future scheduling pessimization on CI. baseDelay 1 ms keeps the
-	// test cheap.
-	c := NewClient(
-		WithBaseURL(srv.URL),
-		WithRetry(8, time.Millisecond),
-		WithMaxRetryWait(10*time.Millisecond),
-	)
-	t.Cleanup(func() { _ = c.Close() })
-
-	var wg sync.WaitGroup
-	errs := make([]error, N)
-	for i := range N {
-		wg.Add(1)
-		go func(idx int) {
-			defer wg.Done()
-			_, errs[idx] = c.Countries(t.Context(), CountriesRequest{})
-		}(i)
-	}
-	wg.Wait()
-
 	t.Run("all N parallel retry-enabled calls succeed (race detector validates rand serialization)", func(t *testing.T) {
 		t.Parallel()
+
+		body, err := os.ReadFile(filepath.Join("testdata", "countries.json"))
+		require.NoError(t, err, "fixture missing — re-capture per Plan 02-03 Task 2")
+
+		// Server returns 503 for the first N global requests and 200 for
+		// every request after that. Under N concurrent goroutine spawns +
+		// 1 ms baseDelay backoffs, the N first attempts arrive within
+		// microseconds (httptest round-trip on localhost is sub-millisecond)
+		// — well before any backoff timer elapses. So every goroutine
+		// deterministically sees 503 on its first attempt, retries through
+		// computeBackoff (exercising the race-sensitive c.rand.Int64N inside
+		// the c.randMu critical section), and observes 200 on its second
+		// attempt. Exhaustion of the 8-attempt budget for any single
+		// goroutine would require that goroutine to make 8 round trips
+		// before the other N-1 goroutines even queue their first — which
+		// the Go runtime scheduler does not produce under this workload.
+		//
+		// The previous odd-503/even-200 alternation was statistically flaky
+		// because the global counter advanced unpredictably during a
+		// goroutine's backoff (i.e. the parity it observed on its retry
+		// was effectively random), giving each attempt a ~50 % chance of
+		// 503 and a ~17 % per-run chance that SOME goroutine exhausted its
+		// 8-attempt budget. The first-N-fail design removes the random
+		// walk entirely.
+		const N = 50
+		var attempts atomic.Int32
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			n := attempts.Add(1)
+			if n <= int32(N) {
+				w.WriteHeader(http.StatusServiceUnavailable)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write(body)
+		}))
+		t.Cleanup(srv.Close)
+
+		// maxAttempts=8 gives every goroutine ample budget. Under the
+		// first-N-fail pattern only 2 attempts are needed in the steady
+		// state; the remaining budget is defensive headroom against any
+		// future scheduling pessimization on CI. baseDelay 1 ms keeps the
+		// test cheap.
+		c := NewClient(
+			WithBaseURL(srv.URL),
+			WithRetry(8, time.Millisecond),
+			WithMaxRetryWait(10*time.Millisecond),
+		)
+		t.Cleanup(func() { _ = c.Close() })
+
+		var wg sync.WaitGroup
+		errs := make([]error, N)
+		for i := range N {
+			wg.Add(1)
+			go func(idx int) {
+				defer wg.Done()
+				_, errs[idx] = c.Countries(t.Context(), CountriesRequest{})
+			}(i)
+		}
+		wg.Wait()
+
 		for i := range N {
 			require.NoError(t, errs[i],
 				"call %d failed under concurrent retry — if `go test -race` flagged a data race on c.rand, the CR-01 fix has regressed", i)
 		}
 	})
 }
+
+// audit:ok 2026-05-30
 
 // TestClient_FinalAttemptRespBodyDrained locks WR-02 defensive behavior:
 // when c.http.Do returns BOTH a non-nil *[http.Response] AND a non-nil
@@ -452,6 +464,8 @@ func TestClient_FinalAttemptRespBodyDrained(t *testing.T) {
 			"path must appear in the error message (WR-05 path-carrying contract)")
 	})
 }
+
+// audit:ok 2026-05-30
 
 // TestCtxSleep locks WR-04: ctxSleep checks ctx.Err() BEFORE the
 // d <= 0 short-circuit so its semantics match fakeClock.Sleep
@@ -521,6 +535,8 @@ func TestCtxSleep(t *testing.T) {
 	})
 }
 
+// audit:ok 2026-05-30
+
 // TestClient_RetryExhaustedPrefix locks WR-03: the "retry exhausted
 // (N attempts)" wrap fires only when retries ACTUALLY ran. A
 // non-retryable transport error on attempt 0 must produce the plain
@@ -587,6 +603,8 @@ func TestClient_RetryExhaustedPrefix(t *testing.T) {
 	})
 }
 
+// audit:ok 2026-05-30
+
 // TestClient_ContextCancel verifies CLIENT-09 + D-48: ctx cancellation
 // interrupts in-flight HTTP within ≤ 100 ms (asserted at the 200 ms ceiling
 // for 2x CI slack); [errors.Is](err, [context.Canceled]) holds through
@@ -646,6 +664,8 @@ func countriesServer(t *testing.T, body []byte) (*httptest.Server, *atomic.Int32
 	return srv, &hits
 }
 
+// audit:ok 2026-05-30
+
 // TestCache_StrictDecodingComposes locks D-93: strict-decoding applies to
 // cached bytes on every read. The first call caches the bytes (cache
 // transport sees err==nil && status==200, caches happily) and surfaces the
@@ -689,6 +709,8 @@ func TestCache_StrictDecodingComposes(t *testing.T) {
 	})
 }
 
+// audit:ok 2026-05-30
+
 // TestClient_NoCache_AllCallsHitNetwork locks the default-off invariant:
 // a Client constructed WITHOUT WithCache hits the server on every call.
 func TestClient_NoCache_AllCallsHitNetwork(t *testing.T) {
@@ -712,6 +734,8 @@ func TestClient_NoCache_AllCallsHitNetwork(t *testing.T) {
 			"default Client (no WithCache) must hit the network on every call (TEST-06 default-off)")
 	})
 }
+
+// audit:ok 2026-05-30
 
 // TestCache_PerClientIsolation locks D-82 / Pitfall CACHE-2: two Clients
 // with their own caches and different baseURLs do not share cache. Each
@@ -743,6 +767,8 @@ func TestCache_PerClientIsolation(t *testing.T) {
 			"Client B must have hit its own server exactly once (per-Client cache isolation)")
 	})
 }
+
+// audit:ok 2026-05-30
 
 // TestHook_FiresOnRetryAttempts locks TRANS-05 + D-88 composition with the
 // retry loop (Plan 04-03): each c.http.Do invocation re-enters the
@@ -797,6 +823,8 @@ func TestHook_FiresOnRetryAttempts(t *testing.T) {
 			"hook must fire once per retry attempt (TRANS-05 — three round trips → three hook calls)")
 	})
 }
+
+// audit:ok 2026-05-30
 
 // TestHook_SeesCacheHits locks D-88 + Plan 04 cache composition: the hook
 // fires on cache-hit synthetic responses too. Consumers can detect the
@@ -854,6 +882,8 @@ func TestHook_SeesCacheHits(t *testing.T) {
 			"server must see exactly 1 round trip — second call served from cache")
 	})
 }
+
+// audit:ok 2026-05-30
 
 // TestHook_DoesNotFireOnDecodeError locks the negative side of D-88:
 //

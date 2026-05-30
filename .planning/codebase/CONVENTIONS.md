@@ -145,6 +145,8 @@ func (h Holiday) NameFor(lang string) string {
 
 **Enforcement**: by convention today (this rule + code review). A CI / pre-commit guard that fails when a changed function still carries its prior mark is a noted future follow-up, not yet wired.
 
+**Test files**: the same mark and the same invalidation rule apply to test functions (`TestXxx`, `Example*`, `Fuzz*`) in `*_test.go`. A `// audit:ok YYYY-MM-DD` above a test function certifies its assertions were reviewed to encode the *correct* expected behavior — not merely that the test compiles and passes. A test that asserts a wrong value and stays green is precisely the failure this mark guards against (the `languageIsoCode` lowercase bug shipped behind exactly such a test). Any change to a test's logic, assertions, or table cases MUST delete its mark in the same commit, to be re-audited before re-marking; pure renames / comment fixes are exempt. The godoc-leak concern is moot in test files, but the blank-line-above-the-mark format is kept for consistency.
+
 ## Style
 
 ### Em-dashes ("—", U+2014) in godoc and Markdown are deliberate
@@ -174,4 +176,4 @@ across every file or to ship a lint rule that prevents re-introduction.
 These conventions are the floor, not the ceiling. New conventions discovered during implementation (idioms, lint rules, fixture patterns, naming schemes) belong in this file. Update freely and commit.
 
 ---
-*Last updated: 2026-05-30 — Rule 5 added: `audit:ok` marks certify reviewed logic; modifying a function invalidates its mark.*
+*Last updated: 2026-05-30 — Rule 5 added (`audit:ok` marks certify reviewed logic; modifying a function invalidates its mark) and extended to cover test functions in `*_test.go`.*

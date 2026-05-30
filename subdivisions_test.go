@@ -28,6 +28,8 @@ import (
 // fixtures are not the authoritative shape — the live API is.
 const subdivisionsPLFixtureCapturedAt = "2026-05-27"
 
+// audit:ok 2026-05-30
+
 // TestClient_Subdivisions covers ENDPT-03 + TEST-01 + Assumption A3 closure:
 //
 //   - happy path PL (16 województwa, flat) — fixture replay + query-param

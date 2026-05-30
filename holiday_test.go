@@ -21,6 +21,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// audit:ok 2026-05-30
+
 // TestHoliday_NameFor exercises Holiday.NameFor — case-insensitive match,
 // first-entry fallback on miss, empty string on empty Name slice.
 func TestHoliday_NameFor(t *testing.T) {
@@ -51,6 +53,8 @@ func TestHoliday_NameFor(t *testing.T) {
 		assert.Empty(t, h.NameFor("pl"))
 	})
 }
+
+// audit:ok 2026-05-30
 
 // TestHoliday_IsInRegion exercises Holiday.IsInRegion — empty-code defense,
 // Nationwide short-circuit, case-insensitive Subdivisions[].Code match,
@@ -106,6 +110,8 @@ func TestHoliday_IsInRegion(t *testing.T) {
 	})
 }
 
+// audit:ok 2026-05-30
+
 // TestHoliday_Days exercises Holiday.Days — single-day, 14-day Polish
 // ferie zimowe Śląskie span (the canonical D-70 sanity value), and a
 // cross-year span. Delegates to Date.DaysUntil which is calendar-correct.
@@ -154,6 +160,8 @@ func TestHoliday_Days(t *testing.T) {
 			"malformed hand-built Holiday must produce a defined non-negative value")
 	})
 }
+
+// audit:ok 2026-05-30
 
 // TestHoliday_Range exercises Holiday.Range — the canonical 14-day Polish
 // ferie zimowe Śląskie span, single-day yield, empty yield on malformed

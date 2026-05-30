@@ -65,6 +65,8 @@ func findFirstWithChildren(t *testing.T, tree []Subdivision) (string, string) {
 //     (enforcement subtest; the cap regression is detected by the 2 s timeout)
 //
 // Gold Rule 3: exactly one TestClient_IsInRegion; every case is a t.Run.
+
+// audit:ok 2026-05-30
 func TestClient_IsInRegion(t *testing.T) {
 	t.Parallel()
 
@@ -334,6 +336,8 @@ func TestClient_IsInRegion(t *testing.T) {
 // TestSplitCountryFromSubdivision covers the unexported helper that derives
 // the country prefix from a subdivision code (D-59 — input to IsInRegion's
 // hierarchical fetch).
+
+// audit:ok 2026-05-30
 func TestSplitCountryFromSubdivision(t *testing.T) {
 	t.Parallel()
 
@@ -379,6 +383,8 @@ func TestSplitCountryFromSubdivision(t *testing.T) {
 // enforce a cap; the cycle enforcement regression lives in
 // TestClient_IsInRegion (which exercises the IsInRegion upward-walk cap,
 // the actual mitigation surface for T-3-DoS-CycleInChildren).
+
+// audit:ok 2026-05-30
 func TestBuildParentIndex(t *testing.T) {
 	t.Parallel()
 

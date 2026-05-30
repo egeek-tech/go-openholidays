@@ -38,6 +38,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// audit:ok 2026-05-30
+
 // TestHookTransport_RoundTrip locks the three documented branches of
 // hookTransport.RoundTrip:
 //
@@ -152,6 +154,8 @@ func TestHookTransport_RoundTrip(t *testing.T) {
 	})
 }
 
+// audit:ok 2026-05-30
+
 // TestHookTransport_FiresPerAttempt locks TRANS-05 at the layer level:
 // invoking RoundTrip N times produces N hook invocations. The integration
 // view (retry loop calls RoundTrip three times for a 429→500→200 sequence)
@@ -215,6 +219,8 @@ func TestHookTransport_FiresPerAttempt(t *testing.T) {
 	})
 }
 
+// audit:ok 2026-05-30
+
 // TestHookTransport_PanicPropagates locks D-90 explicit: a panicking hook
 // propagates the panic to the caller. The library does NOT use defer/recover
 // (mirrors stdlib [http.Handler] convention — silent recovery would hide bugs
@@ -251,6 +257,8 @@ func TestHookTransport_PanicPropagates(t *testing.T) {
 		}, "panic in user hook MUST propagate — library does not defer/recover (D-90)")
 	})
 }
+
+// audit:ok 2026-05-30
 
 // TestHookTransport_NilSafeOnTransportError documents the nil-resp contract
 // at the hook side: on a transport error the hook receives a nil *[http.Response]

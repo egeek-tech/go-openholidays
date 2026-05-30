@@ -17,6 +17,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// audit:ok 2026-05-30
+
 // TestHolidayType_constants verifies that each of the six HolidayType
 // constants stringifies to the exact upstream wire value (TYPES-04, CL-04).
 func TestHolidayType_constants(t *testing.T) {
@@ -47,6 +49,8 @@ func TestHolidayType_constants(t *testing.T) {
 		assert.Equal(t, "EndOfLessons", string(HolidayTypeEndOfLessons))
 	})
 }
+
+// audit:ok 2026-05-30
 
 // TestHolidayType_IsKnown locks IN-03 follow-up: IsKnown returns true for
 // each of the six documented constants and false for any other value
@@ -84,6 +88,8 @@ func TestHolidayType_IsKnown(t *testing.T) {
 	}
 }
 
+// audit:ok 2026-05-30
+
 // TestLocalizedText_JSON verifies LocalizedText round-trips against the
 // verified upstream wire shape (TYPES-03).
 func TestLocalizedText_JSON(t *testing.T) {
@@ -106,6 +112,8 @@ func TestLocalizedText_JSON(t *testing.T) {
 		assert.Equal(t, want, got)
 	})
 }
+
+// audit:ok 2026-05-30
 
 // TestSubdivisionRef_JSON verifies SubdivisionRef round-trips against the
 // verified upstream SubdivisionReference shape (TYPES-03).
@@ -130,6 +138,8 @@ func TestSubdivisionRef_JSON(t *testing.T) {
 	})
 }
 
+// audit:ok 2026-05-30
+
 // TestGroupRef_JSON verifies GroupRef round-trips against the verified
 // upstream GroupReference shape (TYPES-03).
 func TestGroupRef_JSON(t *testing.T) {
@@ -152,6 +162,8 @@ func TestGroupRef_JSON(t *testing.T) {
 		assert.Equal(t, want, got)
 	})
 }
+
+// audit:ok 2026-05-30
 
 // TestHoliday_JSON is the big wire-shape contract test (TYPES-01). It locks
 // the Holiday struct against the verified upstream JSON shape from the live
@@ -309,6 +321,8 @@ func TestHoliday_JSON(t *testing.T) {
 	})
 }
 
+// audit:ok 2026-05-30
+
 // TestCountry_NameFor covers the Country.NameFor accessor (TYPES-05, CL-05):
 // exact-match, case-insensitive match, fallback-to-first on miss, and
 // empty-slice handling.
@@ -350,6 +364,8 @@ func TestCountry_NameFor(t *testing.T) {
 	}
 }
 
+// audit:ok 2026-05-30
+
 // TestLanguage_NameFor covers the Language.NameFor accessor (TYPES-05):
 // same contract as Country.NameFor.
 func TestLanguage_NameFor(t *testing.T) {
@@ -385,6 +401,8 @@ func TestLanguage_NameFor(t *testing.T) {
 		})
 	}
 }
+
+// audit:ok 2026-05-30
 
 // TestSubdivision_NameFor covers the Subdivision.NameFor accessor (TYPES-05):
 // same contract as Country.NameFor.

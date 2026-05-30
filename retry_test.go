@@ -2,9 +2,11 @@
 //
 // This file is the comprehensive test suite for the Phase 4 retry layer:
 //
-//   - TestShouldRetry / TestParseRetryAfter / TestComputeBackoff /
-//     TestComputeBackoff_HonorsRetryAfter — pure-function unit tests
-//     locking the helpers declared in retry.go (Task 1).
+//   - TestShouldRetry / TestParseRetryAfter / TestComputeBackoff —
+//     pure-function unit tests locking the helpers declared in
+//     retry.go (Task 1). TestShouldRetry also covers D-75 (ctx errors
+//     context.Canceled / context.DeadlineExceeded are NEVER retried);
+//     TestComputeBackoff also covers the Retry-After promotion branch.
 //   - TestRetry_E2E_429Then500Then200 — the marquee TEST-05 case proving
 //     the loop fires exactly three round trips on 429 → 500 → 200 under
 //     a deterministic clock.
@@ -12,8 +14,6 @@
 //     — D-76 integer-seconds and HTTP-date Retry-After paths.
 //   - TestRetry_CtxCancel — RESIL-04: ctx cancellation interrupts the
 //     retry loop within ≤ 100 ms.
-//   - TestRetry_NeverRetriesCtxErrors — D-75: shouldRetry never returns
-//     true for raw context.Canceled / context.DeadlineExceeded.
 //   - TestRetry_DeterministicClock — TEST-05 explicit: bounded fake-
 //     clock advance via fakeClock.
 //   - TestRetry_NotARoundTripper — RESIL-05 structural audit: no
@@ -73,6 +73,8 @@ func newTestRand() *rand.Rand {
 	return rand.New(rand.NewChaCha8(seed)) //nolint:gosec // G404: deterministic test RNG, not cryptographic
 }
 
+// audit:ok 2026-05-30
+
 // TestShouldRetry locks the D-75 retryable-conditions matrix verbatim.
 // Eight+ cases: HTTP statuses (true and false branches), [net.Error]
 // timeout (true), [syscall.ECONNRESET] (true), raw ctx errors (false —
@@ -122,6 +124,8 @@ func TestShouldRetry(t *testing.T) {
 		})
 	}
 }
+
+// audit:ok 2026-05-30
 
 // TestParseRetryAfter locks D-76 + Pitfall 9 past-date guard + IN-05
 // integer-seconds overflow guard. Eight cases cover integer seconds,
@@ -224,11 +228,14 @@ func TestParseRetryAfter(t *testing.T) {
 	}
 }
 
-// TestComputeBackoff locks the full-jitter formula at three attempt
-// counts: attempt=0 (capped at baseDelay), attempt=3 (capped at
-// baseDelay << 3 < maxWait), and a Retry-After-only test in
-// TestComputeBackoff_HonorsRetryAfter. The deterministic [rand.Rand]
-// seed makes the upper-bound assertion stable.
+// audit:ok 2026-05-30
+
+// TestComputeBackoff locks the full-jitter formula at several attempt
+// counts (attempt=0 capped at baseDelay; attempt=3 capped at
+// baseDelay << 3 < maxWait; large/overflow attempts clamped to maxWait)
+// plus the Retry-After promotion branch (retryAfter wins over jitter and
+// is itself capped at maxWait). The deterministic [rand.Rand] seed makes
+// the upper-bound assertions stable.
 func TestComputeBackoff(t *testing.T) {
 	t.Parallel()
 
@@ -301,42 +308,37 @@ func TestComputeBackoff(t *testing.T) {
 		assert.Less(t, got, time.Second,
 			"attempt 63: jitter must remain capped at maxWait (1s)")
 	})
-}
 
-// TestComputeBackoff_HonorsRetryAfter locks the Retry-After promotion
-// branch in computeBackoff: when retryAfter > jitter, retryAfter
-// wins; when retryAfter > maxWait, the result is capped at maxWait
-// (threat T-04-05 — hostile Retry-After: 999999999 can't hold the
-// request).
-func TestComputeBackoff_HonorsRetryAfter(t *testing.T) {
-	t.Parallel()
-
+	// Retry-After promotion branch (min(retryAfter, cfg.maxWait), retry.go:297-299).
 	t.Run("retryAfter > jitter — retryAfter wins", func(t *testing.T) {
 		t.Parallel()
-		cfg := retryConfig{
+		raCfg := retryConfig{
 			baseDelay: 100 * time.Millisecond,
 			maxWait:   10 * time.Second,
 		}
 		rnd := newTestRand()
 		// retryAfter=5s; jitter ≤ 100ms; retryAfter wins; ≤ maxWait=10s.
-		got := computeBackoff(0, 5*time.Second, cfg, rnd)
+		got := computeBackoff(0, 5*time.Second, raCfg, rnd)
 		assert.Equal(t, 5*time.Second, got,
 			"retryAfter > jitter must promote retryAfter (capped at maxWait); got %v", got)
 	})
 
 	t.Run("retryAfter > maxWait — capped at maxWait (threat T-04-05)", func(t *testing.T) {
 		t.Parallel()
-		cfg := retryConfig{
+		raCfg := retryConfig{
 			baseDelay: 100 * time.Millisecond,
 			maxWait:   2 * time.Second,
 		}
 		rnd := newTestRand()
-		// retryAfter=5s exceeds maxWait=2s; cap fires.
-		got := computeBackoff(0, 5*time.Second, cfg, rnd)
+		// retryAfter=5s exceeds maxWait=2s; cap fires (threat T-04-05 —
+		// hostile Retry-After: 999999999 can't hold the request).
+		got := computeBackoff(0, 5*time.Second, raCfg, rnd)
 		assert.Equal(t, 2*time.Second, got,
 			"retryAfter must be capped at maxWait — threat T-04-05 (hostile Retry-After); got %v", got)
 	})
 }
+
+// audit:ok 2026-05-30
 
 // TestRetry_E2E_429Then500Then200 is the marquee TEST-05 case: a
 // fake transport sequences 429 → 500 → 200; the endpoint method
@@ -379,6 +381,8 @@ func TestRetry_E2E_429Then500Then200(t *testing.T) {
 	})
 }
 
+// audit:ok 2026-05-30
+
 // TestRetry_HonorsRetryAfterSeconds locks D-76 integer-seconds
 // branch: when an upstream sends Retry-After: 2, the per-attempt
 // sleep computed by computeBackoff is at least 2 seconds of fake-
@@ -414,6 +418,8 @@ func TestRetry_HonorsRetryAfterSeconds(t *testing.T) {
 			"Retry-After: 2 must produce at least 2s of fake-clock advance (D-76); got %v", fc.Now().Sub(fcStart))
 	})
 }
+
+// audit:ok 2026-05-30
 
 // TestRetry_HonorsRetryAfterDate locks D-76 HTTP-date branch:
 // Retry-After can also be an RFC 7231 date (RFC 1123 + RFC 850 +
@@ -455,6 +461,8 @@ func TestRetry_HonorsRetryAfterDate(t *testing.T) {
 			fc.Now().Sub(fcStart))
 	})
 }
+
+// audit:ok 2026-05-30
 
 // TestRetry_CtxCancel verifies RESIL-04 + CLIENT-09 ≤ 100 ms
 // cancellation contract: a ctx canceled BEFORE the retry loop runs
@@ -557,37 +565,15 @@ func TestRetry_CtxCancel(t *testing.T) {
 	})
 }
 
-// TestRetry_NeverRetriesCtxErrors is the direct verification of D-75
-// "ctx errors NEVER retried": shouldRetry must return false for both
-// [context.Canceled] and [context.DeadlineExceeded] passed as raw errors.
-// This is a pure-function test — no HTTP path — that locks the
-// shouldRetry contract on its own.
-//
-// The integration test for "ctx-aware retry loop returns ctx.Err()
-// without invoking shouldRetry" is TestRetry_CtxCancel above.
-func TestRetry_NeverRetriesCtxErrors(t *testing.T) {
-	t.Parallel()
-
-	t.Run("shouldRetry(nil, context.Canceled) is false", func(t *testing.T) {
-		t.Parallel()
-		assert.False(t, shouldRetry(nil, context.Canceled),
-			"D-75: shouldRetry must NEVER claim to retry context.Canceled")
-	})
-
-	t.Run("shouldRetry(nil, context.DeadlineExceeded) is false", func(t *testing.T) {
-		t.Parallel()
-		assert.False(t, shouldRetry(nil, context.DeadlineExceeded),
-			"D-75: shouldRetry must NEVER claim to retry context.DeadlineExceeded")
-	})
-}
+// audit:ok 2026-05-30
 
 // TestRetry_DeterministicClock is the TEST-05 explicit "fake clock"
 // case: a server returns 503 three times then 200; the retry loop
 // fires three sleeps (between attempts 1→2, 2→3, 3→4) before the
 // final successful 4th attempt. With baseDelay=100ms and full-jitter,
 // the worst-case cumulative fake-clock advance is 100+200+400 = 700ms.
-// Asserting elapsed ≤ 700ms locks the bound; asserting elapsed ≥ 0
-// is a sanity check.
+// Asserting elapsed ≤ 700ms locks the upper bound; asserting elapsed > 0
+// proves the inter-attempt sleeps actually advanced the fake clock.
 func TestRetry_DeterministicClock(t *testing.T) {
 	t.Parallel()
 
@@ -623,10 +609,12 @@ func TestRetry_DeterministicClock(t *testing.T) {
 		assert.LessOrEqual(t, elapsed, 700*time.Millisecond,
 			"max fake-clock advance is 700ms with baseDelay=100ms across 3 retry sleeps (full-jitter ceiling); got %v",
 			elapsed)
-		assert.GreaterOrEqual(t, elapsed, time.Duration(0),
-			"fake clock must have advanced at least 0; got %v", elapsed)
+		assert.Greater(t, elapsed, time.Duration(0),
+			"the 3 inter-attempt sleeps must advance the fake clock past 0; got %v", elapsed)
 	})
 }
+
+// audit:ok 2026-05-30
 
 // TestRetry_NotARoundTripper is the RESIL-05 structural audit: the
 // repo must NOT contain a transport_retry.go file and no Go file at
@@ -637,17 +625,18 @@ func TestRetry_DeterministicClock(t *testing.T) {
 func TestRetry_NotARoundTripper(t *testing.T) {
 	t.Parallel()
 
-	repoRoot, err := findRepoRoot()
-	require.NoError(t, err, "could not locate repo root for structural audit")
-
 	t.Run("no transport_retry.go file exists at repo root", func(t *testing.T) {
 		t.Parallel()
+		repoRoot, err := findRepoRoot()
+		require.NoError(t, err, "could not locate repo root for structural audit")
 		require.NoFileExists(t, filepath.Join(repoRoot, "transport_retry.go"),
 			"RESIL-05: retry is in the endpoint layer (D-77), NOT a RoundTripper. transport_retry.go must NOT exist.")
 	})
 
 	t.Run("no production .go file declares 'type retryTransport'", func(t *testing.T) {
 		t.Parallel()
+		repoRoot, err := findRepoRoot()
+		require.NoError(t, err, "could not locate repo root for structural audit")
 		entries, err := os.ReadDir(repoRoot)
 		require.NoError(t, err, "could not read repo root for structural audit")
 

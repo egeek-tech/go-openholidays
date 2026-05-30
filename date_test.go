@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// audit:ok 2026-05-30
 func TestNewDate(t *testing.T) {
 	t.Parallel()
 
@@ -42,6 +43,7 @@ func TestNewDate(t *testing.T) {
 	}
 }
 
+// audit:ok 2026-05-30
 func TestParseDate(t *testing.T) {
 	t.Parallel()
 
@@ -88,6 +90,7 @@ func TestParseDate(t *testing.T) {
 	})
 }
 
+// audit:ok 2026-05-30
 func TestDate_MarshalJSON(t *testing.T) {
 	t.Parallel()
 
@@ -116,6 +119,7 @@ func TestDate_MarshalJSON(t *testing.T) {
 	})
 }
 
+// audit:ok 2026-05-30
 func TestDate_UnmarshalJSON(t *testing.T) {
 	t.Parallel()
 
@@ -234,6 +238,7 @@ func TestDate_UnmarshalJSON(t *testing.T) {
 	})
 }
 
+// audit:ok 2026-05-30
 func TestDate_String(t *testing.T) {
 	t.Parallel()
 
@@ -255,6 +260,7 @@ func TestDate_String(t *testing.T) {
 	}
 }
 
+// audit:ok 2026-05-30
 func TestDate_Equal(t *testing.T) {
 	t.Parallel()
 
@@ -292,6 +298,7 @@ func TestDate_Equal(t *testing.T) {
 	})
 }
 
+// audit:ok 2026-05-30
 func TestDate_Before(t *testing.T) {
 	t.Parallel()
 
@@ -312,6 +319,7 @@ func TestDate_Before(t *testing.T) {
 	})
 }
 
+// audit:ok 2026-05-30
 func TestDate_After(t *testing.T) {
 	t.Parallel()
 
@@ -332,6 +340,7 @@ func TestDate_After(t *testing.T) {
 	})
 }
 
+// audit:ok 2026-05-30
 func TestDate_Compare(t *testing.T) {
 	t.Parallel()
 
@@ -354,6 +363,7 @@ func TestDate_Compare(t *testing.T) {
 	})
 }
 
+// audit:ok 2026-05-30
 func TestDate_DaysUntil(t *testing.T) {
 	t.Parallel()
 
@@ -405,6 +415,8 @@ func TestDate_DaysUntil(t *testing.T) {
 		})
 	}
 }
+
+// audit:ok 2026-05-30
 
 // FuzzDateUnmarshal enforces the JSON-3 invariant: (*Date).UnmarshalJSON
 // must NEVER panic for any input byte sequence. Seed corpus exercises the

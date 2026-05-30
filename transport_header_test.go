@@ -23,6 +23,8 @@ func (f roundTripperFunc) RoundTrip(r *http.Request) (*http.Response, error) {
 	return f(r)
 }
 
+// audit:ok 2026-05-30
+//
 // TestHeaderTransport_RoundTrip locks the three documented branches of
 // headerTransport.RoundTrip:
 //

@@ -25,6 +25,8 @@ import (
 	"github.com/egeek-tech/go-openholidays"
 )
 
+// audit:ok 2026-05-30
+
 // Example_quickstart mirrors the README quickstart verbatim — one canonical
 // ≤20-line snippet that fetches a year of Polish public holidays. Compile-only
 // because PublicHolidays hits the live API. This example is the single source
@@ -46,6 +48,8 @@ func Example_quickstart() {
 	fmt.Printf("got %d Polish public holidays\n", len(hs))
 }
 
+// audit:ok 2026-05-30
+
 // ExampleClient_PublicHolidays demonstrates the canonical
 // "fetch one year of public holidays" call against a Client. Compile-only —
 // PublicHolidays issues HTTP to the live OpenHolidays API.
@@ -66,6 +70,8 @@ func ExampleClient_PublicHolidays() {
 	}
 	fmt.Printf("got %d Polish public holidays\n", len(hs))
 }
+
+// audit:ok 2026-05-30
 
 // ExampleClient_SchoolHolidays demonstrates the regional filter — the
 // SubdivisionCode argument restricts the upstream result to school holidays
@@ -90,6 +96,8 @@ func ExampleClient_SchoolHolidays() {
 	fmt.Printf("got %d Polish school holidays for PL-SL\n", len(hs))
 }
 
+// audit:ok 2026-05-30
+
 // ExampleClient_Countries demonstrates the Countries listing endpoint. The
 // optional LanguageIsoCode filter narrows the localized Name entries upstream
 // returns to a single language. Compile-only — Countries issues HTTP.
@@ -109,6 +117,8 @@ func ExampleClient_Countries() {
 	fmt.Printf("got %d supported countries\n", len(countries))
 }
 
+// audit:ok 2026-05-30
+
 // ExampleClient_Languages demonstrates the Languages listing endpoint —
 // returns every ISO 639-1 language the upstream API can localize its
 // responses in. Compile-only — Languages issues HTTP.
@@ -125,6 +135,8 @@ func ExampleClient_Languages() {
 	}
 	fmt.Printf("got %d supported languages\n", len(langs))
 }
+
+// audit:ok 2026-05-30
 
 // ExampleClient_Subdivisions demonstrates fetching the administrative-
 // subdivision tree for a country. For Poland the response is a flat list of
@@ -146,6 +158,8 @@ func ExampleClient_Subdivisions() {
 	}
 	fmt.Printf("got %d Polish subdivisions\n", len(subs))
 }
+
+// audit:ok 2026-05-30
 
 // ExampleClient_IsInRegion demonstrates the hierarchical region-membership
 // check — unlike Holiday.IsInRegion (a pure flat match) this method may walk
@@ -170,6 +184,8 @@ func ExampleClient_IsInRegion() {
 	fmt.Printf("holiday applies in PL-SL: %t\n", ok)
 }
 
+// audit:ok 2026-05-30
+
 // ExampleClient_Close demonstrates the idempotent shutdown idiom: deferring
 // Close immediately after NewClient guarantees the cache sweeper (when one
 // was wired via WithCache) stops on the way out. Close is safe to call from
@@ -181,6 +197,8 @@ func ExampleClient_Close() {
 	// Calling Close twice is safe — the second call is a no-op.
 	_ = c.Close()
 }
+
+// audit:ok 2026-05-30
 
 // ExampleNewClient demonstrates functional-options composition — every
 // behavior knob (User-Agent, timeout, retry, in-memory cache) is layered on
@@ -196,6 +214,8 @@ func ExampleNewClient() {
 	defer c.Close()
 	_ = c
 }
+
+// audit:ok 2026-05-30
 
 // ExampleHoliday_NameFor demonstrates language fallback — when the requested
 // language is not present in the LocalizedText slice, NameFor returns the
@@ -213,6 +233,8 @@ func ExampleHoliday_NameFor() {
 	// Output: Boże Narodzenie
 }
 
+// audit:ok 2026-05-30
+
 // ExampleHoliday_IsInRegion demonstrates the flat (no-HTTP) region check on
 // a Holiday value. A nationwide holiday returns true for any code; a holiday
 // with explicit Subdivisions returns true only on a [strings.EqualFold] match.
@@ -225,6 +247,8 @@ func ExampleHoliday_IsInRegion() {
 	// Output: true false
 }
 
+// audit:ok 2026-05-30
+
 // ExampleHoliday_Days demonstrates the inclusive day-count helper. For a
 // holiday spanning 2025-01-01 through 2025-01-07 inclusive, Days returns 7.
 func ExampleHoliday_Days() {
@@ -235,6 +259,8 @@ func ExampleHoliday_Days() {
 	fmt.Println(h.Days())
 	// Output: 7
 }
+
+// audit:ok 2026-05-30
 
 // ExampleHoliday_Range demonstrates the Go 1.23 range-over-func iterator on
 // Holiday. The iterator yields one Date per calendar day in chronological
@@ -253,6 +279,8 @@ func ExampleHoliday_Range() {
 	// 2025-01-03
 }
 
+// audit:ok 2026-05-30
+
 // ExampleCountry_NameFor demonstrates the localized-name lookup pattern
 // shared by Country, Language, and Subdivision. Matching is
 // case-insensitive (strings.EqualFold) and falls back to the first entry
@@ -269,6 +297,8 @@ func ExampleCountry_NameFor() {
 	// Output: Polen
 }
 
+// audit:ok 2026-05-30
+
 // ExampleHolidayType_IsKnown demonstrates the closed-set membership check
 // for HolidayType — callers SHOULD gate a switch on Holiday.Type with
 // IsKnown so the unknown-value path (upstream schema drift) is explicit.
@@ -277,6 +307,8 @@ func ExampleHolidayType_IsKnown() {
 	// Output: true false
 }
 
+// audit:ok 2026-05-30
+
 // ExampleNewDate demonstrates the UTC-midnight Date constructor. Date.String
 // emits the YYYY-MM-DD wire format used by the upstream API.
 func ExampleNewDate() {
@@ -284,6 +316,8 @@ func ExampleNewDate() {
 	fmt.Println(d)
 	// Output: 2025-12-24
 }
+
+// audit:ok 2026-05-30
 
 // ExampleParseDate demonstrates parsing a YYYY-MM-DD wire string into a
 // UTC-midnight Date. Empty input and malformed strings return a wrapped

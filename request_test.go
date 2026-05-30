@@ -29,6 +29,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// audit:ok 2026-05-30
+
 // TestDoJSONGet covers the generic helper's contract end-to-end:
 //
 //   - typed-T decode (int slice; Country slice from the live-captured fixture)

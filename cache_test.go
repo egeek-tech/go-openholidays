@@ -33,22 +33,34 @@ import (
 // not see an unexpected package-level blank-identifier var in production code.
 var _ Cache = (*MemoryCache)(nil)
 
+// audit:ok 2026-05-30
+
 // TestCacheInterface_Conformance documents the interface conformance check.
 // The compile-time assertion at file top is the load-bearing proof; this
-// test exists so `go test -run TestCacheInterface_Conformance` produces a
-// named pass in CI output.
+// test exercises all three Cache methods (Put, Get, Close) THROUGH the
+// interface variable so each is proven reachable via dynamic dispatch, not
+// merely that a non-nil pointer satisfies the type.
 func TestCacheInterface_Conformance(t *testing.T) {
 	t.Parallel()
 
-	t.Run("MemoryCache satisfies Cache at runtime via type assertion", func(t *testing.T) {
+	t.Run("all three Cache methods dispatch through the interface variable", func(t *testing.T) {
 		t.Parallel()
 		nc := NewMemoryCache(time.Hour)
 		require.NotNil(t, nc)
-		t.Cleanup(func() { _ = nc.Close() })
 		var c Cache = nc // assignment proves runtime conformance
-		assert.NotNil(t, c, "MemoryCache assigned to Cache interface variable must be non-nil")
+
+		// Put then Get must round-trip through the interface dispatch.
+		c.Put("k", []byte("v"))
+		v, ok := c.Get("k")
+		require.True(t, ok, "Get via the Cache interface must return ok=true after Put via the interface")
+		assert.Equal(t, []byte("v"), v, "Get via the Cache interface must return the bytes stored via Put")
+
+		// Close must dispatch through the interface and return nil.
+		assert.NoError(t, c.Close(), "Close via the Cache interface must return nil")
 	})
 }
+
+// audit:ok 2026-05-30
 
 // TestNewMemoryCache covers the constructor: returns a non-nil *MemoryCache
 // configured with the supplied TTL. The "no goroutines spawned yet"
@@ -66,6 +78,8 @@ func TestNewMemoryCache(t *testing.T) {
 		t.Cleanup(func() { _ = nc.Close() })
 	})
 }
+
+// audit:ok 2026-05-30
 
 // TestMemoryCache_GetPut covers the Get + Put storage cycle: Get on empty
 // returns (nil, false); Put then Get returns the stored value.
@@ -136,6 +150,8 @@ func TestMemoryCache_GetPut(t *testing.T) {
 	})
 }
 
+// audit:ok 2026-05-30
+
 // TestMemoryCache_SweeperLazyStart locks the D-84 lazy-start invariant: the
 // sweeper goroutine is NOT spawned by NewMemoryCache, NOT spawned by Get,
 // and IS spawned by the first Put. Close stops it.
@@ -196,6 +212,8 @@ func TestMemoryCache_SweeperLazyStart(t *testing.T) {
 	})
 }
 
+// audit:ok 2026-05-30
+
 // TestMemoryCache_TTLEviction covers TEST-06: TTL expiration is observable
 // via Get (lazy-on-read path) under a deterministic fakeClock — no real
 // wall-clock sleep.
@@ -222,6 +240,8 @@ func TestMemoryCache_TTLEviction(t *testing.T) {
 			"entry must be unreachable via Get after fake clock advances past TTL (D-81 lazy-expiration-on-read)")
 	})
 }
+
+// audit:ok 2026-05-30
 
 // TestMemoryCache_CloseIdempotent covers D-85 + Pitfall CONC-2: Close is
 // idempotent under sequential and concurrent invocations from many

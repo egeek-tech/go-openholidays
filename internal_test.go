@@ -112,6 +112,7 @@ var skipDirs = map[string]struct{}{
 	"testdata":  {},
 }
 
+// audit:ok 2026-05-30
 // TestNoInitOrGlobalState walks every production *.go file in the repo and
 // asserts the two CLIENT-10 invariants via AST inspection: no init function,
 // no unexpected package-level vars.

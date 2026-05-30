@@ -9,6 +9,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// audit:ok 2026-05-30
+
 // TestSentinelErrors locks ERR-01 (Phase 1 baseline) + Phase 2 D-24/CL-07
 // + Phase 3 D-65/D-66/CL-12: each of the 7 exported sentinels is non-nil,
 // carries the "openholidays: " prefix per the project's error-string
@@ -61,6 +63,8 @@ func TestSentinelErrors(t *testing.T) {
 	}
 }
 
+// audit:ok 2026-05-30
+
 // TestSentinels_ErrorsIs locks ERR-03 + ROADMAP criterion #2: every sentinel
 // is recoverable via [errors.Is] through a [fmt.Errorf]("...: %w", sentinel)
 // wrapper, and wrapping does not bleed identity into a different sentinel.
@@ -109,6 +113,8 @@ func TestSentinels_ErrorsIs(t *testing.T) {
 	}
 }
 
+// audit:ok 2026-05-30
+
 // TestAPIError_Error locks D-18: the two output formats based on Message
 // emptiness, and the invariant that Body is never serialized into the
 // error string (ERR-04 / T-01-02-IL).
@@ -151,6 +157,8 @@ func TestAPIError_Error(t *testing.T) {
 		})
 	}
 }
+
+// audit:ok 2026-05-30
 
 // TestAPIError_Is locks D-15 + Pitfall 5: wildcard (zero StatusCode) matches
 // any *APIError; non-zero StatusCode matches by status only; Path / Body /
@@ -225,6 +233,8 @@ func TestAPIError_Is(t *testing.T) {
 		})
 	}
 }
+
+// audit:ok 2026-05-30
 
 // TestAPIError_ErrorsAs locks ERR-02 + ROADMAP criterion #3: [errors.As]
 // extracts a populated *APIError from a %w-wrapped chain with all four
