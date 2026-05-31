@@ -72,6 +72,64 @@ func (t HolidayType) IsKnown() bool {
 	return false
 }
 
+// RegionalScope is the typed-string enum for Holiday.RegionalScope — the
+// geographic breadth a holiday applies to.
+//
+// Like HolidayType, RegionalScope is a typed-string alias: the upstream is
+// free to emit values outside the documented set, which decode as-is. Use
+// RegionalScope.IsKnown to test membership before branching on the value.
+type RegionalScope string
+
+// RegionalScope wire-format constants (the closed value set per the upstream
+// OpenAPI spec). Identifiers are PascalCase; values are the exact wire strings.
+const (
+	// RegionalScopeNational applies to the entire country.
+	RegionalScopeNational RegionalScope = "National"
+	// RegionalScopeRegional applies to one or more administrative subdivisions.
+	RegionalScopeRegional RegionalScope = "Regional"
+	// RegionalScopeLocal applies to a local area within a subdivision.
+	RegionalScopeLocal RegionalScope = "Local"
+)
+
+// IsKnown reports whether s is one of the three documented RegionalScope
+// constants. The upstream may emit other values; branch on IsKnown before
+// relying on the value.
+func (s RegionalScope) IsKnown() bool {
+	switch s {
+	case RegionalScopeNational, RegionalScopeRegional, RegionalScopeLocal:
+		return true
+	}
+	return false
+}
+
+// TemporalScope is the typed-string enum for Holiday.TemporalScope — whether a
+// holiday occupies the full day or half the day.
+//
+// Like HolidayType, TemporalScope is a typed-string alias: the upstream is
+// free to emit values outside the documented set, which decode as-is. Use
+// TemporalScope.IsKnown to test membership before branching on the value.
+type TemporalScope string
+
+// TemporalScope wire-format constants (the closed value set per the upstream
+// OpenAPI spec).
+const (
+	// TemporalScopeFullDay marks a holiday occupying the full day.
+	TemporalScopeFullDay TemporalScope = "FullDay"
+	// TemporalScopeHalfDay marks a holiday occupying half the day.
+	TemporalScopeHalfDay TemporalScope = "HalfDay"
+)
+
+// IsKnown reports whether s is one of the two documented TemporalScope
+// constants. The upstream may emit other values; branch on IsKnown before
+// relying on the value.
+func (s TemporalScope) IsKnown() bool {
+	switch s {
+	case TemporalScopeFullDay, TemporalScopeHalfDay:
+		return true
+	}
+	return false
+}
+
 // LocalizedText is a (language, text) pair returned by the upstream API in
 // every localized-string field (Holiday.Name, Holiday.Comment, Country.Name,
 // Language.Name, Subdivision.Name, Subdivision.Category, Subdivision.Comment).
@@ -151,15 +209,15 @@ type Holiday struct {
 	// Nationwide reports whether the holiday applies to the entire country.
 	// When false, consult Subdivisions for the affected regions.
 	Nationwide bool `json:"nationwide"`
-	// RegionalScope is the upstream regional-scope marker. The closed value
-	// set per spec is "National" / "Regional" / "Local". Shipped as plain
-	// string for v0.1.0 (Assumption A4 — typed enums deferred to v0.2 if
-	// downstream helpers need to branch on this value).
-	RegionalScope string `json:"regionalScope"`
-	// TemporalScope is the upstream temporal-scope marker. The closed value
-	// set per spec is "FullDay" / "HalfDay". Shipped as plain string for
-	// v0.1.0 for the same reason as RegionalScope (Assumption A4).
-	TemporalScope string `json:"temporalScope"`
+	// RegionalScope is the upstream regional-scope marker, a typed enum with
+	// the closed set RegionalScopeNational / Regional / Local. Use
+	// RegionalScope.IsKnown before branching, as the upstream may emit a value
+	// outside the documented set.
+	RegionalScope RegionalScope `json:"regionalScope"`
+	// TemporalScope is the upstream temporal-scope marker, a typed enum with
+	// the closed set TemporalScopeFullDay / HalfDay. Use TemporalScope.IsKnown
+	// before branching, as the upstream may emit a value outside the set.
+	TemporalScope TemporalScope `json:"temporalScope"`
 	// Comment is optional per-language commentary on the holiday. Nullable
 	// upstream; emitted only when populated.
 	Comment []LocalizedText `json:"comment,omitempty"`
