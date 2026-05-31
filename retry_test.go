@@ -64,9 +64,14 @@ func (e *fakeNetError) Temporary() bool { return false }
 // jitter sequence, so range assertions (lower ≤ got < upper) are
 // stable.
 func newTestRand() *rand.Rand {
-	var seed [32]byte
-	for i := range seed {
-		seed[i] = byte(i + 1)
+	// Fixed seed of bytes 1..32. Written as a literal rather than a
+	// `for i := range seed { seed[i] = ... }` loop: ranging an array yields
+	// only valid indices, but newer gosec mis-flags the range-index write as
+	// G602 ("slice index out of range"). The literal has no index expression
+	// to flag and produces the identical seed.
+	seed := [32]byte{
+		1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+		17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
 	}
 	// G404: math/rand/v2 is the project-sanctioned RNG (CLAUDE.md); test
 	// uses a fixed-seed ChaCha8 for determinism, not cryptographic strength.
