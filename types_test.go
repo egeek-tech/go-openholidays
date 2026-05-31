@@ -88,6 +88,69 @@ func TestHolidayType_IsKnown(t *testing.T) {
 	}
 }
 
+// TestRegionalScope_IsKnown verifies IsKnown returns true for each of the three
+// documented RegionalScope constants and false for any other value (empty
+// string, an upstream-drift value, mixed case, and a free-form string) — the
+// same closed-set guarantee as HolidayType.IsKnown.
+func TestRegionalScope_IsKnown(t *testing.T) {
+	t.Parallel()
+
+	type tc struct {
+		name  string
+		input RegionalScope
+		want  bool
+	}
+	cases := []tc{
+		{name: "RegionalScopeNational", input: RegionalScopeNational, want: true},
+		{name: "RegionalScopeRegional", input: RegionalScopeRegional, want: true},
+		{name: "RegionalScopeLocal", input: RegionalScopeLocal, want: true},
+		{name: "empty string is not known", input: RegionalScope(""), want: false},
+		{name: "upstream-drift Continental is not known", input: RegionalScope("Continental"), want: false},
+		{name: "case-sensitive: lowercase national is not known", input: RegionalScope("national"), want: false},
+		{name: "free-form value is not known", input: RegionalScope("Whatever"), want: false},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			got := c.input.IsKnown()
+			assert.Equal(t, c.want, got,
+				"RegionalScope(%q).IsKnown() mismatch", string(c.input))
+		})
+	}
+}
+
+// TestTemporalScope_IsKnown verifies IsKnown returns true for each of the two
+// documented TemporalScope constants and false for any other value (empty
+// string, an upstream-drift value, mixed case, and a free-form string) — the
+// same closed-set guarantee as HolidayType.IsKnown.
+func TestTemporalScope_IsKnown(t *testing.T) {
+	t.Parallel()
+
+	type tc struct {
+		name  string
+		input TemporalScope
+		want  bool
+	}
+	cases := []tc{
+		{name: "TemporalScopeFullDay", input: TemporalScopeFullDay, want: true},
+		{name: "TemporalScopeHalfDay", input: TemporalScopeHalfDay, want: true},
+		{name: "empty string is not known", input: TemporalScope(""), want: false},
+		{name: "upstream-drift Evening is not known", input: TemporalScope("Evening"), want: false},
+		{name: "case-sensitive: lowercase fullday is not known", input: TemporalScope("fullday"), want: false},
+		{name: "free-form value is not known", input: TemporalScope("Whatever"), want: false},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			got := c.input.IsKnown()
+			assert.Equal(t, c.want, got,
+				"TemporalScope(%q).IsKnown() mismatch", string(c.input))
+		})
+	}
+}
+
 // audit:ok 2026-05-30
 
 // TestLocalizedText_JSON verifies LocalizedText round-trips against the
