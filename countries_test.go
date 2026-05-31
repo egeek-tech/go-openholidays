@@ -23,11 +23,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// countingBody wraps an [http.Response] body and increments an atomic counter
-// on construction; the counter decrements on Close (single-decrement guarded
-// by a [sync.Once]-style boolean). This lets WR-02 prove drain-then-close
-// hygiene deterministically — far more reliable than [runtime.NumGoroutine]()
-// which is process-global and races sibling tests' transport pools.
+// countingBody wraps an [http.Response] body and decrements a shared atomic
+// counter on Close (single-decrement guarded by a [sync.Once]-style boolean);
+// the matching increment is done by drainCountingTransport when it wraps the
+// body. This lets WR-02 prove drain-then-close hygiene deterministically — far
+// more reliable than [runtime.NumGoroutine]() which is process-global and
+// races sibling tests' transport pools.
 type countingBody struct {
 	io.ReadCloser
 	open   *atomic.Int32
