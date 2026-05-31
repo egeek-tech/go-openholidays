@@ -47,6 +47,27 @@ func main() {
 
 The full surface — including every option and helper — is documented on [pkg.go.dev](https://pkg.go.dev/github.com/egeek-tech/go-openholidays). The runnable form of this quickstart lives at [`example_test.go`](./example_test.go) as `Example_quickstart`.
 
+### School holidays per region
+
+School-break granularity *per administrative subdivision* is the differentiator — e.g. Polish *ferie zimowe* for a single województwo. Reusing the `c` and `ctx` from above:
+
+```go
+hs, err := c.SchoolHolidays(ctx, openholidays.SchoolHolidaysRequest{
+    CountryIsoCode:  "PL",
+    ValidFrom:       openholidays.NewDate(2025, time.January, 1),
+    ValidTo:         openholidays.NewDate(2025, time.December, 31),
+    SubdivisionCode: "PL-SL", // OpenHolidays' own code scheme: PL-SL = Świętokrzyskie (not ISO 3166-2)
+    // GroupCode:    "A",     // optional: filter to one ferie cohort (A/B/C/D)
+})
+if err != nil {
+    fmt.Println("error:", err)
+    return
+}
+fmt.Printf("got %d school-holiday spans for PL-SL\n", len(hs))
+```
+
+Every endpoint has a runnable example in [`example_test.go`](./example_test.go); these also render under the **Examples** tab on [pkg.go.dev](https://pkg.go.dev/github.com/egeek-tech/go-openholidays) (`ExampleClient_SchoolHolidays`, `ExampleClient_Subdivisions`, and so on).
+
 ## Public API
 
 | Surface | Symbols |
@@ -76,8 +97,9 @@ ohcli countries --json
 Released `ohcli` archives carry SLSA build-provenance attestations, signed via GitHub's keyless (Sigstore/Fulcio) flow, and verifiable with the [`gh` CLI](https://cli.github.com/) (≥ 2.49). Exit 0 means verified:
 
 ```sh
-gh release download v0.5.0 --repo egeek-tech/go-openholidays --pattern 'ohcli_*_linux_amd64.tar.gz'
-gh attestation verify ohcli_0.5.0_linux_amd64.tar.gz --repo egeek-tech/go-openholidays
+VERSION=1.0.0
+gh release download "v$VERSION" --repo egeek-tech/go-openholidays --pattern 'ohcli_*_linux_amd64.tar.gz'
+gh attestation verify "ohcli_${VERSION}_linux_amd64.tar.gz" --repo egeek-tech/go-openholidays
 ```
 
 > **Verify the archive, not the binary.** The attested subjects are the released `.tar.gz`/`.zip` archives listed in `checksums.txt` — not the unpacked `ohcli` binary and not `checksums.txt` itself. Verifying either of those returns `HTTP 404: Not Found`. Likewise, a binary built locally with `go install …@latest` or `go build` is never attested, so a 404 there is expected.
