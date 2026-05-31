@@ -33,6 +33,8 @@ import (
 // fixture is not the authoritative shape — the live API is. D-69.
 const schoolHolidaysPL2025FixtureCapturedAt = "2026-05-27"
 
+// audit:ok 2026-05-31
+
 // TestClient_SchoolHolidays covers ENDPT-05 + TEST-01 (4 error paths per
 // endpoint) + the D-70 sanity assertions on the live PL 2025 fixture (7
 // school periods total; at least one "Ferie zimowe" entry carries the
@@ -211,7 +213,7 @@ func TestClient_SchoolHolidays(t *testing.T) {
 			"title must win when detail is absent")
 	})
 
-	t.Run("malformed JSON wraps decode error (no sentinel)", func(t *testing.T) {
+	t.Run("malformed JSON wraps ErrMalformedResponse", func(t *testing.T) {
 		t.Parallel()
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
@@ -338,6 +340,8 @@ func TestClient_SchoolHolidays(t *testing.T) {
 			"expected ErrMalformedResponse via errors.Is, got %v", err)
 	})
 }
+
+// audit:ok 2026-05-31
 
 // TestClient_SchoolHolidays_IsInRegion_FerieZimowe is the SC#2-integrated
 // characterization test: it loads testdata/school_holidays_pl_2025.json

@@ -21,6 +21,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// audit:ok 2026-05-31
+
 // TestHoliday_NameFor exercises Holiday.NameFor — case-insensitive match
 // returning (text, true), and ("", false) on a language miss or empty slice
 // (no fallback).

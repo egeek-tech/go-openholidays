@@ -34,6 +34,8 @@ import (
 // fixture is not the authoritative shape — the live API is. D-69.
 const publicHolidaysPL2025FixtureCapturedAt = "2026-05-27"
 
+// audit:ok 2026-05-31
+
 // TestClient_PublicHolidays covers ENDPT-04 + TEST-01 (4 error paths per
 // endpoint) + the D-70 sanity assertions on the live PL 2025 fixture +
 // the new ErrMalformedResponse subtest gated by CL-12.
@@ -206,7 +208,7 @@ func TestClient_PublicHolidays(t *testing.T) {
 			"title must win when detail is absent")
 	})
 
-	t.Run("malformed JSON wraps decode error (no sentinel)", func(t *testing.T) {
+	t.Run("malformed JSON wraps ErrMalformedResponse", func(t *testing.T) {
 		t.Parallel()
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("Content-Type", "application/json")

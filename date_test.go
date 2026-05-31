@@ -120,6 +120,7 @@ func TestDate_MarshalJSON(t *testing.T) {
 	})
 }
 
+// audit:ok 2026-05-31
 func TestDate_UnmarshalJSON(t *testing.T) {
 	t.Parallel()
 
@@ -360,6 +361,7 @@ func TestDate_Compare(t *testing.T) {
 	})
 }
 
+// audit:ok 2026-05-31
 func TestDate_DaysUntil(t *testing.T) {
 	t.Parallel()
 

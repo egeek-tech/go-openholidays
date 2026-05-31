@@ -66,6 +66,8 @@ func (t *drainCountingTransport) RoundTrip(req *http.Request) (*http.Response, e
 // the live API is.
 const countriesFixtureCapturedAt = "2026-05-27"
 
+// audit:ok 2026-05-31
+
 // TestClient_Countries covers ENDPT-01 + TRANS-02 + TRANS-03 + the four
 // Phase 1 / Phase 2 invariants the endpoint exercises end-to-end:
 //

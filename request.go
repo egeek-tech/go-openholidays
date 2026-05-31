@@ -33,6 +33,8 @@ const maxResponseBytes = 10 << 20
 // preserving enough context for diagnostics.
 const apiErrorBodyCap = 4 << 10
 
+// audit:ok 2026-05-31
+
 // doJSONGet performs a GET to c.baseURL+path with the supplied query
 // parameters, decodes the JSON response body into a value of type T, and
 // returns it. It encapsulates the Phase 2 D-41..D-45 + D-24 pipeline:

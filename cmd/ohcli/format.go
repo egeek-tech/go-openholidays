@@ -79,6 +79,8 @@ func render(w io.Writer, hs []openholidays.Holiday, lang, format string) error {
 	}
 }
 
+// audit:ok 2026-05-31
+
 // localizedName returns the display name for lang, falling back to the first
 // available localized entry, then "". The library's NameFor now returns
 // (string, bool) with no fallback; ohcli wants a best-effort display string, so
@@ -95,6 +97,8 @@ func localizedName(entries []openholidays.LocalizedText, lang string) string {
 	}
 	return fallback
 }
+
+// audit:ok 2026-05-31
 
 // renderText writes the column-aligned text view of a []Holiday using
 // text/tabwriter (RESEARCH §3.2 Pattern 2). Column order matches the
@@ -132,6 +136,8 @@ func renderJSON(w io.Writer, hs []openholidays.Holiday) error {
 	enc.SetIndent("", jsonIndent)
 	return enc.Encode(hs)
 }
+
+// audit:ok 2026-05-31
 
 // renderCSV writes the CSV view of a []Holiday using encoding/csv
 // (RESEARCH §3.2 Pattern 2). Output is RFC 4180 compliant with a
@@ -194,6 +200,8 @@ func renderCountries(w io.Writer, cs []openholidays.Country, lang, format string
 	}
 }
 
+// audit:ok 2026-05-31
+
 // renderCountriesText writes the column-aligned text view of a []Country
 // using text/tabwriter. Columns: ISO_CODE, NAME (localized via
 // localizedName), OFFICIAL_LANGUAGES (comma-joined for the human
@@ -217,6 +225,8 @@ func renderCountriesJSON(w io.Writer, cs []openholidays.Country) error {
 	enc.SetIndent("", jsonIndent)
 	return enc.Encode(cs)
 }
+
+// audit:ok 2026-05-31
 
 // renderCountriesCSV writes the CSV view of a []Country using
 // encoding/csv. Header row: iso_code, name, official_languages.

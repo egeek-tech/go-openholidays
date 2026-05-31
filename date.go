@@ -160,6 +160,8 @@ func (d Date) Compare(other Date) int {
 	return d.toUTCMidnight().Compare(other.toUTCMidnight())
 }
 
+// audit:ok 2026-05-31
+
 // DaysUntil returns the number of calendar days from d to other — the
 // conventional exclusive delta.
 //
@@ -218,6 +220,8 @@ func truncateForError(b []byte, maxBytes int) string {
 	return string(sanitizeForError(b[:maxBytes])) +
 		fmt.Sprintf(" (truncated, %d total bytes)", len(b))
 }
+
+// audit:ok 2026-05-31
 
 // sanitizeForError replaces non-printable ASCII bytes (anything outside the
 // 0x20..0x7E range) with '?'. Multi-byte UTF-8 sequences are also masked

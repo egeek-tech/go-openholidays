@@ -88,6 +88,8 @@ func TestHolidayType_IsKnown(t *testing.T) {
 	}
 }
 
+// audit:ok 2026-05-31
+
 // TestRegionalScope_IsKnown verifies IsKnown returns true for each of the three
 // documented RegionalScope constants and false for any other value (empty
 // string, an upstream-drift value, mixed case, and a free-form string) — the
@@ -119,6 +121,8 @@ func TestRegionalScope_IsKnown(t *testing.T) {
 		})
 	}
 }
+
+// audit:ok 2026-05-31
 
 // TestTemporalScope_IsKnown verifies IsKnown returns true for each of the two
 // documented TemporalScope constants and false for any other value (empty
@@ -384,6 +388,8 @@ func TestHoliday_JSON(t *testing.T) {
 	})
 }
 
+// audit:ok 2026-05-31
+
 // TestCountry_NameFor covers the Country.NameFor accessor (TYPES-05, CL-05):
 // exact-match, case-insensitive match, ("", false) on miss, and empty-slice
 // handling.
@@ -428,6 +434,8 @@ func TestCountry_NameFor(t *testing.T) {
 	}
 }
 
+// audit:ok 2026-05-31
+
 // TestLanguage_NameFor covers the Language.NameFor accessor (TYPES-05):
 // same contract as Country.NameFor.
 func TestLanguage_NameFor(t *testing.T) {
@@ -466,6 +474,8 @@ func TestLanguage_NameFor(t *testing.T) {
 		})
 	}
 }
+
+// audit:ok 2026-05-31
 
 // TestSubdivision_NameFor covers the Subdivision.NameFor accessor (TYPES-05):
 // same contract as Country.NameFor.

@@ -77,6 +77,8 @@ func hasLang(entries []LocalizedText, lang string) bool {
 	return false
 }
 
+// audit:ok 2026-05-31
+
 // TestIntegration_PublicHolidays exercises Client.PublicHolidays against the
 // live OpenHolidays API across PL and DE with the three-layer assertion model
 // (spec §3): Layer-1 count canaries, Layer-2 exact localized-name pins, and
@@ -338,6 +340,8 @@ func TestIntegration_SchoolHolidays(t *testing.T) {
 	})
 }
 
+// audit:ok 2026-05-31
+
 // TestIntegration_Countries exercises Client.Countries against the live
 // OpenHolidays API with the three-layer assertion model (spec §3):
 //
@@ -479,6 +483,8 @@ func TestIntegration_Languages(t *testing.T) {
 				"(anti-fallback guard for 260530-dvc; 2026-05-30 probe)")
 	})
 }
+
+// audit:ok 2026-05-31
 
 // TestIntegration_Subdivisions exercises Client.Subdivisions against the live
 // OpenHolidays API:

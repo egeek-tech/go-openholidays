@@ -25,6 +25,8 @@ import (
 	"github.com/egeek-tech/go-openholidays"
 )
 
+// audit:ok 2026-05-31
+
 // Example_quickstart mirrors the README quickstart verbatim — one canonical
 // ≤20-line snippet that fetches a year of Polish public holidays. Compile-only
 // because PublicHolidays hits the live API. This example is the single source
@@ -213,6 +215,8 @@ func ExampleNewClient() {
 	_ = c
 }
 
+// audit:ok 2026-05-31
+
 // ExampleHoliday_NameFor demonstrates the localized-name lookup. NameFor
 // reports whether the requested language was found; on a miss it returns
 // ("", false) with no fallback. The Polish literal matches the testdata-fixture
@@ -278,6 +282,8 @@ func ExampleHoliday_Range() {
 	// 2025-01-02
 	// 2025-01-03
 }
+
+// audit:ok 2026-05-31
 
 // ExampleCountry_NameFor demonstrates the localized-name lookup pattern
 // shared by Country, Language, and Subdivision. Matching is case-insensitive

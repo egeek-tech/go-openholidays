@@ -24,6 +24,8 @@ import (
 	"strings"
 )
 
+// audit:ok 2026-05-31
+
 // NameFor returns the localized holiday name for the given ISO 639-1
 // language code and reports whether a matching entry was found. Language
 // matching is case-insensitive ([strings.EqualFold]) so "PL" matches a "pl"
@@ -74,6 +76,8 @@ func (h Holiday) IsInRegion(code string) bool {
 	}
 	return false
 }
+
+// audit:ok 2026-05-31
 
 // Days returns the inclusive count of calendar days the holiday spans.
 //

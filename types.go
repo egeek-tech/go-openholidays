@@ -91,6 +91,8 @@ const (
 	RegionalScopeLocal RegionalScope = "Local"
 )
 
+// audit:ok 2026-05-31
+
 // IsKnown reports whether s is one of the three documented RegionalScope
 // constants. The upstream may emit other values; branch on IsKnown before
 // relying on the value.
@@ -118,6 +120,8 @@ const (
 	// TemporalScopeHalfDay marks a holiday occupying half the day.
 	TemporalScopeHalfDay TemporalScope = "HalfDay"
 )
+
+// audit:ok 2026-05-31
 
 // IsKnown reports whether s is one of the two documented TemporalScope
 // constants. The upstream may emit other values; branch on IsKnown before
@@ -256,6 +260,8 @@ type Country struct {
 	OfficialLanguages []string `json:"officialLanguages"`
 }
 
+// audit:ok 2026-05-31
+
 // NameFor returns the localized country name for the given ISO 639-1
 // language code and reports whether a matching entry was found. Language
 // matching is case-insensitive ([strings.EqualFold]) so "PL" matches a "pl"
@@ -281,6 +287,8 @@ type Language struct {
 	// per language the API can describe the language in).
 	Name []LocalizedText `json:"name"`
 }
+
+// audit:ok 2026-05-31
 
 // NameFor returns the localized language name for the given ISO 639-1
 // language code and reports whether a matching entry was found. See
@@ -323,12 +331,16 @@ type Subdivision struct {
 	Groups []GroupRef `json:"groups,omitempty"`
 }
 
+// audit:ok 2026-05-31
+
 // NameFor returns the localized subdivision name for the given ISO 639-1
 // language code and reports whether a matching entry was found. See
 // Country.NameFor for the matching semantics.
 func (s Subdivision) NameFor(lang string) (string, bool) {
 	return pickLocalized(s.Name, lang)
 }
+
+// audit:ok 2026-05-31
 
 // pickLocalized is the shared, unexported helper backing the four NameFor
 // accessors. It walks entries linearly and returns the Text of the first

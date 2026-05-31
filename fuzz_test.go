@@ -31,6 +31,8 @@ import (
 	"testing"
 )
 
+// audit:ok 2026-05-31
+
 // FuzzParseLocalizedText exercises [json.Unmarshal] into []LocalizedText
 // followed by pickLocalized. Both operations must never panic, regardless
 // of input bytes. The decoder is allowed to return an error; the helper
