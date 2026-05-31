@@ -14,8 +14,8 @@ requires:
     provides: "Date type with NewDate constructor + PublicHolidaysRequest / SchoolHolidaysRequest structs."
 provides:
   - "integration_test.go — double-gated (//go:build integration + OPENHOLIDAYS_LIVE=1) nightly drift-detection tests for the live OpenHolidays API."
-  - "TestIntegration_PublicHolidays_PL_2025 — asserts PL 2025 has 14 public holidays."
-  - "TestIntegration_SchoolHolidays_PL_2025 — asserts PL 2025 has 7 school-holiday periods."
+  - "TestIntegration_PublicHolidays — asserts PL 2025 has 14 public holidays."
+  - "TestIntegration_SchoolHolidays — asserts PL 2025 has 7 school-holiday periods."
 affects: [phase-05-plan-06-nightly-ci, release-v0.1.0]
 
 # Tech tracking
@@ -102,8 +102,8 @@ All `<acceptance_criteria>` and `<verification>` items from the plan pass:
 - `[OK]` File `integration_test.go` exists at repo root.
 - `[OK]` First non-blank line is exactly `//go:build integration`.
 - `[OK]` `package openholidays` follows the build tag with the standard blank-line + file-scoped doc comment block in between (same shape as `update_fixtures_test.go`).
-- `[OK]` `grep -E '^func TestIntegration_PublicHolidays_PL_2025\(t \*testing\.T\)' integration_test.go` matches 1.
-- `[OK]` `grep -E '^func TestIntegration_SchoolHolidays_PL_2025\(t \*testing\.T\)' integration_test.go` matches 1.
+- `[OK]` `grep -E '^func TestIntegration_PublicHolidays\(t \*testing\.T\)' integration_test.go` matches 1.
+- `[OK]` `grep -E '^func TestIntegration_SchoolHolidays\(t \*testing\.T\)' integration_test.go` matches 1.
 - `[OK]` `grep -F 'os.Getenv("OPENHOLIDAYS_LIVE")' integration_test.go` matches 2.
 - `[OK]` `grep -F 't.Skip('` matches 2.
 - `[OK]` `grep -F 'context.WithTimeout(context.Background()'` matches 2.
@@ -114,7 +114,7 @@ All `<acceptance_criteria>` and `<verification>` items from the plan pass:
 - `[OK]` `go vet -tags=integration ./.` exits 0.
 - `[OK]` `go build -tags=integration ./.` exits 0.
 - `[OK]` Default `go test -run TestIntegration_ ./.` reports `[no tests to run]` (file excluded by build tag).
-- `[OK]` `go test -tags=integration -v -run TestIntegration_ ./.` without `OPENHOLIDAYS_LIVE` outputs `--- SKIP: TestIntegration_PublicHolidays_PL_2025` and `--- SKIP: TestIntegration_SchoolHolidays_PL_2025` and exits 0.
+- `[OK]` `go test -tags=integration -v -run TestIntegration_ ./.` without `OPENHOLIDAYS_LIVE` outputs `--- SKIP: TestIntegration_PublicHolidays` and `--- SKIP: TestIntegration_SchoolHolidays` and exits 0.
 - `[OK]` Full default `go test ./.` passes (no regressions).
 
 ## Next Phase Readiness
