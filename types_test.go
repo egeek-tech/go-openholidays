@@ -321,11 +321,9 @@ func TestHoliday_JSON(t *testing.T) {
 	})
 }
 
-// audit:ok 2026-05-30
-
 // TestCountry_NameFor covers the Country.NameFor accessor (TYPES-05, CL-05):
-// exact-match, case-insensitive match, fallback-to-first on miss, and
-// empty-slice handling.
+// exact-match, case-insensitive match, ("", false) on miss, and empty-slice
+// handling.
 func TestCountry_NameFor(t *testing.T) {
 	t.Parallel()
 
@@ -340,31 +338,32 @@ func TestCountry_NameFor(t *testing.T) {
 	}
 
 	cases := []struct {
-		name string
-		c    Country
-		lang string
-		want string
+		name   string
+		c      Country
+		lang   string
+		want   string
+		wantOK bool
 	}{
-		{name: "exact match pl", c: populated, lang: "pl", want: "Polska"},
-		{name: "case-insensitive match PL", c: populated, lang: "PL", want: "Polska"},
-		{name: "case-insensitive match Pl", c: populated, lang: "Pl", want: "Polska"},
-		{name: "exact match en", c: populated, lang: "en", want: "Poland"},
-		{name: "exact match de", c: populated, lang: "de", want: "Polen"},
-		{name: "miss falls back to first entry", c: populated, lang: "xx", want: "Polska"},
-		{name: "empty lang falls back to first entry", c: populated, lang: "", want: "Polska"},
-		{name: "nil Name returns empty string", c: Country{IsoCode: "PL"}, lang: "pl", want: ""},
-		{name: "empty Name slice returns empty string", c: Country{IsoCode: "PL", Name: []LocalizedText{}}, lang: "pl", want: ""},
+		{name: "exact match pl", c: populated, lang: "pl", want: "Polska", wantOK: true},
+		{name: "case-insensitive match PL", c: populated, lang: "PL", want: "Polska", wantOK: true},
+		{name: "case-insensitive match Pl", c: populated, lang: "Pl", want: "Polska", wantOK: true},
+		{name: "exact match en", c: populated, lang: "en", want: "Poland", wantOK: true},
+		{name: "exact match de", c: populated, lang: "de", want: "Polen", wantOK: true},
+		{name: "miss returns false, no fallback", c: populated, lang: "xx", want: "", wantOK: false},
+		{name: "empty lang returns false", c: populated, lang: "", want: "", wantOK: false},
+		{name: "nil Name returns false", c: Country{IsoCode: "PL"}, lang: "pl", want: "", wantOK: false},
+		{name: "empty Name slice returns false", c: Country{IsoCode: "PL", Name: []LocalizedText{}}, lang: "pl", want: "", wantOK: false},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			assert.Equal(t, tc.want, tc.c.NameFor(tc.lang))
+			got, ok := tc.c.NameFor(tc.lang)
+			assert.Equal(t, tc.want, got)
+			assert.Equal(t, tc.wantOK, ok)
 		})
 	}
 }
-
-// audit:ok 2026-05-30
 
 // TestLanguage_NameFor covers the Language.NameFor accessor (TYPES-05):
 // same contract as Country.NameFor.
@@ -381,28 +380,29 @@ func TestLanguage_NameFor(t *testing.T) {
 	}
 
 	cases := []struct {
-		name string
-		l    Language
-		lang string
-		want string
+		name   string
+		l      Language
+		lang   string
+		want   string
+		wantOK bool
 	}{
-		{name: "exact match pl", l: populated, lang: "pl", want: "polski"},
-		{name: "case-insensitive match EN", l: populated, lang: "EN", want: "Polish"},
-		{name: "exact match de", l: populated, lang: "de", want: "Polnisch"},
-		{name: "miss falls back to first entry", l: populated, lang: "fr", want: "polski"},
-		{name: "nil Name returns empty string", l: Language{IsoCode: "pl"}, lang: "pl", want: ""},
-		{name: "empty Name slice returns empty string", l: Language{IsoCode: "pl", Name: []LocalizedText{}}, lang: "pl", want: ""},
+		{name: "exact match pl", l: populated, lang: "pl", want: "polski", wantOK: true},
+		{name: "case-insensitive match EN", l: populated, lang: "EN", want: "Polish", wantOK: true},
+		{name: "exact match de", l: populated, lang: "de", want: "Polnisch", wantOK: true},
+		{name: "miss returns false, no fallback", l: populated, lang: "fr", want: "", wantOK: false},
+		{name: "nil Name returns false", l: Language{IsoCode: "pl"}, lang: "pl", want: "", wantOK: false},
+		{name: "empty Name slice returns false", l: Language{IsoCode: "pl", Name: []LocalizedText{}}, lang: "pl", want: "", wantOK: false},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			assert.Equal(t, tc.want, tc.l.NameFor(tc.lang))
+			got, ok := tc.l.NameFor(tc.lang)
+			assert.Equal(t, tc.want, got)
+			assert.Equal(t, tc.wantOK, ok)
 		})
 	}
 }
-
-// audit:ok 2026-05-30
 
 // TestSubdivision_NameFor covers the Subdivision.NameFor accessor (TYPES-05):
 // same contract as Country.NameFor.
@@ -421,24 +421,27 @@ func TestSubdivision_NameFor(t *testing.T) {
 	}
 
 	cases := []struct {
-		name string
-		s    Subdivision
-		lang string
-		want string
+		name   string
+		s      Subdivision
+		lang   string
+		want   string
+		wantOK bool
 	}{
-		{name: "exact match pl", s: populated, lang: "pl", want: "Śląskie"},
-		{name: "case-insensitive match PL", s: populated, lang: "PL", want: "Śląskie"},
-		{name: "exact match en", s: populated, lang: "en", want: "Silesian Voivodeship"},
-		{name: "exact match de", s: populated, lang: "de", want: "Woiwodschaft Schlesien"},
-		{name: "miss falls back to first entry", s: populated, lang: "fr", want: "Śląskie"},
-		{name: "nil Name returns empty string", s: Subdivision{Code: "PL-SL"}, lang: "pl", want: ""},
-		{name: "empty Name slice returns empty string", s: Subdivision{Code: "PL-SL", Name: []LocalizedText{}}, lang: "pl", want: ""},
+		{name: "exact match pl", s: populated, lang: "pl", want: "Śląskie", wantOK: true},
+		{name: "case-insensitive match PL", s: populated, lang: "PL", want: "Śląskie", wantOK: true},
+		{name: "exact match en", s: populated, lang: "en", want: "Silesian Voivodeship", wantOK: true},
+		{name: "exact match de", s: populated, lang: "de", want: "Woiwodschaft Schlesien", wantOK: true},
+		{name: "miss returns false, no fallback", s: populated, lang: "fr", want: "", wantOK: false},
+		{name: "nil Name returns false", s: Subdivision{Code: "PL-SL"}, lang: "pl", want: "", wantOK: false},
+		{name: "empty Name slice returns false", s: Subdivision{Code: "PL-SL", Name: []LocalizedText{}}, lang: "pl", want: "", wantOK: false},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			assert.Equal(t, tc.want, tc.s.NameFor(tc.lang))
+			got, ok := tc.s.NameFor(tc.lang)
+			assert.Equal(t, tc.want, got)
+			assert.Equal(t, tc.wantOK, ok)
 		})
 	}
 }

@@ -84,7 +84,7 @@ func TestClient_PublicHolidays(t *testing.T) {
 		// upstream bytes (CONVENTIONS.md Rule 1 testdata exception).
 		var wigilia *Holiday
 		for i := range holidays {
-			if holidays[i].NameFor("pl") == "Wigilia Bożego Narodzenia" {
+			if name, ok := holidays[i].NameFor("pl"); ok && name == "Wigilia Bożego Narodzenia" {
 				wigilia = &holidays[i]
 				break
 			}

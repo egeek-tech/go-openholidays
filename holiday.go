@@ -24,19 +24,18 @@ import (
 	"strings"
 )
 
-// audit:ok 2026-05-30
-
 // NameFor returns the localized holiday name for the given ISO 639-1
-// language code. Language matching is case-insensitive (strings.EqualFold)
-// so "PL" matches a "pl" entry. When the requested language is not found,
-// NameFor falls back to the first entry in the Name slice. Returns the
-// empty string only when Name is empty.
+// language code and reports whether a matching entry was found. Language
+// matching is case-insensitive ([strings.EqualFold]) so "PL" matches a "pl"
+// entry. When the requested language is absent, NameFor returns ("", false)
+// — it does NOT fall back to another entry, so a false ok unambiguously means
+// "not localized in lang" (callers wanting a fallback choose one explicitly).
 //
 // The accessor is named NameFor (not Name) because Holiday already has a
 // Name field of type []LocalizedText — a method named Name(lang) would
 // collide with the field. The same shape is used by Country.NameFor,
 // Language.NameFor, and Subdivision.NameFor (CL-05 / CL-10).
-func (h Holiday) NameFor(lang string) string {
+func (h Holiday) NameFor(lang string) (string, bool) {
 	return pickLocalized(h.Name, lang)
 }
 

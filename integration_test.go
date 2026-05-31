@@ -50,8 +50,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// audit:ok 2026-05-30
-
 // TestIntegration_PublicHolidays_PL_2025 exercises Client.PublicHolidays
 // against the live OpenHolidays API and asserts the Phase 3 golden truth
 // that PL 2025 has exactly 14 public holidays. Drift in this count
@@ -103,7 +101,9 @@ func TestIntegration_PublicHolidays_PL_2025(t *testing.T) {
 		})
 		require.NoError(t, err)
 		require.NotEmpty(t, hs)
-		require.Equal(t, "Nowy Rok", hs[0].NameFor("PL"),
+		gotName, gotOK := hs[0].NameFor("PL")
+		require.True(t, gotOK, "PL localized name must be present")
+		require.Equal(t, "Nowy Rok", gotName,
 			"library must send an uppercase languageIsoCode so upstream returns "+
 				"localized names; regression guard for quick task 260530-dvc "+
 				"(validateLanguage ToLower->ToUpper). Before the fix this was "+

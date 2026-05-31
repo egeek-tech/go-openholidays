@@ -65,8 +65,6 @@ func (t *drainCountingTransport) RoundTrip(req *http.Request) (*http.Response, e
 // the live API is.
 const countriesFixtureCapturedAt = "2026-05-27"
 
-// audit:ok 2026-05-30
-
 // TestClient_Countries covers ENDPT-01 + TRANS-02 + TRANS-03 + the four
 // Phase 1 / Phase 2 invariants the endpoint exercises end-to-end:
 //
@@ -112,10 +110,17 @@ func TestClient_Countries(t *testing.T) {
 		require.Contains(t, byIso, "DE")
 
 		// Fixture uses uppercase Language codes ("PL", "DE", "EN").
-		// Country.NameFor matches case-insensitively (strings.EqualFold).
-		assert.Equal(t, "Polska", byIso["PL"].NameFor("PL"))
-		assert.Equal(t, "Polska", byIso["PL"].NameFor("pl"))
-		assert.Equal(t, "Deutschland", byIso["DE"].NameFor("de"))
+		// Country.NameFor matches case-insensitively (strings.EqualFold) and
+		// reports ok=true when the language is present.
+		plUpper, okPLUpper := byIso["PL"].NameFor("PL")
+		assert.True(t, okPLUpper)
+		assert.Equal(t, "Polska", plUpper)
+		plLower, okPLLower := byIso["PL"].NameFor("pl")
+		assert.True(t, okPLLower)
+		assert.Equal(t, "Polska", plLower)
+		deName, okDE := byIso["DE"].NameFor("de")
+		assert.True(t, okDE)
+		assert.Equal(t, "Deutschland", deName)
 		assert.NotEmpty(t, byIso["DE"].OfficialLanguages)
 		assert.NotEmpty(t, byIso["PL"].OfficialLanguages)
 	})
