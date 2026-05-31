@@ -18,6 +18,7 @@ package openholidays
 
 import (
 	"bytes"
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -28,8 +29,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-// audit:ok 2026-05-30
 
 // TestDoJSONGet covers the generic helper's contract end-to-end:
 //
@@ -96,8 +95,10 @@ func TestDoJSONGet(t *testing.T) {
 		// failed to short-circuit, the HTTP dispatch would fail loudly
 		// with a DNS error (or hang). The guard MUST fire first.
 		c := NewClient(WithBaseURL("http://example.invalid"))
-		//nolint:staticcheck // intentionally pass nil context to exercise the defensive guard
-		_, err := doJSONGet[[]Country](nil, c, "/Countries", nil)
+		// A nil-valued context.Context variable (not the untyped nil literal,
+		// which staticcheck SA1012 forbids) still triggers the ctx == nil guard.
+		var nilCtx context.Context
+		_, err := doJSONGet[[]Country](nilCtx, c, "/Countries", nil)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "openholidays: nil context",
 			"defensive guard must return the documented error string")

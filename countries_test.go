@@ -10,6 +10,7 @@ package openholidays
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -231,8 +232,10 @@ func TestClient_Countries(t *testing.T) {
 		t.Parallel()
 		// No server — the nil-ctx guard short-circuits before any HTTP.
 		c := NewClient(WithBaseURL("http://example.invalid"))
-		//nolint:staticcheck // intentionally pass nil context to exercise the defensive guard
-		_, err := c.Countries(nil, CountriesRequest{})
+		// A nil-valued context.Context variable (not the untyped nil literal,
+		// which staticcheck SA1012 forbids) still triggers the ctx == nil guard.
+		var nilCtx context.Context
+		_, err := c.Countries(nilCtx, CountriesRequest{})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "openholidays: nil context",
 			"defensive guard must return the documented error string")
