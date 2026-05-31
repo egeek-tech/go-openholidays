@@ -219,8 +219,6 @@ func truncateForError(b []byte, maxBytes int) string {
 		fmt.Sprintf(" (truncated, %d total bytes)", len(b))
 }
 
-// audit:ok 2026-05-30
-
 // sanitizeForError replaces non-printable ASCII bytes (anything outside the
 // 0x20..0x7E range) with '?'. Multi-byte UTF-8 sequences are also masked
 // because we cannot guarantee their downstream rendering is safe in
@@ -229,13 +227,13 @@ func truncateForError(b []byte, maxBytes int) string {
 // reach this branch). Returns a fresh slice; the input slice is not
 // mutated.
 func sanitizeForError(b []byte) []byte {
-	out := make([]byte, len(b))
-	for i, c := range b {
+	out := make([]byte, 0, len(b))
+	for _, c := range b {
 		if c < 0x20 || c > 0x7E {
-			out[i] = '?'
+			out = append(out, '?')
 			continue
 		}
-		out[i] = c
+		out = append(out, c)
 	}
 	return out
 }
