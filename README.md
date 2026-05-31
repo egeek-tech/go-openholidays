@@ -30,43 +30,61 @@ import (
 func main() {
     c := openholidays.NewClient()
     defer func() { _ = c.Close() }()
+
     ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
     defer cancel()
-    hs, err := c.PublicHolidays(ctx, openholidays.PublicHolidaysRequest{
-        CountryIsoCode: "PL",
-        ValidFrom:      openholidays.NewDate(2025, time.January, 1),
-        ValidTo:        openholidays.NewDate(2025, time.December, 31),
+
+    from := openholidays.NewDate(2025, time.January, 1)
+    to := openholidays.NewDate(2025, time.December, 31)
+
+    // Public holidays for a whole country.
+    pub, err := c.PublicHolidays(ctx, openholidays.PublicHolidaysRequest{
+        CountryIsoCode: "PL", ValidFrom: from, ValidTo: to,
     })
     if err != nil {
         fmt.Println("error:", err)
         return
     }
-    fmt.Printf("got %d Polish public holidays\n", len(hs))
+
+    // School holidays for ONE administrative subdivision — the differentiator.
+    // SubdivisionCode is OpenHolidays' own scheme (PL-SL = Świętokrzyskie, NOT
+    // ISO 3166-2); add an optional GroupCode (A/B/C/D) to filter a ferie cohort.
+    school, err := c.SchoolHolidays(ctx, openholidays.SchoolHolidaysRequest{
+        CountryIsoCode: "PL", ValidFrom: from, ValidTo: to,
+        SubdivisionCode: "PL-SL",
+    })
+    if err != nil {
+        fmt.Println("error:", err)
+        return
+    }
+
+    // Reference data: supported countries, languages, and the subdivision tree.
+    countries, err := c.Countries(ctx, openholidays.CountriesRequest{LanguageIsoCode: "en"})
+    if err != nil {
+        fmt.Println("error:", err)
+        return
+    }
+    langs, err := c.Languages(ctx, openholidays.LanguagesRequest{})
+    if err != nil {
+        fmt.Println("error:", err)
+        return
+    }
+    subs, err := c.Subdivisions(ctx, openholidays.SubdivisionsRequest{
+        CountryIsoCode: "PL", LanguageIsoCode: "en",
+    })
+    if err != nil {
+        fmt.Println("error:", err)
+        return
+    }
+
+    fmt.Printf("PL 2025 — %d public, %d school (PL-SL); catalog: %d countries, %d languages, %d subdivisions\n",
+        len(pub), len(school), len(countries), len(langs), len(subs))
 }
 ```
 
-The full surface — including every option and helper — is documented on [pkg.go.dev](https://pkg.go.dev/github.com/egeek-tech/go-openholidays). The runnable form of this quickstart lives at [`example_test.go`](./example_test.go) as `Example_quickstart`.
+The full surface — every option, helper, and error sentinel — is documented on [pkg.go.dev](https://pkg.go.dev/github.com/egeek-tech/go-openholidays). Each call above maps to one endpoint method (`PublicHolidays`, `SchoolHolidays`, `Countries`, `Languages`, `Subdivisions`), and every one also has its own runnable example in [`example_test.go`](./example_test.go), rendered under the **Examples** tab on pkg.go.dev (`ExampleClient_SchoolHolidays`, `ExampleClient_Subdivisions`, …). The runnable form of this whole quickstart lives there as `Example_quickstart`.
 
-### School holidays per region
-
-School-break granularity *per administrative subdivision* is the differentiator — e.g. Polish *ferie zimowe* for a single województwo. Reusing the `c` and `ctx` from above:
-
-```go
-hs, err := c.SchoolHolidays(ctx, openholidays.SchoolHolidaysRequest{
-    CountryIsoCode:  "PL",
-    ValidFrom:       openholidays.NewDate(2025, time.January, 1),
-    ValidTo:         openholidays.NewDate(2025, time.December, 31),
-    SubdivisionCode: "PL-SL", // OpenHolidays' own code scheme: PL-SL = Świętokrzyskie (not ISO 3166-2)
-    // GroupCode:    "A",     // optional: filter to one ferie cohort (A/B/C/D)
-})
-if err != nil {
-    fmt.Println("error:", err)
-    return
-}
-fmt.Printf("got %d school-holiday spans for PL-SL\n", len(hs))
-```
-
-Every endpoint has a runnable example in [`example_test.go`](./example_test.go); these also render under the **Examples** tab on [pkg.go.dev](https://pkg.go.dev/github.com/egeek-tech/go-openholidays) (`ExampleClient_SchoolHolidays`, `ExampleClient_Subdivisions`, and so on).
+School-break granularity *per administrative subdivision* (Polish *ferie zimowe* per województwo) is the differentiator competing libraries don't cover — note the `SubdivisionCode` filter above.
 
 ## Public API
 

@@ -25,27 +25,63 @@ import (
 	"github.com/egeek-tech/go-openholidays"
 )
 
-// audit:ok 2026-05-30
-
-// Example_quickstart mirrors the README quickstart verbatim — one canonical
-// ≤20-line snippet that fetches a year of Polish public holidays. Compile-only
-// because PublicHolidays hits the live API. This example is the single source
-// of truth for README §Quickstart (DOC-01).
+// Example_quickstart mirrors the README quickstart — one canonical program that
+// exercises every endpoint method: public and school holidays, then the
+// countries, languages, and subdivisions catalog. Compile-only because each
+// call issues HTTP to the live API. This example is the single source of truth
+// for README §Quickstart (DOC-01).
 func Example_quickstart() {
 	c := openholidays.NewClient()
 	defer c.Close()
+
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	hs, err := c.PublicHolidays(ctx, openholidays.PublicHolidaysRequest{
-		CountryIsoCode: "PL",
-		ValidFrom:      openholidays.NewDate(2025, time.January, 1),
-		ValidTo:        openholidays.NewDate(2025, time.December, 31),
+
+	from := openholidays.NewDate(2025, time.January, 1)
+	to := openholidays.NewDate(2025, time.December, 31)
+
+	// Public holidays for a whole country.
+	pub, err := c.PublicHolidays(ctx, openholidays.PublicHolidaysRequest{
+		CountryIsoCode: "PL", ValidFrom: from, ValidTo: to,
 	})
 	if err != nil {
 		fmt.Println("error:", err)
 		return
 	}
-	fmt.Printf("got %d Polish public holidays\n", len(hs))
+
+	// School holidays for ONE administrative subdivision — the differentiator.
+	// SubdivisionCode is OpenHolidays' own scheme (PL-SL = Świętokrzyskie, NOT
+	// ISO 3166-2); add an optional GroupCode (A/B/C/D) to filter a ferie cohort.
+	school, err := c.SchoolHolidays(ctx, openholidays.SchoolHolidaysRequest{
+		CountryIsoCode: "PL", ValidFrom: from, ValidTo: to,
+		SubdivisionCode: "PL-SL",
+	})
+	if err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+
+	// Reference data: supported countries, languages, and the subdivision tree.
+	countries, err := c.Countries(ctx, openholidays.CountriesRequest{LanguageIsoCode: "en"})
+	if err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+	langs, err := c.Languages(ctx, openholidays.LanguagesRequest{})
+	if err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+	subs, err := c.Subdivisions(ctx, openholidays.SubdivisionsRequest{
+		CountryIsoCode: "PL", LanguageIsoCode: "en",
+	})
+	if err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+
+	fmt.Printf("PL 2025 — %d public, %d school (PL-SL); catalog: %d countries, %d languages, %d subdivisions\n",
+		len(pub), len(school), len(countries), len(langs), len(subs))
 }
 
 // audit:ok 2026-05-30
