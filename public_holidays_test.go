@@ -34,8 +34,6 @@ import (
 // fixture is not the authoritative shape — the live API is. D-69.
 const publicHolidaysPL2025FixtureCapturedAt = "2026-05-27"
 
-// audit:ok 2026-05-30
-
 // TestClient_PublicHolidays covers ENDPT-04 + TEST-01 (4 error paths per
 // endpoint) + the D-70 sanity assertions on the live PL 2025 fixture +
 // the new ErrMalformedResponse subtest gated by CL-12.
@@ -223,13 +221,13 @@ func TestClient_PublicHolidays(t *testing.T) {
 			ValidTo:        NewDate(2025, time.December, 31),
 		})
 		require.Error(t, err)
-		// Malformed JSON must NOT match any of the typed sentinels —
-		// callers detect "decode failure" via the absence of every
-		// sentinel match plus the underlying *json.SyntaxError /
-		// *json.UnmarshalTypeError surfacing through errors.As.
+		// A malformed body now matches the single ErrMalformedResponse sentinel
+		// (syntax/type errors and post-decode schema-drift alike); the underlying
+		// *json.SyntaxError / *json.UnmarshalTypeError stays recoverable via
+		// errors.As. It must NOT match the other typed sentinels.
 		require.NotErrorIs(t, err, ErrEmptyResponse)
 		require.NotErrorIs(t, err, ErrResponseTooLarge)
-		require.NotErrorIs(t, err, ErrMalformedResponse)
+		require.ErrorIs(t, err, ErrMalformedResponse)
 		assert.NotErrorIs(t, err, ErrInvalidCountry)
 	})
 

@@ -219,10 +219,9 @@ func TestClient_Subdivisions(t *testing.T) {
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "decode /Subdivisions",
 			"decode error must carry the /Subdivisions path in its prefix")
-		// Must NOT match any of the typed sentinels — a malformed body is a
-		// generic JSON decode failure (Phase 3 D-65's ErrMalformedResponse is
-		// reserved for *post*-decode Holiday-content checks, not for syntax
-		// errors).
+		// A malformed body wraps ErrMalformedResponse (syntax/type errors and
+		// post-decode Holiday schema-drift are unified under that sentinel); it
+		// must NOT match the transport/validation sentinels below.
 		require.NotErrorIs(t, err, ErrEmptyResponse,
 			"malformed JSON must not match ErrEmptyResponse")
 		require.NotErrorIs(t, err, ErrResponseTooLarge,

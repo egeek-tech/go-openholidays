@@ -33,8 +33,6 @@ import (
 // fixture is not the authoritative shape — the live API is. D-69.
 const schoolHolidaysPL2025FixtureCapturedAt = "2026-05-27"
 
-// audit:ok 2026-05-30
-
 // TestClient_SchoolHolidays covers ENDPT-05 + TEST-01 (4 error paths per
 // endpoint) + the D-70 sanity assertions on the live PL 2025 fixture (7
 // school periods total; at least one "Ferie zimowe" entry carries the
@@ -228,10 +226,11 @@ func TestClient_SchoolHolidays(t *testing.T) {
 			ValidTo:        NewDate(2025, time.December, 31),
 		})
 		require.Error(t, err)
-		// Malformed JSON must NOT match any of the typed sentinels.
+		// A malformed body now matches ErrMalformedResponse (syntax/type errors
+		// and post-decode schema-drift unified); it must NOT match the others.
 		require.NotErrorIs(t, err, ErrEmptyResponse)
 		require.NotErrorIs(t, err, ErrResponseTooLarge)
-		require.NotErrorIs(t, err, ErrMalformedResponse)
+		require.ErrorIs(t, err, ErrMalformedResponse)
 		assert.NotErrorIs(t, err, ErrInvalidCountry)
 	})
 

@@ -49,21 +49,23 @@ var ErrEmptyResponse = errors.New("openholidays: empty response body")
 // Pitfall 5 and Plan 02-03 deviation 1.
 var ErrResponseTooLarge = errors.New("openholidays: response too large")
 
-// ErrMalformedResponse is returned when the upstream returns a
-// structurally-decodable JSON response that violates the Holiday
-// post-decode invariants checked by validateHolidays:
+// ErrMalformedResponse is returned whenever an upstream response body cannot be
+// turned into valid, schema-conforming data. It unifies two failure modes under
+// one sentinel so callers have a single "the response body was malformed" check:
 //
-//   - Holiday.StartDate must be non-zero.
-//   - Holiday.EndDate must be non-zero.
-//   - Holiday.EndDate must not be strictly before Holiday.StartDate.
+//   - A body that is not decodable as the expected JSON shape — a syntax error
+//     or type mismatch. The underlying *json.SyntaxError / *json.UnmarshalTypeError
+//     remains recoverable via [errors.As].
+//   - A structurally-decodable response that violates the Holiday post-decode
+//     invariants checked by validateHolidays: StartDate non-zero, EndDate
+//     non-zero, and EndDate not strictly before StartDate.
 //
-// The sentinel is wrapped via [fmt.Errorf] with the %w verb from
-// validateHolidays so [errors.Is](err, ErrMalformedResponse) holds through
-// the endpoint method's caller-facing wrap. This is the seventh exported
-// sentinel in the package (D-65, D-66, CL-12). It closes Pitfall JSON-4
-// (time.Time zero value masquerading as a valid Date) — callers can
-// branch on this sentinel to differentiate upstream schema drift from
-// transport failures, *APIError 4xx/5xx responses, or oversize bodies.
+// In both cases the sentinel is wrapped via [fmt.Errorf] with the %w verb so
+// [errors.Is](err, ErrMalformedResponse) holds through the endpoint method's
+// caller-facing wrap. It still differentiates a malformed body from transport
+// failures, *APIError 4xx/5xx responses, empty bodies (ErrEmptyResponse), and
+// oversize bodies (ErrResponseTooLarge), and closes Pitfall JSON-4 (time.Time
+// zero value masquerading as a valid Date).
 var ErrMalformedResponse = errors.New("openholidays: malformed response")
 
 // APIError represents a non-2xx response from the upstream API.
