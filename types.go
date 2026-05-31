@@ -72,6 +72,64 @@ func (t HolidayType) IsKnown() bool {
 	return false
 }
 
+// RegionalScope is the typed-string enum for Holiday.RegionalScope — the
+// geographic breadth a holiday applies to.
+//
+// Like HolidayType, RegionalScope is a typed-string alias: the upstream is
+// free to emit values outside the documented set, which decode as-is. Use
+// RegionalScope.IsKnown to test membership before branching on the value.
+type RegionalScope string
+
+// RegionalScope wire-format constants (the closed value set per the upstream
+// OpenAPI spec). Identifiers are PascalCase; values are the exact wire strings.
+const (
+	// RegionalScopeNational applies to the entire country.
+	RegionalScopeNational RegionalScope = "National"
+	// RegionalScopeRegional applies to one or more administrative subdivisions.
+	RegionalScopeRegional RegionalScope = "Regional"
+	// RegionalScopeLocal applies to a local area within a subdivision.
+	RegionalScopeLocal RegionalScope = "Local"
+)
+
+// IsKnown reports whether s is one of the three documented RegionalScope
+// constants. The upstream may emit other values; branch on IsKnown before
+// relying on the value.
+func (s RegionalScope) IsKnown() bool {
+	switch s {
+	case RegionalScopeNational, RegionalScopeRegional, RegionalScopeLocal:
+		return true
+	}
+	return false
+}
+
+// TemporalScope is the typed-string enum for Holiday.TemporalScope — whether a
+// holiday occupies the full day or half the day.
+//
+// Like HolidayType, TemporalScope is a typed-string alias: the upstream is
+// free to emit values outside the documented set, which decode as-is. Use
+// TemporalScope.IsKnown to test membership before branching on the value.
+type TemporalScope string
+
+// TemporalScope wire-format constants (the closed value set per the upstream
+// OpenAPI spec).
+const (
+	// TemporalScopeFullDay marks a holiday occupying the full day.
+	TemporalScopeFullDay TemporalScope = "FullDay"
+	// TemporalScopeHalfDay marks a holiday occupying half the day.
+	TemporalScopeHalfDay TemporalScope = "HalfDay"
+)
+
+// IsKnown reports whether s is one of the two documented TemporalScope
+// constants. The upstream may emit other values; branch on IsKnown before
+// relying on the value.
+func (s TemporalScope) IsKnown() bool {
+	switch s {
+	case TemporalScopeFullDay, TemporalScopeHalfDay:
+		return true
+	}
+	return false
+}
+
 // LocalizedText is a (language, text) pair returned by the upstream API in
 // every localized-string field (Holiday.Name, Holiday.Comment, Country.Name,
 // Language.Name, Subdivision.Name, Subdivision.Category, Subdivision.Comment).
@@ -155,15 +213,15 @@ type Holiday struct {
 	// Nationwide reports whether the holiday applies to the entire country.
 	// When false, consult Subdivisions for the affected regions.
 	Nationwide bool `json:"nationwide"`
-	// RegionalScope is the upstream regional-scope marker. The closed value
-	// set per spec is "National" / "Regional" / "Local". Shipped as plain
-	// string for v0.1.0 (Assumption A4 — typed enums deferred to v0.2 if
-	// downstream helpers need to branch on this value).
-	RegionalScope string `json:"regionalScope"`
-	// TemporalScope is the upstream temporal-scope marker. The closed value
-	// set per spec is "FullDay" / "HalfDay". Shipped as plain string for
-	// v0.1.0 for the same reason as RegionalScope (Assumption A4).
-	TemporalScope string `json:"temporalScope"`
+	// RegionalScope is the upstream regional-scope marker, a typed enum with
+	// the closed set RegionalScopeNational / Regional / Local. Use
+	// RegionalScope.IsKnown before branching, as the upstream may emit a value
+	// outside the documented set.
+	RegionalScope RegionalScope `json:"regionalScope"`
+	// TemporalScope is the upstream temporal-scope marker, a typed enum with
+	// the closed set TemporalScopeFullDay / HalfDay. Use TemporalScope.IsKnown
+	// before branching, as the upstream may emit a value outside the set.
+	TemporalScope TemporalScope `json:"temporalScope"`
 	// Comment is optional per-language commentary on the holiday. Nullable
 	// upstream; emitted only when populated.
 	Comment []LocalizedText `json:"comment,omitempty"`
@@ -198,19 +256,18 @@ type Country struct {
 	OfficialLanguages []string `json:"officialLanguages"`
 }
 
-// audit:ok 2026-05-30
-
 // NameFor returns the localized country name for the given ISO 639-1
-// language code. Language matching is case-insensitive (strings.EqualFold)
-// so "PL" matches a "pl" entry. When the requested language is not found,
-// NameFor falls back to the first entry in the Name slice. Returns the
-// empty string only when Name is empty.
+// language code and reports whether a matching entry was found. Language
+// matching is case-insensitive ([strings.EqualFold]) so "PL" matches a "pl"
+// entry. When the requested language is absent, NameFor returns ("", false)
+// — it does NOT fall back to another entry, so a false ok unambiguously means
+// "not localized in lang" (callers wanting a fallback choose one explicitly).
 //
 // The accessor is named NameFor (not Name) because Country already has a
 // Name field of type []LocalizedText — a method named Name(lang) would
 // collide with the field. The same shape is used by Language.NameFor and
 // Subdivision.NameFor (CL-05).
-func (c Country) NameFor(lang string) string {
+func (c Country) NameFor(lang string) (string, bool) {
 	return pickLocalized(c.Name, lang)
 }
 
@@ -225,11 +282,10 @@ type Language struct {
 	Name []LocalizedText `json:"name"`
 }
 
-// audit:ok 2026-05-30
-
 // NameFor returns the localized language name for the given ISO 639-1
-// language code. See Country.NameFor for the matching semantics.
-func (l Language) NameFor(lang string) string {
+// language code and reports whether a matching entry was found. See
+// Country.NameFor for the matching semantics.
+func (l Language) NameFor(lang string) (string, bool) {
 	return pickLocalized(l.Name, lang)
 }
 
@@ -267,33 +323,27 @@ type Subdivision struct {
 	Groups []GroupRef `json:"groups,omitempty"`
 }
 
-// audit:ok 2026-05-30
-
 // NameFor returns the localized subdivision name for the given ISO 639-1
-// language code. See Country.NameFor for the matching semantics.
-func (s Subdivision) NameFor(lang string) string {
+// language code and reports whether a matching entry was found. See
+// Country.NameFor for the matching semantics.
+func (s Subdivision) NameFor(lang string) (string, bool) {
 	return pickLocalized(s.Name, lang)
 }
 
-// audit:ok 2026-05-30
-
-// pickLocalized is the shared, unexported helper backing the three NameFor
+// pickLocalized is the shared, unexported helper backing the four NameFor
 // accessors. It walks entries linearly and returns the Text of the first
 // LocalizedText whose Language matches lang case-insensitively
-// (strings.EqualFold). On miss, it falls back to entries[0].Text when
-// entries is non-empty, otherwise returns "".
+// ([strings.EqualFold]) and true. On miss it returns ("", false) — there is
+// NO fallback, so callers receive an unambiguous found/not-found signal.
 //
 // Linear scan is intentional: localized-text slices in this API carry at
 // most ~14 entries (one per supported language), so building a map index
 // would cost more than the scan it would replace.
-func pickLocalized(entries []LocalizedText, lang string) string {
+func pickLocalized(entries []LocalizedText, lang string) (string, bool) {
 	for _, e := range entries {
 		if strings.EqualFold(e.Language, lang) {
-			return e.Text
+			return e.Text, true
 		}
 	}
-	if len(entries) > 0 {
-		return entries[0].Text
-	}
-	return ""
+	return "", false
 }

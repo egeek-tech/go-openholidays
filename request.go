@@ -33,8 +33,6 @@ const maxResponseBytes = 10 << 20
 // preserving enough context for diagnostics.
 const apiErrorBodyCap = 4 << 10
 
-// audit:ok 2026-05-30
-
 // doJSONGet performs a GET to c.baseURL+path with the supplied query
 // parameters, decodes the JSON response body into a value of type T, and
 // returns it. It encapsulates the Phase 2 D-41..D-45 + D-24 pipeline:
@@ -48,6 +46,8 @@ const apiErrorBodyCap = 4 << 10
 //   - 2xx + empty body → [fmt.Errorf]("...: %w", ErrEmptyResponse)
 //   - mid-truncation gate (limited.N == 0 + decode error) → ErrResponseTooLarge
 //   - boundary-truncation gate (decoder.More() == true) → ErrResponseTooLarge
+//   - any other decode failure (malformed / invalid JSON) → ErrMalformedResponse,
+//     with the underlying json error still recoverable via [errors.As]
 //
 // On every failure path, doJSONGet returns the zero value of T plus the
 // wrapped error. Callers MUST NOT use the returned T when err != nil; the
@@ -262,7 +262,7 @@ func doJSONGet[T any](ctx context.Context, c *Client, path string, q url.Values)
 		if limited.N == 0 {
 			return zero, fmt.Errorf("openholidays: response exceeded %d bytes: %w", maxResponseBytes, ErrResponseTooLarge)
 		}
-		return zero, fmt.Errorf("openholidays: decode %s: %w", path, decodeErr)
+		return zero, fmt.Errorf("openholidays: decode %s: %w: %w", path, ErrMalformedResponse, decodeErr)
 	}
 	// Boundary-truncation gate (D-24 / RESEARCH.md Pitfall 5): use the
 	// decoder's own More() to ask "is another JSON value waiting?" — this

@@ -55,10 +55,11 @@ import (
 // audit:ok 2026-05-30
 
 // hasLang reports whether entries contains a localized-text entry whose
-// Language matches lang case-insensitively (strings.EqualFold). Unlike
-// NameFor / pickLocalized (types.go), it does NOT fall back to entries[0] on
-// a language miss — it returns true only when some entry's Language genuinely
-// matches the requested code.
+// Language matches lang case-insensitively (strings.EqualFold). It returns
+// true only when some entry's Language genuinely matches the requested code —
+// a focused raw-slice membership guard. NameFor / pickLocalized (types.go) now
+// also report a miss through their comma-ok bool rather than falling back to
+// entries[0]; hasLang asserts that membership directly on the raw slice.
 //
 // This is the Layer-3 anti-fallback guard for the language-casing bug class
 // (quick task 260530-dvc): when the library lowercased languageIsoCode the
@@ -75,8 +76,6 @@ func hasLang(entries []LocalizedText, lang string) bool {
 	}
 	return false
 }
-
-// audit:ok 2026-05-30
 
 // TestIntegration_PublicHolidays exercises Client.PublicHolidays against the
 // live OpenHolidays API across PL and DE with the three-layer assertion model
@@ -140,7 +139,9 @@ func TestIntegration_PublicHolidays(t *testing.T) {
 		})
 		require.NoError(t, err)
 		require.NotEmpty(t, hs)
-		require.Equal(t, "Nowy Rok", hs[0].NameFor("PL"),
+		plName, plOK := hs[0].NameFor("PL")
+		require.True(t, plOK, "PL localization must be present (NameFor comma-ok, no silent fallback)")
+		require.Equal(t, "Nowy Rok", plName,
 			"library must send an uppercase languageIsoCode so upstream returns "+
 				"localized names; regression guard for quick task 260530-dvc "+
 				"(validateLanguage ToLower->ToUpper). Before the fix this was "+
@@ -180,7 +181,9 @@ func TestIntegration_PublicHolidays(t *testing.T) {
 		require.True(t, found, "DE 2025 must contain a holiday starting 2025-01-01")
 		// Under the 260530-dvc bug the pin reads "New Year's Day" and
 		// hasLang("DE") is false — both assertions fail (2026-05-30 probe).
-		assert.Equal(t, "Neujahr", newYear.NameFor("DE"))
+		deName, deOK := newYear.NameFor("DE")
+		assert.True(t, deOK, "DE localization must be present (NameFor comma-ok)")
+		assert.Equal(t, "Neujahr", deName)
 		assert.True(t, hasLang(newYear.Name, "DE"),
 			"raw Name slice must carry a DE entry (anti-fallback guard for 260530-dvc)")
 	})
@@ -197,7 +200,7 @@ func TestIntegration_PublicHolidays(t *testing.T) {
 		var epiphany Holiday
 		var found bool
 		for _, h := range hs {
-			if h.NameFor("DE") == "Heilige Drei Könige" {
+			if name, ok := h.NameFor("DE"); ok && name == "Heilige Drei Könige" {
 				epiphany, found = h, true
 				break
 			}
@@ -335,8 +338,6 @@ func TestIntegration_SchoolHolidays(t *testing.T) {
 	})
 }
 
-// audit:ok 2026-05-30
-
 // TestIntegration_Countries exercises Client.Countries against the live
 // OpenHolidays API with the three-layer assertion model (spec §3):
 //
@@ -399,8 +400,12 @@ func TestIntegration_Countries(t *testing.T) {
 		require.True(t, hasPoland, "lang=DE result must contain PL")
 		// Under the 260530-dvc bug these read English ("Germany"/"Poland") and
 		// hasLang("DE") is false (2026-05-30 probe; spec §6a).
-		assert.Equal(t, "Deutschland", germany.NameFor("DE"))
-		assert.Equal(t, "Polen", poland.NameFor("DE"))
+		deName, deOK := germany.NameFor("DE")
+		assert.True(t, deOK, "DE localization for Germany must be present (NameFor comma-ok)")
+		assert.Equal(t, "Deutschland", deName)
+		plName, plOK := poland.NameFor("DE")
+		assert.True(t, plOK, "DE localization for Poland must be present (NameFor comma-ok)")
+		assert.Equal(t, "Polen", plName)
 		assert.True(t, hasLang(germany.Name, "DE"),
 			"language-filtered Country.Name is single-language → hasLang(DE) exact (spec §6a)")
 	})
@@ -475,8 +480,6 @@ func TestIntegration_Languages(t *testing.T) {
 	})
 }
 
-// audit:ok 2026-05-30
-
 // TestIntegration_Subdivisions exercises Client.Subdivisions against the live
 // OpenHolidays API:
 //
@@ -534,8 +537,12 @@ func TestIntegration_Subdivisions(t *testing.T) {
 		// OpenHolidays Code is NOT ISO 3166-2: the live API maps PL-SK →
 		// Śląskie and PL-SL → Świętokrzyskie, whereas ISO 3166-2 swaps these
 		// (2026-05-30 probe; spec §6a).
-		assert.Equal(t, "Śląskie", sk.NameFor("PL"))
-		assert.Equal(t, "Świętokrzyskie", sl.NameFor("PL"))
+		skName, skOK := sk.NameFor("PL")
+		assert.True(t, skOK, "PL localization for PL-SK must be present (NameFor comma-ok)")
+		assert.Equal(t, "Śląskie", skName)
+		slName, slOK := sl.NameFor("PL")
+		assert.True(t, slOK, "PL localization for PL-SL must be present (NameFor comma-ok)")
+		assert.Equal(t, "Świętokrzyskie", slName)
 		assert.True(t, hasLang(sk.Name, "PL"),
 			"PL-SK raw Name must carry a PL entry (anti-fallback guard for 260530-dvc)")
 		// Category has NO NameFor accessor — iterate for the PL entry directly.

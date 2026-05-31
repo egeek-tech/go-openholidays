@@ -33,8 +33,6 @@ import (
 // fixture is not the authoritative shape — the live API is. D-69.
 const schoolHolidaysPL2025FixtureCapturedAt = "2026-05-27"
 
-// audit:ok 2026-05-30
-
 // TestClient_SchoolHolidays covers ENDPT-05 + TEST-01 (4 error paths per
 // endpoint) + the D-70 sanity assertions on the live PL 2025 fixture (7
 // school periods total; at least one "Ferie zimowe" entry carries the
@@ -93,7 +91,7 @@ func TestClient_SchoolHolidays(t *testing.T) {
 		// case-insensitive comparison ok".
 		var ferieZimoweWithSL *Holiday
 		for i := range holidays {
-			plName := holidays[i].NameFor("pl")
+			plName, _ := holidays[i].NameFor("pl")
 			if !strings.EqualFold(plName, "ferie zimowe") {
 				continue
 			}
@@ -228,10 +226,11 @@ func TestClient_SchoolHolidays(t *testing.T) {
 			ValidTo:        NewDate(2025, time.December, 31),
 		})
 		require.Error(t, err)
-		// Malformed JSON must NOT match any of the typed sentinels.
+		// A malformed body now matches ErrMalformedResponse (syntax/type errors
+		// and post-decode schema-drift unified); it must NOT match the others.
 		require.NotErrorIs(t, err, ErrEmptyResponse)
 		require.NotErrorIs(t, err, ErrResponseTooLarge)
-		require.NotErrorIs(t, err, ErrMalformedResponse)
+		require.ErrorIs(t, err, ErrMalformedResponse)
 		assert.NotErrorIs(t, err, ErrInvalidCountry)
 	})
 
@@ -340,8 +339,6 @@ func TestClient_SchoolHolidays(t *testing.T) {
 	})
 }
 
-// audit:ok 2026-05-30
-
 // TestClient_SchoolHolidays_IsInRegion_FerieZimowe is the SC#2-integrated
 // characterization test: it loads testdata/school_holidays_pl_2025.json
 // through the SchoolHolidays endpoint (httptest server), locates all four
@@ -390,7 +387,7 @@ func TestClient_SchoolHolidays_IsInRegion_FerieZimowe(t *testing.T) {
 	// (the four regional cohorts of the Polish school winter break).
 	var ferieZimowe []Holiday
 	for _, h := range holidays {
-		if h.NameFor("pl") == "Ferie zimowe" {
+		if name, ok := h.NameFor("pl"); ok && name == "Ferie zimowe" {
 			ferieZimowe = append(ferieZimowe, h)
 		}
 	}

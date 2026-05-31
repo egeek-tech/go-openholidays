@@ -215,13 +215,10 @@ func ExampleNewClient() {
 	_ = c
 }
 
-// audit:ok 2026-05-30
-
-// ExampleHoliday_NameFor demonstrates language fallback — when the requested
-// language is not present in the LocalizedText slice, NameFor returns the
-// Text of the first entry instead of the empty string. The Polish literal
-// in the constructed Holiday matches the testdata-fixture exception in
-// CONVENTIONS.md Rule 1.
+// ExampleHoliday_NameFor demonstrates the localized-name lookup. NameFor
+// reports whether the requested language was found; on a miss it returns
+// ("", false) with no fallback. The Polish literal matches the testdata-fixture
+// exception in CONVENTIONS.md Rule 1.
 func ExampleHoliday_NameFor() {
 	h := openholidays.Holiday{
 		Name: []openholidays.LocalizedText{
@@ -229,8 +226,13 @@ func ExampleHoliday_NameFor() {
 			{Language: "en", Text: "Christmas Day"},
 		},
 	}
-	fmt.Println(h.NameFor("xx")) // language not found — falls back to first entry
-	// Output: Boże Narodzenie
+	pl, okPL := h.NameFor("pl")
+	fmt.Println(pl, okPL)
+	xx, okXX := h.NameFor("xx") // not present — no fallback
+	fmt.Printf("%q %v\n", xx, okXX)
+	// Output:
+	// Boże Narodzenie true
+	// "" false
 }
 
 // audit:ok 2026-05-30
@@ -279,12 +281,10 @@ func ExampleHoliday_Range() {
 	// 2025-01-03
 }
 
-// audit:ok 2026-05-30
-
 // ExampleCountry_NameFor demonstrates the localized-name lookup pattern
-// shared by Country, Language, and Subdivision. Matching is
-// case-insensitive (strings.EqualFold) and falls back to the first entry
-// when the requested language is absent.
+// shared by Country, Language, and Subdivision. Matching is case-insensitive
+// (strings.EqualFold); on a language miss NameFor returns ("", false) with no
+// fallback.
 func ExampleCountry_NameFor() {
 	c := openholidays.Country{
 		IsoCode: "PL",
@@ -293,8 +293,9 @@ func ExampleCountry_NameFor() {
 			{Language: "de", Text: "Polen"},
 		},
 	}
-	fmt.Println(c.NameFor("de"))
-	// Output: Polen
+	name, ok := c.NameFor("de")
+	fmt.Println(name, ok)
+	// Output: Polen true
 }
 
 // audit:ok 2026-05-30

@@ -21,10 +21,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// audit:ok 2026-05-30
-
-// TestHoliday_NameFor exercises Holiday.NameFor — case-insensitive match,
-// first-entry fallback on miss, empty string on empty Name slice.
+// TestHoliday_NameFor exercises Holiday.NameFor — case-insensitive match
+// returning (text, true), and ("", false) on a language miss or empty slice
+// (no fallback).
 func TestHoliday_NameFor(t *testing.T) {
 	t.Parallel()
 
@@ -34,23 +33,31 @@ func TestHoliday_NameFor(t *testing.T) {
 			{Language: "pl", Text: "Wigilia"},
 			{Language: "en", Text: "Christmas Eve"},
 		}}
-		assert.Equal(t, "Wigilia", h.NameFor("pl"))
-		assert.Equal(t, "Wigilia", h.NameFor("PL"))
+		got, ok := h.NameFor("pl")
+		assert.True(t, ok)
+		assert.Equal(t, "Wigilia", got)
+		got, ok = h.NameFor("PL")
+		assert.True(t, ok)
+		assert.Equal(t, "Wigilia", got)
 	})
 
-	t.Run("falls back to first entry on miss", func(t *testing.T) {
+	t.Run("returns false on language miss (no fallback)", func(t *testing.T) {
 		t.Parallel()
 		h := Holiday{Name: []LocalizedText{
 			{Language: "pl", Text: "Wigilia"},
 			{Language: "en", Text: "Christmas Eve"},
 		}}
-		assert.Equal(t, "Wigilia", h.NameFor("xx"))
+		got, ok := h.NameFor("xx")
+		assert.False(t, ok)
+		assert.Empty(t, got)
 	})
 
-	t.Run("returns empty on empty Name", func(t *testing.T) {
+	t.Run("returns false on empty Name", func(t *testing.T) {
 		t.Parallel()
 		h := Holiday{}
-		assert.Empty(t, h.NameFor("pl"))
+		got, ok := h.NameFor("pl")
+		assert.False(t, ok)
+		assert.Empty(t, got)
 	})
 }
 

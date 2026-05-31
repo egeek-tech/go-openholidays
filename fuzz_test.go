@@ -31,12 +31,10 @@ import (
 	"testing"
 )
 
-// audit:ok 2026-05-30
-
 // FuzzParseLocalizedText exercises [json.Unmarshal] into []LocalizedText
 // followed by pickLocalized. Both operations must never panic, regardless
 // of input bytes. The decoder is allowed to return an error; the helper
-// is allowed to return "" — only panics fail the fuzz run.
+// is allowed to return ("", false) — only panics fail the fuzz run.
 func FuzzParseLocalizedText(f *testing.F) {
 	// Seed from committed upstream fixtures so the fuzzer explores
 	// neighborhoods of real-world responses (per RESEARCH §1.4).
@@ -55,10 +53,10 @@ func FuzzParseLocalizedText(f *testing.F) {
 
 	f.Fuzz(func(_ *testing.T, data []byte) {
 		var entries []LocalizedText
-		// Return value intentionally ignored — the invariant is panic-freedom.
+		// Return values intentionally ignored — the invariant is panic-freedom.
 		_ = json.Unmarshal(data, &entries)
-		_ = pickLocalized(entries, "pl")
-		_ = pickLocalized(entries, "")
+		_, _ = pickLocalized(entries, "pl")
+		_, _ = pickLocalized(entries, "")
 	})
 }
 
