@@ -54,7 +54,7 @@ var ErrResponseTooLarge = errors.New("openholidays: response too large")
 // one sentinel so callers have a single "the response body was malformed" check:
 //
 //   - A body that is not decodable as the expected JSON shape — a syntax error
-//     or type mismatch. The underlying *json.SyntaxError / *json.UnmarshalTypeError
+//     or type mismatch. The underlying *[json.SyntaxError] / *[json.UnmarshalTypeError]
 //     remains recoverable via [errors.As].
 //   - A structurally-decodable response that violates the Holiday post-decode
 //     invariants checked by validateHolidays: StartDate non-zero, EndDate
