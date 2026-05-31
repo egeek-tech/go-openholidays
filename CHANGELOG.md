@@ -1,5 +1,38 @@
 # Changelog
 
+## [1.0.0](https://github.com/egeek-tech/go-openholidays/compare/v0.5.6...v1.0.0) (2026-05-31)
+
+
+### ⚠ BREAKING CHANGES
+
+* Holiday.RegionalScope is now of type RegionalScope and Holiday.TemporalScope is now of type TemporalScope (both named string types) rather than string. Untyped string literals still assign/compare, but code that stores these fields in a string variable or passes them to a string parameter must convert explicitly.
+* Date.DaysUntil now returns a value one smaller in magnitude than before (exclusive instead of inclusive). Callers that relied on the inclusive count should add 1, or use Holiday.Days for an inclusive span.
+* the four NameFor methods now return (string, bool) instead of string, and no longer fall back to the first entry on a language miss. Callers that want a fallback must choose one explicitly.
+
+### Features
+
+* NameFor reports found/not-found instead of silently falling back ([125d454](https://github.com/egeek-tech/go-openholidays/commit/125d454e8f5b2b40eaa208655b7508e5700059bf))
+* typed RegionalScope and TemporalScope enums on Holiday ([727b80a](https://github.com/egeek-tech/go-openholidays/commit/727b80a964d4b4c9ff642d1e2ed1d89158e79b5a))
+
+
+### Bug Fixes
+
+* Date.DaysUntil returns the conventional exclusive day delta ([9d7fbb3](https://github.com/egeek-tech/go-openholidays/commit/9d7fbb3b42b65c5fae572aae8eacbfc4454b6f57))
+* wrap all malformed-body decode failures in ErrMalformedResponse ([3655cc6](https://github.com/egeek-tech/go-openholidays/commit/3655cc6bd2405d7ce9de75b9c466dd94616e6548))
+
+
+### Documentation
+
+* add SchoolHolidays example to README; pin verify example to 1.0.0 ([3f6dc63](https://github.com/egeek-tech/go-openholidays/commit/3f6dc63625cb4f80f104cc82b07e9ff31bfcbd89))
+* expand README quickstart to all five endpoints; sync Example_quickstart ([8eeab90](https://github.com/egeek-tech/go-openholidays/commit/8eeab90367a3c4d73055881a222d9bb3d4abd811))
+* make every endpoint example a complete, runnable program ([ce5747f](https://github.com/egeek-tech/go-openholidays/commit/ce5747fce58118971ba804f3a9929a43587a4c50))
+* split endpoint examples into separate snippets ([e260851](https://github.com/egeek-tech/go-openholidays/commit/e26085160dea022eedd470d36bebfe44b173cc83))
+
+
+### Chores
+
+* release 1.0.0 ([1c70bd3](https://github.com/egeek-tech/go-openholidays/commit/1c70bd3fe090bbc6eea7fee131ba47d6d5c88312))
+
 ## [0.5.6](https://github.com/egeek-tech/go-openholidays/compare/v0.5.5...v0.5.6) (2026-05-31)
 
 
