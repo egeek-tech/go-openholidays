@@ -455,7 +455,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestIntegration_PublicHolidays_PL_2025(t *testing.T) {
+func TestIntegration_PublicHolidays(t *testing.T) {
 	if os.Getenv("OPENHOLIDAYS_LIVE") != "1" {
 		t.Skip("OPENHOLIDAYS_LIVE not set; skipping live-API integration test")
 	}
