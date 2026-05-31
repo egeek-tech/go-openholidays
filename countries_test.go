@@ -10,6 +10,7 @@ package openholidays
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -22,11 +23,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// countingBody wraps an [http.Response] body and increments an atomic counter
-// on construction; the counter decrements on Close (single-decrement guarded
-// by a [sync.Once]-style boolean). This lets WR-02 prove drain-then-close
-// hygiene deterministically — far more reliable than [runtime.NumGoroutine]()
-// which is process-global and races sibling tests' transport pools.
+// countingBody wraps an [http.Response] body and decrements a shared atomic
+// counter on Close (single-decrement guarded by a [sync.Once]-style boolean);
+// the matching increment is done by drainCountingTransport when it wraps the
+// body. This lets WR-02 prove drain-then-close hygiene deterministically — far
+// more reliable than [runtime.NumGoroutine]() which is process-global and
+// races sibling tests' transport pools.
 type countingBody struct {
 	io.ReadCloser
 	open   *atomic.Int32
@@ -65,7 +67,7 @@ func (t *drainCountingTransport) RoundTrip(req *http.Request) (*http.Response, e
 // the live API is.
 const countriesFixtureCapturedAt = "2026-05-27"
 
-// audit:ok 2026-05-30
+// audit:ok 2026-05-31
 
 // TestClient_Countries covers ENDPT-01 + TRANS-02 + TRANS-03 + the four
 // Phase 1 / Phase 2 invariants the endpoint exercises end-to-end:
@@ -112,10 +114,17 @@ func TestClient_Countries(t *testing.T) {
 		require.Contains(t, byIso, "DE")
 
 		// Fixture uses uppercase Language codes ("PL", "DE", "EN").
-		// Country.NameFor matches case-insensitively (strings.EqualFold).
-		assert.Equal(t, "Polska", byIso["PL"].NameFor("PL"))
-		assert.Equal(t, "Polska", byIso["PL"].NameFor("pl"))
-		assert.Equal(t, "Deutschland", byIso["DE"].NameFor("de"))
+		// Country.NameFor matches case-insensitively (strings.EqualFold) and
+		// reports ok=true when the language is present.
+		plUpper, okPLUpper := byIso["PL"].NameFor("PL")
+		assert.True(t, okPLUpper)
+		assert.Equal(t, "Polska", plUpper)
+		plLower, okPLLower := byIso["PL"].NameFor("pl")
+		assert.True(t, okPLLower)
+		assert.Equal(t, "Polska", plLower)
+		deName, okDE := byIso["DE"].NameFor("de")
+		assert.True(t, okDE)
+		assert.Equal(t, "Deutschland", deName)
 		assert.NotEmpty(t, byIso["DE"].OfficialLanguages)
 		assert.NotEmpty(t, byIso["PL"].OfficialLanguages)
 	})
@@ -226,8 +235,10 @@ func TestClient_Countries(t *testing.T) {
 		t.Parallel()
 		// No server — the nil-ctx guard short-circuits before any HTTP.
 		c := NewClient(WithBaseURL("http://example.invalid"))
-		//nolint:staticcheck // intentionally pass nil context to exercise the defensive guard
-		_, err := c.Countries(nil, CountriesRequest{})
+		// A nil-valued context.Context variable (not the untyped nil literal,
+		// which staticcheck SA1012 forbids) still triggers the ctx == nil guard.
+		var nilCtx context.Context
+		_, err := c.Countries(nilCtx, CountriesRequest{})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "openholidays: nil context",
 			"defensive guard must return the documented error string")

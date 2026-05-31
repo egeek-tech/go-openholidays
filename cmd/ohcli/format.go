@@ -79,14 +79,32 @@ func render(w io.Writer, hs []openholidays.Holiday, lang, format string) error {
 	}
 }
 
-// audit:ok 2026-05-30
+// audit:ok 2026-05-31
+
+// localizedName returns the display name for lang, falling back to the first
+// available localized entry, then "". The library's NameFor now returns
+// (string, bool) with no fallback; ohcli wants a best-effort display string, so
+// it composes that fallback here.
+func localizedName(entries []openholidays.LocalizedText, lang string) string {
+	var fallback string
+	for i, e := range entries {
+		if strings.EqualFold(e.Language, lang) {
+			return e.Text
+		}
+		if i == 0 {
+			fallback = e.Text // best-effort: first available entry
+		}
+	}
+	return fallback
+}
+
+// audit:ok 2026-05-31
 
 // renderText writes the column-aligned text view of a []Holiday using
 // text/tabwriter (RESEARCH §3.2 Pattern 2). Column order matches the
-// research reference: DATE, END, NAME, NATIONWIDE, TYPE. Holiday.NameFor
-// resolves the localized name for lang case-insensitively, falling back to
-// the first entry when lang is not present (matches the library's
-// pickLocalized behavior).
+// research reference: DATE, END, NAME, NATIONWIDE, TYPE. localizedName
+// resolves the display name for lang case-insensitively, falling back to
+// the first entry when lang is not present.
 //
 // The tabwriter comes from the shared newTabWriter helper (minwidth=0,
 // tabwidth=0, padding=2, padchar=' ', flags=0 — the standard "two-space
@@ -97,7 +115,7 @@ func renderText(w io.Writer, hs []openholidays.Holiday, lang string) error {
 	fmt.Fprintln(tw, "DATE\tEND\tNAME\tNATIONWIDE\tTYPE")
 	for _, h := range hs {
 		fmt.Fprintf(tw, "%s\t%s\t%s\t%t\t%s\n",
-			h.StartDate, h.EndDate, h.NameFor(lang), h.Nationwide, h.Type)
+			h.StartDate, h.EndDate, localizedName(h.Name, lang), h.Nationwide, h.Type)
 	}
 	return tw.Flush()
 }
@@ -119,7 +137,7 @@ func renderJSON(w io.Writer, hs []openholidays.Holiday) error {
 	return enc.Encode(hs)
 }
 
-// audit:ok 2026-05-30
+// audit:ok 2026-05-31
 
 // renderCSV writes the CSV view of a []Holiday using encoding/csv
 // (RESEARCH §3.2 Pattern 2). Output is RFC 4180 compliant with a
@@ -144,7 +162,7 @@ func renderCSV(w io.Writer, hs []openholidays.Holiday, lang string) error {
 		if err := cw.Write([]string{
 			h.StartDate.String(),
 			h.EndDate.String(),
-			h.NameFor(lang),
+			localizedName(h.Name, lang),
 			strconv.FormatBool(h.Nationwide),
 			string(h.Type),
 			strings.Join(codes, csvListSep),
@@ -182,18 +200,18 @@ func renderCountries(w io.Writer, cs []openholidays.Country, lang, format string
 	}
 }
 
-// audit:ok 2026-05-30
+// audit:ok 2026-05-31
 
 // renderCountriesText writes the column-aligned text view of a []Country
 // using text/tabwriter. Columns: ISO_CODE, NAME (localized via
-// Country.NameFor), OFFICIAL_LANGUAGES (comma-joined for the human
+// localizedName), OFFICIAL_LANGUAGES (comma-joined for the human
 // reader; CSV uses ';' for parser-friendly separation).
 func renderCountriesText(w io.Writer, cs []openholidays.Country, lang string) error {
 	tw := newTabWriter(w)
 	fmt.Fprintln(tw, "ISO_CODE\tNAME\tOFFICIAL_LANGUAGES")
 	for _, c := range cs {
 		fmt.Fprintf(tw, "%s\t%s\t%s\n",
-			c.IsoCode, c.NameFor(lang), strings.Join(c.OfficialLanguages, ","))
+			c.IsoCode, localizedName(c.Name, lang), strings.Join(c.OfficialLanguages, ","))
 	}
 	return tw.Flush()
 }
@@ -208,7 +226,7 @@ func renderCountriesJSON(w io.Writer, cs []openholidays.Country) error {
 	return enc.Encode(cs)
 }
 
-// audit:ok 2026-05-30
+// audit:ok 2026-05-31
 
 // renderCountriesCSV writes the CSV view of a []Country using
 // encoding/csv. Header row: iso_code, name, official_languages.
@@ -223,7 +241,7 @@ func renderCountriesCSV(w io.Writer, cs []openholidays.Country, lang string) err
 	for _, c := range cs {
 		if err := cw.Write([]string{
 			c.IsoCode,
-			c.NameFor(lang),
+			localizedName(c.Name, lang),
 			strings.Join(c.OfficialLanguages, csvListSep),
 		}); err != nil {
 			return err

@@ -64,12 +64,11 @@ func (e *fakeNetError) Temporary() bool { return false }
 // jitter sequence, so range assertions (lower ≤ got < upper) are
 // stable.
 func newTestRand() *rand.Rand {
+	// Zero-value (still deterministic) seed: the jitter assertions check
+	// bounds (0 ≤ got < upper), so the seed bytes are irrelevant — only
+	// run-to-run determinism matters — and there is no seed[i] write for
+	// gosec to mis-flag as G602.
 	var seed [32]byte
-	for i := range seed {
-		seed[i] = byte(i + 1)
-	}
-	// G404: math/rand/v2 is the project-sanctioned RNG (CLAUDE.md); test
-	// uses a fixed-seed ChaCha8 for determinism, not cryptographic strength.
 	return rand.New(rand.NewChaCha8(seed)) //nolint:gosec // G404: deterministic test RNG, not cryptographic
 }
 

@@ -88,6 +88,73 @@ func TestHolidayType_IsKnown(t *testing.T) {
 	}
 }
 
+// audit:ok 2026-05-31
+
+// TestRegionalScope_IsKnown verifies IsKnown returns true for each of the three
+// documented RegionalScope constants and false for any other value (empty
+// string, an upstream-drift value, mixed case, and a free-form string) — the
+// same closed-set guarantee as HolidayType.IsKnown.
+func TestRegionalScope_IsKnown(t *testing.T) {
+	t.Parallel()
+
+	type tc struct {
+		name  string
+		input RegionalScope
+		want  bool
+	}
+	cases := []tc{
+		{name: "RegionalScopeNational", input: RegionalScopeNational, want: true},
+		{name: "RegionalScopeRegional", input: RegionalScopeRegional, want: true},
+		{name: "RegionalScopeLocal", input: RegionalScopeLocal, want: true},
+		{name: "empty string is not known", input: RegionalScope(""), want: false},
+		{name: "upstream-drift Continental is not known", input: RegionalScope("Continental"), want: false},
+		{name: "case-sensitive: lowercase national is not known", input: RegionalScope("national"), want: false},
+		{name: "free-form value is not known", input: RegionalScope("Whatever"), want: false},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			got := c.input.IsKnown()
+			assert.Equal(t, c.want, got,
+				"RegionalScope(%q).IsKnown() mismatch", string(c.input))
+		})
+	}
+}
+
+// audit:ok 2026-05-31
+
+// TestTemporalScope_IsKnown verifies IsKnown returns true for each of the two
+// documented TemporalScope constants and false for any other value (empty
+// string, an upstream-drift value, mixed case, and a free-form string) — the
+// same closed-set guarantee as HolidayType.IsKnown.
+func TestTemporalScope_IsKnown(t *testing.T) {
+	t.Parallel()
+
+	type tc struct {
+		name  string
+		input TemporalScope
+		want  bool
+	}
+	cases := []tc{
+		{name: "TemporalScopeFullDay", input: TemporalScopeFullDay, want: true},
+		{name: "TemporalScopeHalfDay", input: TemporalScopeHalfDay, want: true},
+		{name: "empty string is not known", input: TemporalScope(""), want: false},
+		{name: "upstream-drift Evening is not known", input: TemporalScope("Evening"), want: false},
+		{name: "case-sensitive: lowercase fullday is not known", input: TemporalScope("fullday"), want: false},
+		{name: "free-form value is not known", input: TemporalScope("Whatever"), want: false},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			got := c.input.IsKnown()
+			assert.Equal(t, c.want, got,
+				"TemporalScope(%q).IsKnown() mismatch", string(c.input))
+		})
+	}
+}
+
 // audit:ok 2026-05-30
 
 // TestLocalizedText_JSON verifies LocalizedText round-trips against the
@@ -321,11 +388,11 @@ func TestHoliday_JSON(t *testing.T) {
 	})
 }
 
-// audit:ok 2026-05-30
+// audit:ok 2026-05-31
 
 // TestCountry_NameFor covers the Country.NameFor accessor (TYPES-05, CL-05):
-// exact-match, case-insensitive match, fallback-to-first on miss, and
-// empty-slice handling.
+// exact-match, case-insensitive match, ("", false) on miss, and empty-slice
+// handling.
 func TestCountry_NameFor(t *testing.T) {
 	t.Parallel()
 
@@ -340,31 +407,34 @@ func TestCountry_NameFor(t *testing.T) {
 	}
 
 	cases := []struct {
-		name string
-		c    Country
-		lang string
-		want string
+		name   string
+		c      Country
+		lang   string
+		want   string
+		wantOK bool
 	}{
-		{name: "exact match pl", c: populated, lang: "pl", want: "Polska"},
-		{name: "case-insensitive match PL", c: populated, lang: "PL", want: "Polska"},
-		{name: "case-insensitive match Pl", c: populated, lang: "Pl", want: "Polska"},
-		{name: "exact match en", c: populated, lang: "en", want: "Poland"},
-		{name: "exact match de", c: populated, lang: "de", want: "Polen"},
-		{name: "miss falls back to first entry", c: populated, lang: "xx", want: "Polska"},
-		{name: "empty lang falls back to first entry", c: populated, lang: "", want: "Polska"},
-		{name: "nil Name returns empty string", c: Country{IsoCode: "PL"}, lang: "pl", want: ""},
-		{name: "empty Name slice returns empty string", c: Country{IsoCode: "PL", Name: []LocalizedText{}}, lang: "pl", want: ""},
+		{name: "exact match pl", c: populated, lang: "pl", want: "Polska", wantOK: true},
+		{name: "case-insensitive match PL", c: populated, lang: "PL", want: "Polska", wantOK: true},
+		{name: "case-insensitive match Pl", c: populated, lang: "Pl", want: "Polska", wantOK: true},
+		{name: "exact match en", c: populated, lang: "en", want: "Poland", wantOK: true},
+		{name: "exact match de", c: populated, lang: "de", want: "Polen", wantOK: true},
+		{name: "miss returns false, no fallback", c: populated, lang: "xx", want: "", wantOK: false},
+		{name: "empty lang returns false", c: populated, lang: "", want: "", wantOK: false},
+		{name: "nil Name returns false", c: Country{IsoCode: "PL"}, lang: "pl", want: "", wantOK: false},
+		{name: "empty Name slice returns false", c: Country{IsoCode: "PL", Name: []LocalizedText{}}, lang: "pl", want: "", wantOK: false},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			assert.Equal(t, tc.want, tc.c.NameFor(tc.lang))
+			got, ok := tc.c.NameFor(tc.lang)
+			assert.Equal(t, tc.want, got)
+			assert.Equal(t, tc.wantOK, ok)
 		})
 	}
 }
 
-// audit:ok 2026-05-30
+// audit:ok 2026-05-31
 
 // TestLanguage_NameFor covers the Language.NameFor accessor (TYPES-05):
 // same contract as Country.NameFor.
@@ -381,28 +451,31 @@ func TestLanguage_NameFor(t *testing.T) {
 	}
 
 	cases := []struct {
-		name string
-		l    Language
-		lang string
-		want string
+		name   string
+		l      Language
+		lang   string
+		want   string
+		wantOK bool
 	}{
-		{name: "exact match pl", l: populated, lang: "pl", want: "polski"},
-		{name: "case-insensitive match EN", l: populated, lang: "EN", want: "Polish"},
-		{name: "exact match de", l: populated, lang: "de", want: "Polnisch"},
-		{name: "miss falls back to first entry", l: populated, lang: "fr", want: "polski"},
-		{name: "nil Name returns empty string", l: Language{IsoCode: "pl"}, lang: "pl", want: ""},
-		{name: "empty Name slice returns empty string", l: Language{IsoCode: "pl", Name: []LocalizedText{}}, lang: "pl", want: ""},
+		{name: "exact match pl", l: populated, lang: "pl", want: "polski", wantOK: true},
+		{name: "case-insensitive match EN", l: populated, lang: "EN", want: "Polish", wantOK: true},
+		{name: "exact match de", l: populated, lang: "de", want: "Polnisch", wantOK: true},
+		{name: "miss returns false, no fallback", l: populated, lang: "fr", want: "", wantOK: false},
+		{name: "nil Name returns false", l: Language{IsoCode: "pl"}, lang: "pl", want: "", wantOK: false},
+		{name: "empty Name slice returns false", l: Language{IsoCode: "pl", Name: []LocalizedText{}}, lang: "pl", want: "", wantOK: false},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			assert.Equal(t, tc.want, tc.l.NameFor(tc.lang))
+			got, ok := tc.l.NameFor(tc.lang)
+			assert.Equal(t, tc.want, got)
+			assert.Equal(t, tc.wantOK, ok)
 		})
 	}
 }
 
-// audit:ok 2026-05-30
+// audit:ok 2026-05-31
 
 // TestSubdivision_NameFor covers the Subdivision.NameFor accessor (TYPES-05):
 // same contract as Country.NameFor.
@@ -421,24 +494,27 @@ func TestSubdivision_NameFor(t *testing.T) {
 	}
 
 	cases := []struct {
-		name string
-		s    Subdivision
-		lang string
-		want string
+		name   string
+		s      Subdivision
+		lang   string
+		want   string
+		wantOK bool
 	}{
-		{name: "exact match pl", s: populated, lang: "pl", want: "Śląskie"},
-		{name: "case-insensitive match PL", s: populated, lang: "PL", want: "Śląskie"},
-		{name: "exact match en", s: populated, lang: "en", want: "Silesian Voivodeship"},
-		{name: "exact match de", s: populated, lang: "de", want: "Woiwodschaft Schlesien"},
-		{name: "miss falls back to first entry", s: populated, lang: "fr", want: "Śląskie"},
-		{name: "nil Name returns empty string", s: Subdivision{Code: "PL-SL"}, lang: "pl", want: ""},
-		{name: "empty Name slice returns empty string", s: Subdivision{Code: "PL-SL", Name: []LocalizedText{}}, lang: "pl", want: ""},
+		{name: "exact match pl", s: populated, lang: "pl", want: "Śląskie", wantOK: true},
+		{name: "case-insensitive match PL", s: populated, lang: "PL", want: "Śląskie", wantOK: true},
+		{name: "exact match en", s: populated, lang: "en", want: "Silesian Voivodeship", wantOK: true},
+		{name: "exact match de", s: populated, lang: "de", want: "Woiwodschaft Schlesien", wantOK: true},
+		{name: "miss returns false, no fallback", s: populated, lang: "fr", want: "", wantOK: false},
+		{name: "nil Name returns false", s: Subdivision{Code: "PL-SL"}, lang: "pl", want: "", wantOK: false},
+		{name: "empty Name slice returns false", s: Subdivision{Code: "PL-SL", Name: []LocalizedText{}}, lang: "pl", want: "", wantOK: false},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			assert.Equal(t, tc.want, tc.s.NameFor(tc.lang))
+			got, ok := tc.s.NameFor(tc.lang)
+			assert.Equal(t, tc.want, got)
+			assert.Equal(t, tc.wantOK, ok)
 		})
 	}
 }

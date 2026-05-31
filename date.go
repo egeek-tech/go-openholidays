@@ -160,14 +160,15 @@ func (d Date) Compare(other Date) int {
 	return d.toUTCMidnight().Compare(other.toUTCMidnight())
 }
 
-// audit:ok 2026-05-30
+// audit:ok 2026-05-31
 
-// DaysUntil returns the inclusive day count from d to other.
+// DaysUntil returns the number of calendar days from d to other — the
+// conventional exclusive delta.
 //
-// For d == other (same calendar day), DaysUntil returns 1. For other one
-// day after d, DaysUntil returns 2. For d strictly after other (a negative
-// span), DaysUntil returns a negative integer whose magnitude is the
-// inclusive count.
+// For d == other (same calendar day) it returns 0; for other one day after d
+// it returns 1; for d strictly after other it returns a negative count. To get
+// the inclusive number of days a [d, other] span covers, add 1 — see
+// Holiday.Days.
 //
 // The implementation operates on UTC-midnight operands so the result is
 // calendar-correct across DST boundaries (DST cannot perturb a difference
@@ -177,11 +178,7 @@ func (d Date) DaysUntil(other Date) int {
 	b := other.toUTCMidnight()
 	// Both operands are UTC midnight, so Sub returns a clean multiple of 24h
 	// — no fractional hours from DST transitions.
-	days := int(b.Sub(a).Hours() / 24)
-	if days >= 0 {
-		return days + 1
-	}
-	return days - 1
+	return int(b.Sub(a).Hours() / 24)
 }
 
 // audit:ok 2026-05-30
@@ -224,7 +221,7 @@ func truncateForError(b []byte, maxBytes int) string {
 		fmt.Sprintf(" (truncated, %d total bytes)", len(b))
 }
 
-// audit:ok 2026-05-30
+// audit:ok 2026-05-31
 
 // sanitizeForError replaces non-printable ASCII bytes (anything outside the
 // 0x20..0x7E range) with '?'. Multi-byte UTF-8 sequences are also masked
@@ -234,13 +231,13 @@ func truncateForError(b []byte, maxBytes int) string {
 // reach this branch). Returns a fresh slice; the input slice is not
 // mutated.
 func sanitizeForError(b []byte) []byte {
-	out := make([]byte, len(b))
-	for i, c := range b {
+	out := make([]byte, 0, len(b))
+	for _, c := range b {
 		if c < 0x20 || c > 0x7E {
-			out[i] = '?'
+			out = append(out, '?')
 			continue
 		}
-		out[i] = c
+		out = append(out, c)
 	}
 	return out
 }

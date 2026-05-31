@@ -28,7 +28,7 @@ import (
 // fixtures are not the authoritative shape — the live API is.
 const subdivisionsPLFixtureCapturedAt = "2026-05-27"
 
-// audit:ok 2026-05-30
+// audit:ok 2026-05-31
 
 // TestClient_Subdivisions covers ENDPT-03 + TEST-01 + Assumption A3 closure:
 //
@@ -41,7 +41,7 @@ const subdivisionsPLFixtureCapturedAt = "2026-05-27"
 //   - LanguageIsoCode canonicalized to uppercase on the wire (D-55)
 //   - 4xx → *APIError with Path "/Subdivisions"
 //   - 5xx → *APIError with title-fallback Message
-//   - malformed JSON → decode error (not a sentinel)
+//   - malformed JSON → wraps ErrMalformedResponse (D-65 unification)
 //   - ctx cancel → [context.Canceled] within ≤ 100 ms (CLIENT-09)
 //
 // Gold Rule 3: exactly one TestClient_Subdivisions; every case is a t.Run.
@@ -205,7 +205,7 @@ func TestClient_Subdivisions(t *testing.T) {
 			"title must win when detail is absent")
 	})
 
-	t.Run("malformed JSON returns decode error", func(t *testing.T) {
+	t.Run("malformed JSON wraps ErrMalformedResponse", func(t *testing.T) {
 		t.Parallel()
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
@@ -219,10 +219,11 @@ func TestClient_Subdivisions(t *testing.T) {
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "decode /Subdivisions",
 			"decode error must carry the /Subdivisions path in its prefix")
-		// Must NOT match any of the typed sentinels — a malformed body is a
-		// generic JSON decode failure (Phase 3 D-65's ErrMalformedResponse is
-		// reserved for *post*-decode Holiday-content checks, not for syntax
-		// errors).
+		require.ErrorIs(t, err, ErrMalformedResponse,
+			"a malformed body must wrap ErrMalformedResponse (D-65 unification)")
+		// A malformed body wraps ErrMalformedResponse (syntax/type errors and
+		// post-decode Holiday schema-drift are unified under that sentinel); it
+		// must NOT match the transport/validation sentinels below.
 		require.NotErrorIs(t, err, ErrEmptyResponse,
 			"malformed JSON must not match ErrEmptyResponse")
 		require.NotErrorIs(t, err, ErrResponseTooLarge,

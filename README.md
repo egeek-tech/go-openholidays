@@ -45,7 +45,132 @@ func main() {
 }
 ```
 
-The full surface — including every option and helper — is documented on [pkg.go.dev](https://pkg.go.dev/github.com/egeek-tech/go-openholidays). The runnable form of this quickstart lives at [`example_test.go`](./example_test.go) as `Example_quickstart`.
+The full surface — every option, helper, and error sentinel — is documented on [pkg.go.dev](https://pkg.go.dev/github.com/egeek-tech/go-openholidays). The runnable form of this quickstart lives at [`example_test.go`](./example_test.go) as `Example_quickstart`.
+
+## More endpoints
+
+Each of the following is a complete, standalone program — copy, paste, run. They differ only in the endpoint call; every endpoint also has its own runnable example in [`example_test.go`](./example_test.go), rendered under the **Examples** tab on pkg.go.dev.
+
+### School holidays — per administrative subdivision
+
+The granularity competing libraries don't cover (e.g. Polish *ferie zimowe* for a single województwo):
+
+```go
+package main
+
+import (
+    "context"
+    "fmt"
+    "time"
+
+    "github.com/egeek-tech/go-openholidays"
+)
+
+func main() {
+    c := openholidays.NewClient()
+    defer func() { _ = c.Close() }()
+    ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+    defer cancel()
+    hs, err := c.SchoolHolidays(ctx, openholidays.SchoolHolidaysRequest{
+        CountryIsoCode:  "PL",
+        ValidFrom:       openholidays.NewDate(2025, time.January, 1),
+        ValidTo:         openholidays.NewDate(2025, time.December, 31),
+        SubdivisionCode: "PL-SL", // OpenHolidays' own scheme: PL-SL = Świętokrzyskie (not ISO 3166-2)
+        // GroupCode:    "A",     // optional: one ferie cohort (A/B/C/D)
+    })
+    if err != nil {
+        fmt.Println("error:", err)
+        return
+    }
+    fmt.Printf("got %d school-holiday spans for PL-SL\n", len(hs))
+}
+```
+
+### Countries
+
+```go
+package main
+
+import (
+    "context"
+    "fmt"
+    "time"
+
+    "github.com/egeek-tech/go-openholidays"
+)
+
+func main() {
+    c := openholidays.NewClient()
+    defer func() { _ = c.Close() }()
+    ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+    defer cancel()
+    countries, err := c.Countries(ctx, openholidays.CountriesRequest{LanguageIsoCode: "en"})
+    if err != nil {
+        fmt.Println("error:", err)
+        return
+    }
+    fmt.Printf("got %d supported countries\n", len(countries))
+}
+```
+
+### Languages
+
+```go
+package main
+
+import (
+    "context"
+    "fmt"
+    "time"
+
+    "github.com/egeek-tech/go-openholidays"
+)
+
+func main() {
+    c := openholidays.NewClient()
+    defer func() { _ = c.Close() }()
+    ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+    defer cancel()
+    langs, err := c.Languages(ctx, openholidays.LanguagesRequest{})
+    if err != nil {
+        fmt.Println("error:", err)
+        return
+    }
+    fmt.Printf("got %d supported languages\n", len(langs))
+}
+```
+
+### Subdivisions
+
+The administrative-subdivision tree (16 województwa for PL; nested Bundesländer for DE):
+
+```go
+package main
+
+import (
+    "context"
+    "fmt"
+    "time"
+
+    "github.com/egeek-tech/go-openholidays"
+)
+
+func main() {
+    c := openholidays.NewClient()
+    defer func() { _ = c.Close() }()
+    ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+    defer cancel()
+    subs, err := c.Subdivisions(ctx, openholidays.SubdivisionsRequest{
+        CountryIsoCode:  "PL",
+        LanguageIsoCode: "en",
+    })
+    if err != nil {
+        fmt.Println("error:", err)
+        return
+    }
+    fmt.Printf("got %d Polish subdivisions\n", len(subs))
+}
+```
 
 ## Public API
 
@@ -76,8 +201,9 @@ ohcli countries --json
 Released `ohcli` archives carry SLSA build-provenance attestations, signed via GitHub's keyless (Sigstore/Fulcio) flow, and verifiable with the [`gh` CLI](https://cli.github.com/) (≥ 2.49). Exit 0 means verified:
 
 ```sh
-gh release download v0.5.0 --repo egeek-tech/go-openholidays --pattern 'ohcli_*_linux_amd64.tar.gz'
-gh attestation verify ohcli_0.5.0_linux_amd64.tar.gz --repo egeek-tech/go-openholidays
+VERSION=1.0.0
+gh release download "v$VERSION" --repo egeek-tech/go-openholidays --pattern 'ohcli_*_linux_amd64.tar.gz'
+gh attestation verify "ohcli_${VERSION}_linux_amd64.tar.gz" --repo egeek-tech/go-openholidays
 ```
 
 > **Verify the archive, not the binary.** The attested subjects are the released `.tar.gz`/`.zip` archives listed in `checksums.txt` — not the unpacked `ohcli` binary and not `checksums.txt` itself. Verifying either of those returns `HTTP 404: Not Found`. Likewise, a binary built locally with `go install …@latest` or `go build` is never attested, so a 404 there is expected.

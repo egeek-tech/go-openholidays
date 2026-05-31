@@ -18,6 +18,7 @@ package openholidays
 
 import (
 	"bytes"
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -29,7 +30,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// audit:ok 2026-05-30
+// audit:ok 2026-05-31
 
 // TestDoJSONGet covers the generic helper's contract end-to-end:
 //
@@ -38,6 +39,7 @@ import (
 //     any HTTP dispatch)
 //   - 4xx upstream → *APIError populated with StatusCode/Path/Message
 //   - 200 + empty body → wraps ErrEmptyResponse
+//   - 200 + malformed body → wraps ErrMalformedResponse
 //   - query-string encoding (RawQuery populated when q has entries; left
 //     empty when q has none)
 //   - 11 MiB streaming body → wraps ErrResponseTooLarge via the
@@ -96,8 +98,10 @@ func TestDoJSONGet(t *testing.T) {
 		// failed to short-circuit, the HTTP dispatch would fail loudly
 		// with a DNS error (or hang). The guard MUST fire first.
 		c := NewClient(WithBaseURL("http://example.invalid"))
-		//nolint:staticcheck // intentionally pass nil context to exercise the defensive guard
-		_, err := doJSONGet[[]Country](nil, c, "/Countries", nil)
+		// A nil-valued context.Context variable (not the untyped nil literal,
+		// which staticcheck SA1012 forbids) still triggers the ctx == nil guard.
+		var nilCtx context.Context
+		_, err := doJSONGet[[]Country](nilCtx, c, "/Countries", nil)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "openholidays: nil context",
 			"defensive guard must return the documented error string")
@@ -139,6 +143,26 @@ func TestDoJSONGet(t *testing.T) {
 		require.Error(t, err)
 		assert.ErrorIs(t, err, ErrEmptyResponse,
 			"expected ErrEmptyResponse via errors.Is, got %v", err)
+	})
+
+	t.Run("malformed body wraps ErrMalformedResponse", func(t *testing.T) {
+		t.Parallel()
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			// Non-empty but structurally invalid JSON: the decoder fails with a
+			// syntax error (not io.EOF), which doJSONGet wraps as
+			// ErrMalformedResponse — distinct from the empty-body ErrEmptyResponse
+			// path above.
+			_, _ = w.Write([]byte(`[{"isoCode": ]`))
+		}))
+		t.Cleanup(srv.Close)
+
+		c := NewClient(WithBaseURL(srv.URL))
+		_, err := doJSONGet[[]Country](t.Context(), c, "/Malformed", nil)
+		require.Error(t, err)
+		assert.ErrorIs(t, err, ErrMalformedResponse,
+			"a malformed JSON body must wrap ErrMalformedResponse via doJSONGet")
 	})
 
 	t.Run("query is encoded into req.URL.RawQuery when non-empty", func(t *testing.T) {
