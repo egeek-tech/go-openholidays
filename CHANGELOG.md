@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.6](https://github.com/egeek-tech/go-openholidays/compare/v0.5.5...v0.5.6) (2026-05-31)
+
+
+### Bug Fixes
+
+* **types:** correct SubdivisionRef.Code godoc (PL-SL is Świętokrzyskie, not Śląskie) ([cc68a7b](https://github.com/egeek-tech/go-openholidays/commit/cc68a7b661b8afd9c1dffb9b41bd7d3e994c5d43))
+
 ## [0.5.5](https://github.com/egeek-tech/go-openholidays/compare/v0.5.4...v0.5.5) (2026-05-30)
 
 
