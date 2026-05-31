@@ -147,6 +147,24 @@ func (h Holiday) NameFor(lang string) string {
 
 **Test files**: the same mark and the same invalidation rule apply to test functions (`TestXxx`, `Example*`, `Fuzz*`) in `*_test.go`. A `// audit:ok YYYY-MM-DD` above a test function certifies its assertions were reviewed to encode the *correct* expected behavior — not merely that the test compiles and passes. A test that asserts a wrong value and stays green is precisely the failure this mark guards against (the `languageIsoCode` lowercase bug shipped behind exactly such a test). Any change to a test's logic, assertions, or table cases MUST delete its mark in the same commit, to be re-audited before re-marking; pure renames / comment fixes are exempt. The godoc-leak concern is moot in test files, but the blank-line-above-the-mark format is kept for consistency.
 
+### Rule 6 — Commit type must match the change; a fix is committed as `fix:`
+
+A commit's Conventional-Commit *type* declares what the change is; its *subject* names what the change addresses. The type is chosen by the nature of the change, never to engineer (or avoid) a release.
+
+**Required**:
+
+- A change that corrects a defect is `fix(scope): …`. "Defect" includes wrong runtime behavior **and** wrong public documentation / godoc that would mislead a consumer reading `pkg.go.dev` (e.g. the `SubdivisionRef.Code` comment that wrongly mapped `PL-SL` to Śląskie when the live API maps it to Świętokrzyskie).
+- A new capability is `feat:`.
+- Internal / process work with no consumer-facing effect and no defect fixed — planning docs, tooling, test-only additions, pure refactors — uses the non-releasing types (`chore` / `refactor` / `test` / `ci` / `build` / `style`).
+
+**Forbidden**: downgrading a genuine `fix` / `feat` to a non-releasing type to avoid cutting a release, and inflating routine work into `fix` / `feat`. Either way the commit type lies, and the changelog, release signal, and audit trail degrade.
+
+**Which types release here**: defined by `release-please-config.json` — currently `feat` (minor pre-1.0), `fix` / `perf` / `deps` / `docs` (patch). `ci` / `build` / `refactor` / `test` / `chore` / `style` are hidden (non-releasing). Read the config before claiming a type won't release; do not assume release-please defaults — notably, `docs` **does** cut a release in this repo.
+
+**Why**: the commit history is the single source for the generated changelog, the release decision, and the audit trail of what shipped when. A fix mislabeled `chore` is invisible to consumers and to release tooling; a chore mislabeled `fix` cuts a meaningless release and erodes the signal. Honest types keep all three trustworthy. This complements Rule 4 (releases are immutable) — Rule 4 governs what happens after a release is cut; Rule 6 governs whether a commit should cut one at all.
+
+**Enforcement**: by convention + code review today. A commit-lint / release-dry-run guard is a noted future follow-up.
+
 ## Style
 
 ### Em-dashes ("—", U+2014) in godoc and Markdown are deliberate

@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.5.6](https://github.com/egeek-tech/go-openholidays/compare/v0.5.5...v0.5.6) (2026-05-31)
+
+
+### Bug Fixes
+
+* **types:** correct SubdivisionRef.Code godoc (PL-SL is Świętokrzyskie, not Śląskie) ([cc68a7b](https://github.com/egeek-tech/go-openholidays/commit/cc68a7b661b8afd9c1dffb9b41bd7d3e994c5d43))
+
+## [0.5.5](https://github.com/egeek-tech/go-openholidays/compare/v0.5.4...v0.5.5) (2026-05-30)
+
+
+### Documentation
+
+* **planning:** repoint broken phase-04 validation commands to consolidated tests ([a893530](https://github.com/egeek-tech/go-openholidays/commit/a893530f2dd88bc912692decf7c214bef1d1db4c))
+
 ## [0.5.4](https://github.com/egeek-tech/go-openholidays/compare/v0.5.3...v0.5.4) (2026-05-30)
 
 

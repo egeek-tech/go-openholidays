@@ -149,7 +149,11 @@ type LocalizedText struct {
 // The upstream calls this shape SubdivisionReference; the library uses the
 // shorter SubdivisionRef name per ARCHITECTURE.md naming guidance.
 type SubdivisionRef struct {
-	// Code is the subdivision code (e.g. "PL-SL" for Śląskie).
+	// Code is the OpenHolidays subdivision code (its own scheme, NOT ISO
+	// 3166-2; any ISO 3166-2 value lives in Subdivision.IsoCode). The two
+	// schemes do not always agree: under the live API "PL-SL" resolves to
+	// Świętokrzyskie, whereas ISO 3166-2 assigns PL-SL to Śląskie (verified
+	// 2026-05-30 probe).
 	Code string `json:"code"`
 	// ShortName is the human-readable short name of the subdivision.
 	ShortName string `json:"shortName"`
