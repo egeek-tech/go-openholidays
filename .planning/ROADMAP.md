@@ -109,7 +109,7 @@
   - [x] 05-01-PLAN.md — CLI core: cmd/ohcli main + version + format renderers + subcommand handlers (CLI-01, CLI-02, CLI-03)
   - [x] 05-02-PLAN.md — CLI tests: httptest-driven per-subcommand TestCmdXxx + renderer tests (CLI-04)
   - [x] 05-03-PLAN.md — Fuzz tests + benchmarks: FuzzParseLocalizedText, FuzzUnmarshalHoliday, BenchmarkClient_PublicHolidays (cold) + BenchmarkClient_Countries (cached per CL-18) (TEST-07, TEST-11)
-  - [x] 05-04-PLAN.md — Integration tests: build-tagged + env-gated TestIntegration_PublicHolidays_PL_2025 + TestIntegration_SchoolHolidays_PL_2025 (TEST-08)
+  - [x] 05-04-PLAN.md — Integration tests: build-tagged + env-gated TestIntegration_PublicHolidays + TestIntegration_SchoolHolidays (TEST-08)
   - [x] 05-05-PLAN.md — Lint + CI workflow: finalized .golangci.yml + .github/workflows/ci.yml (matrix go: [1.23.x, 1.24.x, stable] + lint + vuln + coverage gate + Codecov OIDC) (CI-01..03, CI-05, CI-07, TEST-10)
   - [x] 05-06-PLAN.md — Integration + release workflows: integration.yml (nightly cron) + release.yml (tag-triggered goreleaser + attest-build-provenance@v4) + .goreleaser.yaml (v2 schema, 6-binary matrix) + dependabot.yml (CI-04, CI-05, CI-06, REL-01, REL-02, REL-03)
   - [x] 05-07-PLAN.md — Documentation: example_test.go (15+ Example_*), README.md (badges + ≤20-line quickstart), docs/design.md, CHANGELOG.md (pointer per D-12), CONTRIBUTING.md, doc.go extension (DOC-01..07, TEST-09)

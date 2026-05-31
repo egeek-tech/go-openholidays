@@ -85,6 +85,7 @@ None.
 |---|-------------|------|--------|-----------|
 | 260530-dc9 | Document release-binary attestation verification (README + runbook §3) | 2026-05-30 | 09811ca | [260530-dc9-document-release-binary-attestation-veri](./quick/260530-dc9-document-release-binary-attestation-veri/) |
 | 260530-dvc | Fix validateLanguage to uppercase language ISO codes (API requires uppercase; was returning English) | 2026-05-30 | 075ce4e | [260530-dvc-fix-validatelanguage-to-uppercase-langua](./quick/260530-dvc-fix-validatelanguage-to-uppercase-langua/) |
+| 260530-vtw | Live integration coverage: all 6 endpoint/helper surfaces, three-layer semantic assertions (PL+DE+errors) | 2026-05-30 | 495c8d9 | [260530-vtw-integration-test-coverage](./quick/260530-vtw-integration-test-coverage/) |
 
 ### Research Flags
 
