@@ -49,39 +49,127 @@ The full surface — every option, helper, and error sentinel — is documented 
 
 ## More endpoints
 
-Each snippet reuses the client `c` and context `ctx` from the quickstart above, and has its own runnable example in [`example_test.go`](./example_test.go) (rendered under the **Examples** tab on pkg.go.dev).
+Each of the following is a complete, standalone program — copy, paste, run. They differ only in the endpoint call; every endpoint also has its own runnable example in [`example_test.go`](./example_test.go), rendered under the **Examples** tab on pkg.go.dev.
 
-**School holidays** — per administrative subdivision; the granularity competing libraries don't cover (e.g. Polish *ferie zimowe* for a single województwo):
+### School holidays — per administrative subdivision
+
+The granularity competing libraries don't cover (e.g. Polish *ferie zimowe* for a single województwo):
 
 ```go
-school, err := c.SchoolHolidays(ctx, openholidays.SchoolHolidaysRequest{
-    CountryIsoCode:  "PL",
-    ValidFrom:       openholidays.NewDate(2025, time.January, 1),
-    ValidTo:         openholidays.NewDate(2025, time.December, 31),
-    SubdivisionCode: "PL-SL", // OpenHolidays' own scheme: PL-SL = Świętokrzyskie (not ISO 3166-2)
-    // GroupCode:    "A",     // optional: one ferie cohort (A/B/C/D)
-})
+package main
+
+import (
+    "context"
+    "fmt"
+    "time"
+
+    "github.com/egeek-tech/go-openholidays"
+)
+
+func main() {
+    c := openholidays.NewClient()
+    defer func() { _ = c.Close() }()
+    ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+    defer cancel()
+    hs, err := c.SchoolHolidays(ctx, openholidays.SchoolHolidaysRequest{
+        CountryIsoCode:  "PL",
+        ValidFrom:       openholidays.NewDate(2025, time.January, 1),
+        ValidTo:         openholidays.NewDate(2025, time.December, 31),
+        SubdivisionCode: "PL-SL", // OpenHolidays' own scheme: PL-SL = Świętokrzyskie (not ISO 3166-2)
+        // GroupCode:    "A",     // optional: one ferie cohort (A/B/C/D)
+    })
+    if err != nil {
+        fmt.Println("error:", err)
+        return
+    }
+    fmt.Printf("got %d school-holiday spans for PL-SL\n", len(hs))
+}
 ```
 
-**Countries** — every supported country, optionally localized via `LanguageIsoCode`:
+### Countries
 
 ```go
-countries, err := c.Countries(ctx, openholidays.CountriesRequest{LanguageIsoCode: "en"})
+package main
+
+import (
+    "context"
+    "fmt"
+    "time"
+
+    "github.com/egeek-tech/go-openholidays"
+)
+
+func main() {
+    c := openholidays.NewClient()
+    defer func() { _ = c.Close() }()
+    ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+    defer cancel()
+    countries, err := c.Countries(ctx, openholidays.CountriesRequest{LanguageIsoCode: "en"})
+    if err != nil {
+        fmt.Println("error:", err)
+        return
+    }
+    fmt.Printf("got %d supported countries\n", len(countries))
+}
 ```
 
-**Languages** — the languages the API can localize responses into:
+### Languages
 
 ```go
-langs, err := c.Languages(ctx, openholidays.LanguagesRequest{})
+package main
+
+import (
+    "context"
+    "fmt"
+    "time"
+
+    "github.com/egeek-tech/go-openholidays"
+)
+
+func main() {
+    c := openholidays.NewClient()
+    defer func() { _ = c.Close() }()
+    ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+    defer cancel()
+    langs, err := c.Languages(ctx, openholidays.LanguagesRequest{})
+    if err != nil {
+        fmt.Println("error:", err)
+        return
+    }
+    fmt.Printf("got %d supported languages\n", len(langs))
+}
 ```
 
-**Subdivisions** — the administrative-subdivision tree (16 województwa for PL; nested Bundesländer for DE):
+### Subdivisions
+
+The administrative-subdivision tree (16 województwa for PL; nested Bundesländer for DE):
 
 ```go
-subs, err := c.Subdivisions(ctx, openholidays.SubdivisionsRequest{
-    CountryIsoCode:  "PL",
-    LanguageIsoCode: "en",
-})
+package main
+
+import (
+    "context"
+    "fmt"
+    "time"
+
+    "github.com/egeek-tech/go-openholidays"
+)
+
+func main() {
+    c := openholidays.NewClient()
+    defer func() { _ = c.Close() }()
+    ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+    defer cancel()
+    subs, err := c.Subdivisions(ctx, openholidays.SubdivisionsRequest{
+        CountryIsoCode:  "PL",
+        LanguageIsoCode: "en",
+    })
+    if err != nil {
+        fmt.Println("error:", err)
+        return
+    }
+    fmt.Printf("got %d Polish subdivisions\n", len(subs))
+}
 ```
 
 ## Public API
