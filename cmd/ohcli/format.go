@@ -84,15 +84,16 @@ func render(w io.Writer, hs []openholidays.Holiday, lang, format string) error {
 // (string, bool) with no fallback; ohcli wants a best-effort display string, so
 // it composes that fallback here.
 func localizedName(entries []openholidays.LocalizedText, lang string) string {
-	for _, e := range entries {
+	var fallback string
+	for i, e := range entries {
 		if strings.EqualFold(e.Language, lang) {
 			return e.Text
 		}
+		if i == 0 {
+			fallback = e.Text // best-effort: first available entry
+		}
 	}
-	if len(entries) > 0 {
-		return entries[0].Text
-	}
-	return ""
+	return fallback
 }
 
 // renderText writes the column-aligned text view of a []Holiday using
