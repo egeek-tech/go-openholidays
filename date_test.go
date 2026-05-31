@@ -1,6 +1,7 @@
 package openholidays
 
 import (
+	"bytes"
 	"encoding/json"
 	"testing"
 	"time"
@@ -119,7 +120,6 @@ func TestDate_MarshalJSON(t *testing.T) {
 	})
 }
 
-// audit:ok 2026-05-30
 func TestDate_UnmarshalJSON(t *testing.T) {
 	t.Parallel()
 
@@ -195,10 +195,7 @@ func TestDate_UnmarshalJSON(t *testing.T) {
 		// IN-05 follow-up: oversized non-string tokens are capped and
 		// labeled with the total byte count.
 		t.Parallel()
-		oversized := make([]byte, 200)
-		for i := range oversized {
-			oversized[i] = 'A'
-		}
+		oversized := bytes.Repeat([]byte("A"), 200)
 		var d Date
 		err := d.UnmarshalJSON(oversized)
 		require.Error(t, err)
