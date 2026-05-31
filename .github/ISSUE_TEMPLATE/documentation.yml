@@ -1,0 +1,46 @@
+name: Documentation issue
+description: Report something wrong, missing, or unclear in the docs, godoc, README, or examples.
+title: "[Docs]: "
+labels: ["documentation"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Docs bugs are real bugs — thanks for flagging this.
+
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where
+      options:
+        - README
+        - godoc / pkg.go.dev
+        - CONTRIBUTING
+        - example_test.go
+        - CLI help (ohcli)
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: location
+    attributes:
+      label: Location / link
+      description: Direct link, file path, or symbol name (e.g. a pkg.go.dev anchor or a README section).
+    validations:
+      required: false
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What's wrong or missing
+    validations:
+      required: true
+
+  - type: textarea
+    id: suggested-fix
+    attributes:
+      label: Suggested fix
+      description: Optional. Proposed wording or the correct information.
+    validations:
+      required: false

@@ -1,0 +1,14 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions & usage help
+    url: https://github.com/egeek-tech/go-openholidays/discussions
+    about: "How do I…? Usage and support questions belong in Discussions, not the issue tracker."
+  - name: API reference (pkg.go.dev)
+    url: https://pkg.go.dev/github.com/egeek-tech/go-openholidays
+    about: Full documentation of every option, helper, and error sentinel.
+  - name: Upstream OpenHolidays API
+    url: https://www.openholidaysapi.org
+    about: "If the holiday data itself looks wrong, the problem may be upstream rather than in this client."
+  - name: Contributing guide
+    url: https://github.com/egeek-tech/go-openholidays/blob/master/CONTRIBUTING.md
+    about: Dev loop, commit conventions, and the branch/PR flow before you open a PR.
