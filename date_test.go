@@ -363,7 +363,6 @@ func TestDate_Compare(t *testing.T) {
 	})
 }
 
-// audit:ok 2026-05-30
 func TestDate_DaysUntil(t *testing.T) {
 	t.Parallel()
 
@@ -374,37 +373,38 @@ func TestDate_DaysUntil(t *testing.T) {
 		want int
 	}{
 		{
-			name: "same_day_returns_1",
+			name: "same_day_returns_0",
 			from: NewDate(2025, time.June, 15),
 			to:   NewDate(2025, time.June, 15),
+			want: 0,
+		},
+		{
+			name: "one_day_later_returns_1",
+			from: NewDate(2025, time.June, 15),
+			to:   NewDate(2025, time.June, 16),
 			want: 1,
 		},
 		{
-			name: "one_day_later_returns_2",
-			from: NewDate(2025, time.June, 15),
-			to:   NewDate(2025, time.June, 16),
-			want: 2,
-		},
-		{
-			name: "slaskie_ferie_zimowe_14_days",
-			// 2025-02-17 to 2025-03-02 inclusive = 14 days (Śląskie ferie zimowe span).
+			name: "slaskie_ferie_zimowe_span_13",
+			// 2025-02-17 to 2025-03-02 is a 13-day exclusive delta (14 inclusive
+			// via Holiday.Days — the Śląskie ferie zimowe span).
 			from: NewDate(2025, time.February, 17),
 			to:   NewDate(2025, time.March, 2),
-			want: 14,
+			want: 13,
 		},
 		{
-			name: "negative_direction_minus_14",
+			name: "negative_direction_minus_13",
 			from: NewDate(2025, time.March, 2),
 			to:   NewDate(2025, time.February, 17),
-			want: -14,
+			want: -13,
 		},
 		{
 			name: "us_eastern_dst_crossing_march_2025",
-			// US DST began 2025-03-09. Inclusive span 2025-03-01..2025-03-31 = 31 days.
+			// US DST began 2025-03-09. 2025-03-01..2025-03-31 is a 30-day delta.
 			// Regression check: implementation must NOT rely on local time arithmetic.
 			from: NewDate(2025, time.March, 1),
 			to:   NewDate(2025, time.March, 31),
-			want: 31,
+			want: 30,
 		},
 	}
 

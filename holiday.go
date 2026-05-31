@@ -75,8 +75,6 @@ func (h Holiday) IsInRegion(code string) bool {
 	return false
 }
 
-// audit:ok 2026-05-30
-
 // Days returns the inclusive count of calendar days the holiday spans.
 //
 // For a single-day holiday (StartDate == EndDate), Days returns 1. For a
@@ -90,14 +88,15 @@ func (h Holiday) IsInRegion(code string) bool {
 // branching on h.Days() > N therefore get a defined, non-negative value
 // for every Holiday they can hold.
 //
-// The implementation delegates to Date.DaysUntil, which operates on
-// UTC-midnight operands and is therefore calendar-correct across DST
-// boundaries (Phase 1 D-10 / Pitfall TZ-2).
+// The implementation adds 1 to Date.DaysUntil (the exclusive day delta) to
+// convert it to an inclusive span count. DaysUntil operates on UTC-midnight
+// operands and is therefore calendar-correct across DST boundaries (Phase 1
+// D-10 / Pitfall TZ-2).
 func (h Holiday) Days() int {
 	if h.EndDate.Before(h.StartDate) {
 		return 0
 	}
-	return h.StartDate.DaysUntil(h.EndDate)
+	return h.StartDate.DaysUntil(h.EndDate) + 1
 }
 
 // audit:ok 2026-05-30

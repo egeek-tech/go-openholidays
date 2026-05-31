@@ -160,14 +160,13 @@ func (d Date) Compare(other Date) int {
 	return d.toUTCMidnight().Compare(other.toUTCMidnight())
 }
 
-// audit:ok 2026-05-30
-
-// DaysUntil returns the inclusive day count from d to other.
+// DaysUntil returns the number of calendar days from d to other — the
+// conventional exclusive delta.
 //
-// For d == other (same calendar day), DaysUntil returns 1. For other one
-// day after d, DaysUntil returns 2. For d strictly after other (a negative
-// span), DaysUntil returns a negative integer whose magnitude is the
-// inclusive count.
+// For d == other (same calendar day) it returns 0; for other one day after d
+// it returns 1; for d strictly after other it returns a negative count. To get
+// the inclusive number of days a [d, other] span covers, add 1 — see
+// Holiday.Days.
 //
 // The implementation operates on UTC-midnight operands so the result is
 // calendar-correct across DST boundaries (DST cannot perturb a difference
@@ -177,11 +176,7 @@ func (d Date) DaysUntil(other Date) int {
 	b := other.toUTCMidnight()
 	// Both operands are UTC midnight, so Sub returns a clean multiple of 24h
 	// — no fractional hours from DST transitions.
-	days := int(b.Sub(a).Hours() / 24)
-	if days >= 0 {
-		return days + 1
-	}
-	return days - 1
+	return int(b.Sub(a).Hours() / 24)
 }
 
 // audit:ok 2026-05-30
