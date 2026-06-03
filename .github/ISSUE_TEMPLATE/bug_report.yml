@@ -1,0 +1,145 @@
+name: Bug report
+description: Report incorrect behavior, a panic, wrong data, or an unexpected error from the library.
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug. A minimal, runnable reproduction is
+        the single most useful thing you can provide — it usually turns a multi-day
+        back-and-forth into a same-day fix.
+
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Pre-submission checklist
+      options:
+        - label: I searched existing issues and this has not already been reported.
+          required: true
+        - label: I reproduced this on the latest released version.
+          required: true
+        - label: This is about the go-openholidays client library, not the upstream OpenHolidays API itself.
+          required: true
+
+  - type: input
+    id: lib-version
+    attributes:
+      label: go-openholidays version
+      description: "Output of: go list -m github.com/egeek-tech/go-openholidays"
+      placeholder: v1.0.0
+    validations:
+      required: true
+
+  - type: input
+    id: go-version
+    attributes:
+      label: Go version
+      description: "Output of: go version"
+      placeholder: go version go1.24.0 linux/amd64
+    validations:
+      required: true
+
+  - type: input
+    id: os-arch
+    attributes:
+      label: OS / architecture
+      description: "GOOS/GOARCH, if relevant."
+      placeholder: linux/amd64
+    validations:
+      required: false
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected endpoint / area
+      options:
+        - PublicHolidays
+        - SchoolHolidays
+        - Countries
+        - Subdivisions
+        - Languages
+        - IsInRegion
+        - Client construction / options
+        - Retry & backoff
+        - Cache
+        - Request hook
+        - cmd/ohcli
+        - Other / not sure
+    validations:
+      required: true
+
+  - type: dropdown
+    id: error-sentinel
+    attributes:
+      label: Error sentinel (if an error was returned)
+      description: Which typed error did you get back? Check with errors.Is.
+      options:
+        - ErrInvalidCountry
+        - ErrInvalidLanguage
+        - ErrDateRangeTooLarge
+        - ErrInvalidDateRange
+        - ErrEmptyResponse
+        - ErrResponseTooLarge
+        - ErrMalformedResponse
+        - None / not an error
+        - Other
+    validations:
+      required: false
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: Describe the actual behavior, including any error string.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What did you expect to happen instead?
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Minimal reproduction
+      description: A small, self-contained program (or test) that triggers the bug. This will be rendered as Go.
+      render: go
+      placeholder: |
+        package main
+
+        import (
+            "context"
+            "fmt"
+            "time"
+
+            "github.com/egeek-tech/go-openholidays"
+        )
+
+        func main() {
+            c := openholidays.NewClient()
+            defer func() { _ = c.Close() }()
+            ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+            defer cancel()
+            hs, err := c.PublicHolidays(ctx, openholidays.PublicHolidaysRequest{
+                CountryIsoCode: "PL",
+                ValidFrom:      openholidays.NewDate(2025, time.January, 1),
+                ValidTo:        openholidays.NewDate(2025, time.December, 31),
+            })
+            fmt.Println(len(hs), err)
+        }
+    validations:
+      required: false
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs / output
+      description: "Optional. Redact anything sensitive — never paste full response bodies."
+      render: shell
+    validations:
+      required: false

@@ -1,0 +1,67 @@
+name: Feature request
+description: Suggest a new endpoint, option, helper, or CLI capability.
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the idea. The strongest requests start from a concrete problem
+        ("I need to do X and currently can't") rather than a solution — that lets us
+        weigh alternatives we might not have thought of.
+
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Pre-submission checklist
+      options:
+        - label: I searched existing issues and this has not already been requested.
+          required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / use case
+      description: What are you trying to do, and what stops you today?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed-api
+    attributes:
+      label: Proposed API
+      description: Optional. A sketch of the method, option, or signature you have in mind. Rendered as Go.
+      render: go
+    validations:
+      required: false
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Workarounds you have tried, or other designs you weighed.
+    validations:
+      required: false
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - New endpoint coverage
+        - New option / helper
+        - CLI (ohcli)
+        - Performance
+        - Docs
+        - Other
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: zero-dep
+    attributes:
+      label: Zero-dependency policy
+      description: This is informational, not a blocker — we will discuss it on the issue.
+      options:
+        - label: I understand go-openholidays has a zero-runtime-dependency policy, and this request either needs no new non-stdlib dependency or explains why one is worth it.
+          required: false
