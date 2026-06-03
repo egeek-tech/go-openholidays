@@ -1,6 +1,6 @@
 # go-openholidays — CI matrix workflow.
 # Plan 05-05 (CI-01/CI-02/CI-03/CI-05/CI-07/TEST-10), restructured per PR #7
-# review feedback into per-component jobs and the terapia-si prep pattern.
+# review feedback into per-component jobs and a prep/cache-priming pattern.
 #
 # Job topology:
 #
@@ -24,7 +24,7 @@
 #                   advisory data is module-wide so per-component split
 #                   would duplicate work.
 #
-# Cache strategy (from terapia-si lessons learned):
+# Cache strategy:
 #
 #   * SDK toolchain cache at /opt/hostedtoolcache/go keyed on runner.os +
 #     go-version. setup-go's built-in `cache: true` does NOT cover the
@@ -38,7 +38,12 @@
 #   * `check-latest: true` is INTENTIONALLY DROPPED. It forces setup-go
 #     to consult the version manifest even on a warm cache hit, often
 #     pulling a fresh point release. We pin to "1.23.x" etc. and accept
-#     whatever the runner has cached.
+#     whatever the runner has cached. EXCEPTION: the `vuln` job pins an
+#     exact patched Go version (not `stable`) and skips the SDK-cache
+#     restore — the govulncheck security gate must scan a toolchain with
+#     the latest stdlib security fixes, which `stable` cannot guarantee
+#     because setup-go resolves it against the actions/go-versions
+#     manifest that lags the official go.dev release by days.
 #
 # Security:
 #
@@ -295,17 +300,23 @@ jobs:
       - name: Check out source
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
 
-      - name: Restore Go SDK toolchain cache
-        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae  # v5.0.5
-        with:
-          path: /opt/hostedtoolcache/go
-          key: ${{ runner.os }}-go-sdk-stable
-          fail-on-cache-miss: true
-
+      # The govulncheck security gate must scan against a Go stable that
+      # carries the latest stdlib security fixes. We pin the EXACT patched
+      # version rather than `go-version: stable`, and deliberately skip the
+      # shared `Linux-go-sdk-stable` SDK-cache restore the other jobs use:
+      # both of those routes resolve through the actions/go-versions
+      # manifest (or a warm cache of it), which lags the official go.dev
+      # release by days. When go1.26.4 shipped the fixes for GO-2026-5039
+      # (net/textproto) and GO-2026-5037 (crypto/x509), the manifest still
+      # topped out at the vulnerable go1.26.3, so the gate kept failing on
+      # unmitigatable stdlib call paths (io.Copy, fmt.Sprintf). setup-go
+      # downloads an exact pinned version directly from go.dev even before
+      # the manifest catches up. Bump this when a newer patch fixes an
+      # advisory the gate flags.
       - name: Set up Go
         uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c  # v6.4.0
         with:
-          go-version: stable
+          go-version: "1.26.4"
           cache: true
 
       # Inlined instead of `golang/govulncheck-action` because that
