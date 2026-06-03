@@ -1,6 +1,6 @@
 # go-openholidays — CI matrix workflow.
 # Plan 05-05 (CI-01/CI-02/CI-03/CI-05/CI-07/TEST-10), restructured per PR #7
-# review feedback into per-component jobs and the terapia-si prep pattern.
+# review feedback into per-component jobs and a prep/cache-priming pattern.
 #
 # Job topology:
 #
@@ -24,7 +24,7 @@
 #                   advisory data is module-wide so per-component split
 #                   would duplicate work.
 #
-# Cache strategy (from terapia-si lessons learned):
+# Cache strategy:
 #
 #   * SDK toolchain cache at /opt/hostedtoolcache/go keyed on runner.os +
 #     go-version. setup-go's built-in `cache: true` does NOT cover the
