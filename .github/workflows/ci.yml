@@ -191,7 +191,7 @@ jobs:
         # Caps make a real fail batch look small in the log; with 0/0
         # CI surfaces every finding in one run so the contributor sees
         # the complete set and isn't surprised by a follow-up wave.
-        uses: golangci/golangci-lint-action@82606bf257cbaff209d206a39f5134f0cfbfd2ee  # v9.2.1
+        uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a  # v9.3.0
         with:
           version: v2.12.2
           args: --timeout=5m --build-tags=integration --max-issues-per-linter=0 --max-same-issues=0 .
@@ -256,7 +256,7 @@ jobs:
         # See library-lint for the rationale on `--max-issues-per-linter=0
         # --max-same-issues=0`. No --build-tags here because cmd/ohcli has
         # no integration-tagged files (only the root library carries them).
-        uses: golangci/golangci-lint-action@82606bf257cbaff209d206a39f5134f0cfbfd2ee  # v9.2.1
+        uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a  # v9.3.0
         with:
           version: v2.12.2
           args: --timeout=5m --max-issues-per-linter=0 --max-same-issues=0 ./cmd/ohcli/...
