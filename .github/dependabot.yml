@@ -11,13 +11,37 @@
 #
 #  - gomod: tracks the `go` directive in go.mod (so Dependabot can propose
 #    Go-toolchain floor bumps as new releases land) and the test-only modules
-#    in go.sum (currently github.com/stretchr/testify). The library itself is
-#    zero-runtime-dependency (PROJECT.md constraint) — any non-test `require`
-#    line appearing here would itself be a Key Decision to revisit.
+#    in go.sum (currently github.com/stretchr/testify + its indirect deps).
+#    The library itself is zero-runtime-dependency (PROJECT.md constraint) —
+#    any non-test `require` line appearing here would itself be a Key Decision
+#    to revisit.
+#
+# Release policy (steered via per-ecosystem commit type):
+#
+#   Release-please decides what cuts a release from the Conventional-Commit
+#   TYPE (release-please-config.json → changelog-sections). We set each
+#   ecosystem's Dependabot commit type so the two surfaces release differently:
+#
+#     - github-actions → `chore(deps): …`  → `chore` is HIDDEN → NO release.
+#       Action pins are CI-only plumbing; consumers never see them.
+#     - gomod          → `deps: …`         → `deps` is VISIBLE → cuts a patch
+#       release once merged. Go-module changes (the `go` directive floor and
+#       any require, including future runtime deps) are consumer-relevant.
+#
+#   No release-please change is needed — `deps` is already visible and `chore`
+#   already hidden there. Setting the github-actions prefix explicitly (rather
+#   than relying on Dependabot's convention auto-detection) keeps the split
+#   deterministic now that gomod emits a different type.
+#
+#   Caveat: gomod has no dev/prod split (`prefix-development` is unsupported
+#   for it), so the sole current gomod dependency — test-only testify — also
+#   ships as `deps:` and WILL cut a release when bumped, even though it never
+#   reaches consumers at runtime. Accepted trade-off; add an `ignore` rule for
+#   testify here if test-only bumps prove too noisy.
 #
 # Note: Dependabot does NOT automatically bump the `go-version` matrix in
 # .github/workflows/ci.yml. When the go.mod floor moves, the CI matrix entries
-# (`"1.23.x"`, `"1.24.x"`, `"stable"`) must be revisited by hand.
+# must be revisited by hand.
 #
 # Weekly cadence keeps both surfaces fresh. open-pull-requests-limit: 5
 # throttles noise; if multiple updates land in the same week, the rest queue
@@ -29,9 +53,17 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    # `chore(deps): …` → HIDDEN changelog section → action bumps never release.
+    commit-message:
+      prefix: chore
+      include: scope
 
   - package-ecosystem: gomod
     directory: /
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    # `deps: …` → VISIBLE changelog section → gomod bumps cut a patch release
+    # once merged. No `include: scope` — avoids a redundant `deps(deps):`.
+    commit-message:
+      prefix: deps
