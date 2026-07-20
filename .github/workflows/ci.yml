@@ -93,7 +93,7 @@ jobs:
           key: ${{ runner.os }}-go-sdk-${{ matrix.go-version }}
 
       - name: Set up Go
-        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16  # v6.5.0
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
         with:
           go-version: ${{ matrix.go-version }}
           cache: true
@@ -123,7 +123,7 @@ jobs:
           fail-on-cache-miss: true
 
       - name: Set up Go
-        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16  # v6.5.0
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
         with:
           go-version: ${{ matrix.go-version }}
           cache: true
@@ -175,7 +175,7 @@ jobs:
           fail-on-cache-miss: true
 
       - name: Set up Go
-        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16  # v6.5.0
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
         with:
           go-version: stable
           cache: true
@@ -218,7 +218,7 @@ jobs:
           fail-on-cache-miss: true
 
       - name: Set up Go
-        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16  # v6.5.0
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
         with:
           go-version: ${{ matrix.go-version }}
           cache: true
@@ -247,7 +247,7 @@ jobs:
           fail-on-cache-miss: true
 
       - name: Set up Go
-        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16  # v6.5.0
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
         with:
           go-version: stable
           cache: true
@@ -279,7 +279,7 @@ jobs:
           fail-on-cache-miss: true
 
       - name: Set up Go
-        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16  # v6.5.0
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
         with:
           go-version: stable
           cache: true
@@ -314,7 +314,7 @@ jobs:
       # the manifest catches up. Bump this when a newer patch fixes an
       # advisory the gate flags.
       - name: Set up Go
-        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16  # v6.5.0
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
         with:
           go-version: "1.26.5"
           cache: true
