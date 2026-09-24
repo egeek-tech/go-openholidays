@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v0.1.0
 milestone_name: milestone
 status: executing
-last_updated: "2026-05-30T07:59:13.591Z"
+last_updated: "2026-09-24T07:12:49Z"
 progress:
   total_phases: 5
   completed_phases: 4
@@ -15,7 +15,7 @@ progress:
 # Project State: go-openholidays
 
 **Initialized:** 2026-05-27
-**Last updated:** 2026-05-30 — Completed quick task 260530-dvc: fixed validateLanguage to uppercase language ISO codes (was returning English for --lang PL)
+**Last updated:** 2026-09-24 — Completed quick task 260924-cad: bumped the golangci-lint pin to v2.13.2 in both lint jobs and the govulncheck Go pin to 1.27.1, unblocking the three red CI jobs on master
 
 ## Project Reference
 
@@ -86,6 +86,7 @@ None.
 | 260530-dc9 | Document release-binary attestation verification (README + runbook §3) | 2026-05-30 | 09811ca | [260530-dc9-document-release-binary-attestation-veri](./quick/260530-dc9-document-release-binary-attestation-veri/) |
 | 260530-dvc | Fix validateLanguage to uppercase language ISO codes (API requires uppercase; was returning English) | 2026-05-30 | 075ce4e | [260530-dvc-fix-validatelanguage-to-uppercase-langua](./quick/260530-dvc-fix-validatelanguage-to-uppercase-langua/) |
 | 260530-vtw | Live integration coverage: all 6 endpoint/helper surfaces, three-layer semantic assertions (PL+DE+errors) | 2026-05-30 | 495c8d9 | [260530-vtw-integration-test-coverage](./quick/260530-vtw-integration-test-coverage/) |
+| 260924-cad | CI: golangci-lint pin → v2.13.2 in both lint jobs (linter-vs-`stable` toolchain skew) + govulncheck Go pin → 1.27.1 (4 stdlib advisories) | 2026-09-24 | 3501915 | [260924-cad-fix-ci-bump-golangci-lint-to-v2-13-2-and](./quick/260924-cad-fix-ci-bump-golangci-lint-to-v2-13-2-and/) |
 
 ### Research Flags
 
