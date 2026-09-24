@@ -7,6 +7,7 @@
 #  - editor/IDE state (.idea/, .vscode/, swap files)
 #  - OS junk (.DS_Store, Thumbs.db)
 #  - Claude Code runtime worktrees (.claude/worktrees/) — agent scratch space
+#  - GSD dispatch-isolation sentinel (.gsd/) — agent scratch space
 #
 # What it intentionally does NOT ignore:
 #  - .planning/  — GSD workflow artifacts; these belong in version control
@@ -53,6 +54,9 @@ Thumbs.db
 
 # Claude Code agent worktrees
 /.claude/worktrees/
+
+# GSD agent runtime state (dispatch-isolation sentinel)
+/.gsd/
 
 # Local scratch
 *.local
