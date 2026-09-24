@@ -191,9 +191,26 @@ jobs:
         # Caps make a real fail batch look small in the log; with 0/0
         # CI surfaces every finding in one run so the contributor sees
         # the complete set and isn't surprised by a follow-up wave.
+        #
+        # The `version:` pin below has a floor, not just a value. The
+        # governing rule is that a golangci-lint release must be
+        # built with a Go at least as new as the toolchain it lints.
+        # This job resolves `go-version: stable`, so when stable
+        # advanced to go1.27 the previously pinned linter
+        # (built with go1.26) stopped reporting findings and started
+        # aborting inside its own vendored go/types instead:
+        #   panic: file requires newer Go version go1.27
+        #          (application built with go1.26)
+        #   golangci-lint exit with code 2
+        # In the job log that reads like a lint failure, but it is
+        # toolchain skew — no amount of source fixing clears it, only
+        # moving the pin does. v2.13.2 is built with go1.27.0.
+        # Both lint jobs must move together: library-lint and ohcli-lint
+        # lint the same `stable` toolchain, so a pin raised in only one
+        # of them leaves the other red for exactly this reason.
         uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a  # v9.3.0
         with:
-          version: v2.12.2
+          version: v2.13.2
           args: --timeout=5m --build-tags=integration --max-issues-per-linter=0 --max-same-issues=0 .
 
   ohcli-test:
@@ -256,9 +273,19 @@ jobs:
         # See library-lint for the rationale on `--max-issues-per-linter=0
         # --max-same-issues=0`. No --build-tags here because cmd/ohcli has
         # no integration-tagged files (only the root library carries them).
+        #
+        # The `version:` pin carries the same floor library-lint documents
+        # at length — a golangci-lint release must be
+        # built with a Go at least as new as the toolchain it lints.
+        # This job also resolves `go-version: stable`, so a linter built
+        # with an older Go panics inside its vendored go/types (exit 2)
+        # rather than reporting findings — a toolchain-skew failure
+        # wearing a lint failure's clothes. Keep this pin in lockstep
+        # with library-lint's; the two jobs must move together, or the
+        # un-bumped one stays red on its own.
         uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a  # v9.3.0
         with:
-          version: v2.12.2
+          version: v2.13.2
           args: --timeout=5m --max-issues-per-linter=0 --max-same-issues=0 ./cmd/ohcli/...
 
   ohcli-build:
@@ -313,10 +340,23 @@ jobs:
       # downloads an exact pinned version directly from go.dev even before
       # the manifest catches up. Bump this when a newer patch fixes an
       # advisory the gate flags.
+      #
+      # 2026-09-24: that instruction came due again. The gate exited 3 on
+      # four reachable stdlib advisories — GO-2026-6218 (net/url),
+      # GO-2026-6090 (crypto/tls), GO-2026-5972 (encoding/asn1) and
+      # GO-2026-5026 (net/http) — every one reported against the Go the
+      # job then pinned. The standing rule for this pin is that it
+      # tracks the newest patched stable, so it moved onto the 1.27 line
+      # rather than sideways to a newer 1.26 patch. Two reasons for taking
+      # the newer line: go1.27.1 is the release actually verified clean
+      # (`govulncheck ./...` reports "No vulnerabilities found."), and
+      # pinning it retires the standing skew between the Go this security
+      # gate scans with and the `stable` every other non-matrix job
+      # already resolves to — one toolchain to reason about, not two.
       - name: Set up Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
         with:
-          go-version: "1.26.5"
+          go-version: "1.27.1"
           cache: true
 
       # Inlined instead of `golang/govulncheck-action` because that
