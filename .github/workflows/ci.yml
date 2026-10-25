@@ -192,8 +192,10 @@ jobs:
         # CI surfaces every finding in one run so the contributor sees
         # the complete set and isn't surprised by a follow-up wave.
         #
-        # The `version:` pin below has a floor, not just a value. The
-        # governing rule is that a golangci-lint release must be
+        # The `version:` pin below has two floors, not just a value, and a
+        # candidate release must clear both of them.
+        #
+        # Floor 1: a golangci-lint release must be
         # built with a Go at least as new as the toolchain it lints.
         # This job resolves `go-version: stable`, so when stable
         # advanced to go1.27 the previously pinned linter
@@ -204,13 +206,43 @@ jobs:
         #   golangci-lint exit with code 2
         # In the job log that reads like a lint failure, but it is
         # toolchain skew — no amount of source fixing clears it, only
-        # moving the pin does. v2.13.2 is built with go1.27.0.
+        # moving the pin does.
+        #
+        # Floor 2, recorded 2026-10-25: the linter's vendored
+        # golang.org/x/tools export-data reader must decode the export-data
+        # version that the linted toolchain's compiler writes, and a Go
+        # PATCH release can raise that version. go1.27.2 changed the
+        # compiler's unified-IR export-data version from pkgbits.V4
+        # (go1.27.1) to pkgbits.V5 (go.dev/issue/81188). The previous pin,
+        # v2.13.2, was built with go1.27.0 and so cleared floor 1, but it
+        # vendors golang.org/x/tools v0.49.0, whose reader supports at most
+        # V4. From go1.27.2 on, stdlib imports failed typecheck:
+        #   could not import os (... could not load export data: internal
+        #     error in importing "internal/cpu" (cannot decode "internal/cpu",
+        #     export data version 5 is greater than maximum supported version 4);
+        #     please report an issue))) (typecheck)
+        # cascading into errors such as `undefined: rand`, and
+        # golangci-lint exited 1 (issues found) rather than 2 — so it read
+        # like real findings while being toolchain skew again. Floor 1 is
+        # therefore necessary but not sufficient.
+        #
+        # The current pin, v2.15.0, is built with go1.27.0, vendors
+        # golang.org/x/tools v0.52.0, and reports 0 issues on both lint
+        # scopes against go1.27.1, go1.27.2 and go1.27.3.
+        #
+        # To check a candidate for the next bump without re-deriving this
+        # from a red CI run: `golangci-lint version` names the Go a release
+        # was built with (floor 1); `go version -m` run on the release
+        # binary, filtered for golang.org/x/tools, names its vendored
+        # reader (floor 2); then run the candidate against the toolchain
+        # `stable` resolves to.
+        #
         # Both lint jobs must move together: library-lint and ohcli-lint
         # lint the same `stable` toolchain, so a pin raised in only one
         # of them leaves the other red for exactly this reason.
         uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a  # v9.3.0
         with:
-          version: v2.13.2
+          version: v2.15.0
           args: --timeout=5m --build-tags=integration --max-issues-per-linter=0 --max-same-issues=0 .
 
   ohcli-test:
@@ -274,18 +306,21 @@ jobs:
         # --max-same-issues=0`. No --build-tags here because cmd/ohcli has
         # no integration-tagged files (only the root library carries them).
         #
-        # The `version:` pin carries the same floor library-lint documents
-        # at length — a golangci-lint release must be
+        # The `version:` pin carries the same two floors library-lint
+        # documents at length. Floor 1: a golangci-lint release must be
         # built with a Go at least as new as the toolchain it lints.
-        # This job also resolves `go-version: stable`, so a linter built
-        # with an older Go panics inside its vendored go/types (exit 2)
-        # rather than reporting findings — a toolchain-skew failure
-        # wearing a lint failure's clothes. Keep this pin in lockstep
-        # with library-lint's; the two jobs must move together, or the
-        # un-bumped one stays red on its own.
+        # Floor 2: its vendored golang.org/x/tools export-data reader must
+        # decode the export-data version that toolchain's compiler writes,
+        # which a Go patch release can raise (go1.27.2 did). This job also
+        # resolves `go-version: stable`, so a linter missing floor 1 panics
+        # inside its vendored go/types (exit 2), and one missing floor 2
+        # reports stdlib imports as (typecheck) issues (exit 1) — both are
+        # toolchain skew wearing a lint failure's clothes. Keep this pin in
+        # lockstep with library-lint's; the two jobs must move together, or
+        # the un-bumped one stays red on its own.
         uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a  # v9.3.0
         with:
-          version: v2.13.2
+          version: v2.15.0
           args: --timeout=5m --max-issues-per-linter=0 --max-same-issues=0 ./cmd/ohcli/...
 
   ohcli-build:
@@ -353,10 +388,22 @@ jobs:
       # pinning it retires the standing skew between the Go this security
       # gate scans with and the `stable` every other non-matrix job
       # already resolves to — one toolchain to reason about, not two.
+      #
+      # 2026-10-25: the bump instruction came due again. Against go1.27.1
+      # the gate exited 3 on nine reachable stdlib advisories. Eight are
+      # fixed in go1.27.2 — GO-2026-6617, GO-2026-6611, GO-2026-6610 and
+      # GO-2026-6603 (net/http/internal/http2), GO-2026-6613 and
+      # GO-2026-6605 (net/http), GO-2026-6608 (net/textproto,
+      # mime/multipart) and GO-2026-6607 (crypto/tls). The ninth,
+      # GO-2026-6809 (crypto/x509, distrust of compromised intermediate
+      # certificates), is fixed only in go1.27.3, and on go1.27.2 the gate
+      # still exits 3 on it. So the pin moves to go1.27.3, not go1.27.2:
+      # on go1.27.3, `govulncheck ./...` reports "No vulnerabilities found."
+      # This is the standing rule above, applied as written.
       - name: Set up Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
         with:
-          go-version: "1.27.1"
+          go-version: "1.27.3"
           cache: true
 
       # Inlined instead of `golang/govulncheck-action` because that
